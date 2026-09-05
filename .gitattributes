@@ -1,0 +1,9 @@
+# Normalise les fins de ligne : LF dans le dépôt ET dans toutes les copies de
+# travail, quelle que soit la plateforme ou la config locale de chacun.
+* text=auto eol=lf
+
+# Explicite pour les types de fichiers du projet
+*.lua  text eol=lf
+*.xml  text eol=lf
+*.toc  text eol=lf
+*.md   text eol=lf
