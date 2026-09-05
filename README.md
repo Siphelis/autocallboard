@@ -206,6 +206,8 @@ Feedback, bug reports, and ideas are welcome.
 
 Original author: **Disarray** — fork maintained by **Siphelis**.
 
-License: [LINKS]
+## License
+
+This project is licensed under a custom license (MIT base + PolyForm Noncommercial for modifications) — see [LICENSE](https://github.com/Siphelis/autocallboard/blob/main/LICENSE) for details.
 
 ---
