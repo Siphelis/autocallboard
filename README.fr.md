@@ -12,6 +12,8 @@ et une intégration complète avec le système de builds du serveur. Le
 tout dans une interface sobre et élégante, disponible en français,
 anglais, allemand et espagnol.
 
+[English](README.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Español](README.es.md)
+
 ---
 
 ## Table des matières
