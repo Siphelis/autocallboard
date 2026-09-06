@@ -1,0 +1,14 @@
+# Fichiers temporaires generes par gadd / gcommit.
+# Ils sont normalement supprimes en fin de script : ceci est un filet
+# de securite au cas ou un script s'interrompt avant son nettoyage.
+DIFF
+.gcommit_context
+tmp.*.json
+
+# Sortie locale d'un build de zip
+dist/
+
+# Divers OS / editeurs
+Thumbs.db
+.DS_Store
+*.swp
