@@ -12,6 +12,8 @@ una integración completa con el sistema de builds del servidor. Todo
 ello envuelto en una interfaz elegante y discreta, disponible en
 español, inglés, francés y alemán.
 
+[English](README.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Español](README.es.md)
+
 ---
 
 ## Tabla de contenidos
