@@ -72,7 +72,7 @@ dich.
 
 ## 📦 Installation
 
-1. [LINKS] — lade die neueste Version herunter.
+1. [**AutoCallboard**](https://github.com/Siphelis/autocallboard/releases/latest) — lade die neueste Version herunter.
 2. Entpacke den Ordner `AutoCallboard` nach
    `Interface/AddOns/`.
 3. Prüfe im AddOn-Auswahlbildschirm, dass **AutoCallboard**

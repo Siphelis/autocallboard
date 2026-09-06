@@ -62,7 +62,7 @@ AutoCallboard does that work for you.
 
 ## 📦 Installation
 
-1. [LINKS] — download the latest version.
+1. [**AutoCallboard**](https://github.com/Siphelis/autocallboard/releases/latest) — download the latest version.
 2. Unzip the `AutoCallboard` folder into
    `Interface/AddOns/`.
 3. Check the AddOns selection screen to make sure **AutoCallboard** is

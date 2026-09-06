@@ -71,7 +71,7 @@ prend du temps. AutoCallboard fait ce travail à votre place.
 
 ## 📦 Installation
 
-1. [LIENS] — téléchargez la dernière version.
+1. [**AutoCallboard**](https://github.com/Siphelis/autocallboard/releases/latest) — téléchargez la dernière version.
 2. Décompressez le dossier `AutoCallboard` dans
    `Interface/AddOns/`.
 3. Vérifiez dans l'écran de sélection des extensions que
