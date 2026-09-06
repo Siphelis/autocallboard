@@ -188,20 +188,6 @@ English, French, German, and Spanish ship complete. The language picker
 in the panel switches everything instantly, including windows that are
 already open.
 
-## 📸 Screenshots
-
-| Control panel | Known quests | Lists & groups |
-| --- | --- | --- |
-| [LINKS] | [LINKS] | [LINKS] |
-
-## 🤝 Contributing
-
-Feedback, bug reports, and ideas are welcome.
-
-- Release tracking / changelog: [LINKS]
-- Report an issue: [LINKS]
-- Discuss / suggest an idea: [LINKS]
-
 ## 📜 License & credits
 
 Original author: **Disarray** — fork maintained by **Siphelis**.
