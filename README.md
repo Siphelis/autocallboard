@@ -7,13 +7,6 @@ looking for the moment it appears, selects it, and stops right on cue.
 Add to that a memory of every quest you've ever seen, saved selection lists shared across your characters, a "current dungeon quest" mode, automatic party sharing, and full integration with the server's build system. All wrapped in a sleek, understated interface, available in
 English, French, German, or Spanish.
 
-[LINKS] <!-- version 2.3.1 badge -->
-[LINKS] <!-- WotLK 3.3.5a Interface badge (30300) -->
-[LINKS] <!-- download / release badge -->
-[LINKS] <!-- license badge -->
-
-![AutoCallboard preview](LINKS)
-
 ---
 
 ## Table of Contents
