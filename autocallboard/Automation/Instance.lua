@@ -7,11 +7,41 @@ local Log = RT.Log
 
 RT.instanceTargetDirty = true
 
+local MAP_FILE_NAME_MAX_ATTEMPTS = 20
+
 function RT.InvalidateInstanceTarget()
   RT.instanceTargetDirty = true
+  RT.instanceTargetMapAttempts = 0
+end
+
+local function GetCurrentMapFileName()
+  local mapIsBrowsed = WorldMapFrame
+      and RT.FrameIsVisibleOrShown
+      and RT.FrameIsVisibleOrShown(WorldMapFrame)
+
+  if mapIsBrowsed then
+    RT.instanceTargetMapPending = true
+    return nil
+  end
+
+  RT.SafeCall(SetMapToCurrentZone)
+
+  local mapFileName = RT.SafeCall(GetMapInfo)
+  if type(mapFileName) ~= "string" or mapFileName == "" then
+    local attempts = (RT.instanceTargetMapAttempts or 0) + 1
+
+    RT.instanceTargetMapAttempts = attempts
+    RT.instanceTargetMapPending = attempts < MAP_FILE_NAME_MAX_ATTEMPTS
+
+    return nil
+  end
+
+  return mapFileName
 end
 
 function RT.ComputeCurrentInstanceQuestTarget()
+  RT.instanceTargetMapPending = false
+
   if not state or not state.autoCurrentInstanceQuest then
     return nil, "disabled"
   end
@@ -67,6 +97,8 @@ function RT.ComputeCurrentInstanceQuestTarget()
     end
   end
 
+  addName(GetCurrentMapFileName())
+
   local target = Core.buildCurrentInstanceTarget({
       instanceType = instanceType,
       name = names[1],
@@ -94,7 +126,7 @@ function RT.GetCurrentInstanceQuestTarget()
     RT.instanceTargetSignature = "none:" .. tostring(reason)
   end
 
-  RT.instanceTargetDirty = false
+  RT.instanceTargetDirty = RT.instanceTargetMapPending == true
   RT.instanceTargetCache = target
   RT.instanceTargetReason = reason
 

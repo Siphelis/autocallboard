@@ -5,6 +5,10 @@ local Print = RT.Print
 
 local BUTTON_NAME = "AutoCallboardEternalButton"
 local DEFAULT_BINDING = "CTRL-W"
+local CRYSTAL_STACK_SIZE = 10
+local QUEST_CHECK_INTERVAL = 1
+local IDLE_WATCH_INTERVAL = 5
+local SEQUENCE_TIMEOUT = 900
 
 local ETERNAL_MAP = {
   {
@@ -45,8 +49,12 @@ local pending
 local button
 local statusText
 local pendingConfig
+local pendingHide
 local eventFrame
 local sequenceWatched = false
+local combatWatched = false
+local nextQuestCheckAt
+local StopPending
 
 local function Log(message)
   local append = RT.AppendDebugLog
@@ -108,7 +116,7 @@ local function CreateButton()
   button:SetMovable(true)
   button:EnableMouse(true)
   button:RegisterForDrag("LeftButton")
-  button:RegisterForClicks("AnyUp")
+  button:RegisterForClicks("LeftButtonUp")
   button:SetAttribute("type", "item")
 
   if button.SetBackdrop then
@@ -123,6 +131,11 @@ local function CreateButton()
 
   button:SetScript("OnDragStart", function() button:StartMoving() end)
   button:SetScript("OnDragStop", function() button:StopMovingOrSizing() end)
+  button:SetScript("OnMouseUp", function(_, mouseButton)
+    if mouseButton == "RightButton" then
+      StopPending("fermeture manuelle")
+    end
+  end)
 
   button:Hide()
 
@@ -145,12 +158,45 @@ local function ApplyBinding()
   end
 end
 
+local function WatchCombatEnd(enabled)
+  if not eventFrame or combatWatched == enabled then
+    return
+  end
+
+  combatWatched = enabled
+  local method = enabled and eventFrame.RegisterEvent or eventFrame.UnregisterEvent
+
+  method(eventFrame, "PLAYER_REGEN_ENABLED")
+end
+
+local function WatchSequenceEvents(enabled)
+  if not eventFrame or sequenceWatched == enabled then
+    return
+  end
+
+  sequenceWatched = enabled
+  local method = enabled and eventFrame.RegisterEvent or eventFrame.UnregisterEvent
+
+  method(eventFrame, "BAG_UPDATE")
+  pcall(method, eventFrame, "UNIT_SPELLCAST_SUCCEEDED")
+end
+
 local function HideButton()
+  if InCombatLockdown and InCombatLockdown() then
+    pendingHide = true
+    WatchCombatEnd(true)
+    Log("masquage reporte (combat)")
+    return false
+  end
+
+  pendingHide = nil
   ClearBinding()
 
   if button then
     button:Hide()
   end
+
+  return true
 end
 
 local function ConfigureButton(entry, step)
@@ -158,12 +204,14 @@ local function ConfigureButton(entry, step)
 
   if InCombatLockdown and InCombatLockdown() then
     pendingConfig = { entry = entry, step = step }
+    WatchCombatEnd(true)
     Log("config reportee (combat) element=" .. entry.label .. " step=" .. tostring(step))
     Print(string.format(L.ETERNALS_CONVERSION_WAITING_COMBAT, entry.itemName))
     return false
   end
 
   pendingConfig = nil
+  pendingHide = nil
 
   local itemID = (step == 1) and entry.crystalItem or entry.eternalItem
   button:SetAttribute("type", "item")
@@ -181,28 +229,29 @@ local function ConfigureButton(entry, step)
   return true
 end
 
-local function WatchSequenceEvents(enabled)
-  if not eventFrame or sequenceWatched == enabled then
+StopPending = function(reason)
+  if not pending and not pendingHide and not pendingConfig and button and not button:IsShown() then
     return
   end
 
-  sequenceWatched = enabled
-  local method = enabled and eventFrame.RegisterEvent or eventFrame.UnregisterEvent
-
-  method(eventFrame, "BAG_UPDATE")
-  method(eventFrame, "PLAYER_REGEN_ENABLED")
-  pcall(method, eventFrame, "UNIT_SPELLCAST_SUCCEEDED")
-end
-
-local function StopPending(reason)
   if pending then
     Log("sequence terminee element=" .. pending.entry.label .. " raison=" .. tostring(reason))
   end
 
   pending = nil
   pendingConfig = nil
-  WatchSequenceEvents(false)
-  HideButton()
+  nextQuestCheckAt = nil
+
+  if HideButton() then
+    WatchSequenceEvents(false)
+    WatchCombatEnd(false)
+  end
+end
+
+local function TouchSequence()
+  if pending then
+    pending.expiresAt = GetTime() + SEQUENCE_TIMEOUT
+  end
 end
 
 local function AdvanceToStepTwo(entry)
@@ -217,6 +266,7 @@ local function AdvanceToStepTwo(entry)
   end
 
   pending.step = 2
+  TouchSequence()
   ConfigureButton(entry, 2)
 end
 
@@ -237,6 +287,81 @@ function RT.RefreshEternalLabels()
   if pending and statusText then
     statusText:SetText(string.format(L.ETERNALS_BUTTON_STATUS, GetBinding(), pending.entry.label, pending.step))
   end
+end
+
+local function FindQuestInLog(questID, title, preferredIndex)
+  if questID > 0 and RT.FindQuestLogIndexByID then
+    local index = RT.FindQuestLogIndexByID(questID, preferredIndex)
+    if index then
+      return index
+    end
+  end
+
+  local normalized = Core.normalizeMatchText(title or "")
+  if normalized == "" or not GetNumQuestLogEntries or not RT.GetQuestLogEntryInfo then
+    return nil
+  end
+
+  for i = 1, GetNumQuestLogEntries() do
+    local entry = RT.GetQuestLogEntryInfo(i)
+    if entry and not entry.isHeader and Core.normalizeMatchText(entry.title or "") == normalized then
+      return i
+    end
+  end
+
+  return nil
+end
+
+local function SequenceQuestGone()
+  local questID = tonumber(pending.questID) or 0
+  local index = FindQuestInLog(questID, pending.title, pending.questLogIndex)
+
+  if index then
+    pending.questLogIndex = index
+    pending.seenInLog = true
+    return false
+  end
+
+  if pending.seenInLog then
+    return true, "quete absente du journal"
+  end
+
+  return false
+end
+
+function RT.CheckEternalQuestStillActive(source, force)
+  if not pending then
+    return
+  end
+
+  local now = GetTime()
+  if not force and nextQuestCheckAt and now < nextQuestCheckAt then
+    return
+  end
+
+  nextQuestCheckAt = now + QUEST_CHECK_INTERVAL
+
+  local itemName = pending.entry.itemName
+  local gone, reason = SequenceQuestGone()
+
+  if gone then
+    Print(string.format(L.ETERNALS_QUEST_GONE, itemName))
+    StopPending(tostring(reason) .. " source=" .. tostring(source))
+    return
+  end
+
+  if pending.expiresAt and now >= pending.expiresAt then
+    Print(string.format(L.ETERNALS_SEQUENCE_TIMEOUT, itemName))
+    StopPending("expiration source=" .. tostring(source))
+  end
+end
+
+function RT.WatchEternalSequence()
+  if not pending then
+    return IDLE_WATCH_INTERVAL
+  end
+
+  RT.CheckEternalQuestStillActive("poll")
 end
 
 function RT.HandleEternalQuest()
@@ -267,15 +392,27 @@ function RT.HandleEternalQuest()
     return
   end
 
-  if ItemCount(entry.crystalItem) < 1 then
-    Print(string.format(L.ETERNALS_QUEST_NO_CRYSTAL, entry.itemName))
-    Log("quete detectee sans cristal element=" .. entry.label)
+  local crystals = ItemCount(entry.crystalItem)
+  if crystals < CRYSTAL_STACK_SIZE then
+    Print(string.format(L.ETERNALS_QUEST_NO_CRYSTAL, entry.itemName, CRYSTAL_STACK_SIZE))
+    Log("quete detectee sans cristaux suffisants element=" .. entry.label .. " count=" .. tostring(crystals))
     return
   end
 
-  pending = { entry = entry, step = 1 }
+  pending = {
+    entry = entry,
+    step = 1,
+    questID = tonumber(accepted.questID) or 0,
+    questLogIndex = accepted.questLogIndex,
+    title = text,
+    seenInLog = false,
+    expiresAt = GetTime() + SEQUENCE_TIMEOUT,
+  }
+  nextQuestCheckAt = nil
+
   WatchSequenceEvents(true)
   ConfigureButton(entry, 1)
+  Print(L.ETERNALS_CLOSE_HINT)
 end
 
 eventFrame = CreateFrame("Frame")
@@ -317,8 +454,27 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1, arg2, arg3, arg4, arg5)
         else
           Print(string.format(L.ETERNALS_STATUS, IsEnabled() and L.STATE_ACTIVE or L.STATE_INACTIVE, GetBinding()))
           Print(L.ETERNALS_USAGE)
+          Print(L.ETERNALS_CLOSE_HINT)
         end
       end
+    end
+
+    return
+  end
+
+  if event == "PLAYER_REGEN_ENABLED" then
+    local config = pendingConfig
+    pendingConfig = nil
+
+    if config and pending then
+      pendingHide = nil
+      ConfigureButton(config.entry, config.step)
+    elseif pendingHide and HideButton() then
+      WatchSequenceEvents(false)
+    end
+
+    if not pending and not pendingHide and not pendingConfig then
+      WatchCombatEnd(false)
     end
 
     return
@@ -352,16 +508,6 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1, arg2, arg3, arg4, arg5)
   if event == "BAG_UPDATE" then
     if pending.step == 1 and ItemCount(pending.entry.eternalItem) >= 1 then
       AdvanceToStepTwo(pending.entry)
-    end
-
-    return
-  end
-
-  if event == "PLAYER_REGEN_ENABLED" then
-    if pendingConfig then
-      local config = pendingConfig
-      pendingConfig = nil
-      ConfigureButton(config.entry, config.step)
     end
 
     return

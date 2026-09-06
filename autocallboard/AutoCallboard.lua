@@ -237,11 +237,23 @@ local IsSummonStatusBusy = RT.IsSummonStatusBusy
 
 local indoorTask = { fn = RT.RefreshCallboardButtonEnabled, every = 2 }
 
+local eternalsTask = {
+  fn = function()
+    if not RT.WatchEternalSequence then
+      return 5
+    end
+
+    return RT.WatchEternalSequence()
+  end,
+  every = 1,
+}
+
 local TASKS = {
   { fn = RT.WatchCurrentObjectives, every = 0.5 },
   { fn = RT.WatchDifficultyChange, every = 0.5 },
   { fn = RT.SyncOverlayFrameLevels, every = 0.5 },
   indoorTask,
+  eternalsTask,
 }
 
 local function WakeIndoorCheck()
@@ -401,9 +413,17 @@ EVENTS.QUEST_ACCEPT_CONFIRM = function()
   RT.ConfirmSharedQuestAccept("QUEST_ACCEPT_CONFIRM")
 end
 
+local function CheckEternalQuest(source, force)
+  if RT.CheckEternalQuestStillActive then
+    RT.CheckEternalQuestStillActive(source, force)
+  end
+end
+
 EVENTS.QUEST_TURNED_IN = function(arg1)
   local questID = tonumber(arg1) or 0
   local selected = RT.GetSelectedQuest()
+
+  CheckEternalQuest("QUEST_TURNED_IN", true)
 
   if selected and questID > 0 and tonumber(selected.questId) == questID then
     RT.ResumeAfterSelectedQuest("QUEST_TURNED_IN")
@@ -411,6 +431,10 @@ EVENTS.QUEST_TURNED_IN = function(arg1)
     RT.ResetSelectedQuestCheck()
     RT.CheckSelectedQuestProgress("QUEST_TURNED_IN")
   end
+end
+
+EVENTS.QUEST_REMOVED = function()
+  CheckEternalQuest("QUEST_REMOVED", true)
 end
 
 EVENTS.QUEST_ACCEPTED = function(arg1, arg2)
@@ -423,11 +447,13 @@ EVENTS.QUEST_LOG_UPDATE = function()
   RT.ProcessPendingAcceptedQuestShare("QUEST_LOG_UPDATE")
   RT.ResetSelectedQuestCheck()
   RT.CheckSelectedQuestProgress("QUEST_LOG_UPDATE")
+  CheckEternalQuest("QUEST_LOG_UPDATE")
 end
 
 EVENTS.QUEST_FINISHED = function()
   RT.ResetSelectedQuestCheck()
   RT.CheckSelectedQuestProgress("QUEST_FINISHED")
+  CheckEternalQuest("QUEST_FINISHED")
 end
 
 EVENTS.UNIT_SPELLCAST_SUCCEEDED = function(arg1, arg2, arg3, arg4, arg5)
@@ -490,5 +516,6 @@ frame:RegisterEvent("PLAYER_ENTERING_WORLD")
 frame:RegisterEvent("ZONE_CHANGED")
 pcall(frame.RegisterEvent, frame, "ZONE_CHANGED_INDOORS")
 pcall(frame.RegisterEvent, frame, "QUEST_TURNED_IN")
+pcall(frame.RegisterEvent, frame, "QUEST_REMOVED")
 pcall(frame.RegisterEvent, frame, "UNIT_SPELLCAST_SUCCEEDED")
 pcall(frame.RegisterEvent, frame, "SPELL_UPDATE_COOLDOWN")

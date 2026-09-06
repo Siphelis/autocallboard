@@ -109,6 +109,10 @@ local function normalizeMatchText(value)
   return value
 end
 
+local function compactMatchText(value)
+  return (normalizeMatchText(value):gsub(" ", ""))
+end
+
 local function hasEnabledValue(map)
   if type(map) ~= "table" then
     return false
@@ -206,6 +210,51 @@ local CURRENT_INSTANCE_ALIASES = {
   ["obsidian sanctum"] = { "the obsidian sanctum", "obsidian sanctum", "sartharion" },
   ["vault of archavon"] = { "vault of archavon", "toravon", "archavon", "emalon", "koralon" },
 }
+
+local CURRENT_INSTANCE_COMPACT_ALIASES = {}
+for key, mapped in pairs(CURRENT_INSTANCE_ALIASES) do
+  CURRENT_INSTANCE_COMPACT_ALIASES[compactMatchText(key)] = mapped
+end
+
+local COMPACT_ALIAS_PREFIX_MIN = 5
+
+local function findCompactAliasByPrefix(compact)
+  if compact:len() < COMPACT_ALIAS_PREFIX_MIN then
+    return nil
+  end
+
+  local found
+
+  for key, mapped in pairs(CURRENT_INSTANCE_COMPACT_ALIASES) do
+    if key:len() > compact:len() and key:sub(1, compact:len()) == compact then
+      if found and found ~= mapped then
+        return nil
+      end
+
+      found = mapped
+    end
+  end
+
+  return found
+end
+
+local function findInstanceAliases(alias)
+  local mapped = CURRENT_INSTANCE_ALIASES[alias]
+      or CURRENT_INSTANCE_ALIASES[(alias:gsub("^the ", "", 1))]
+
+  if mapped then
+    return mapped
+  end
+
+  local compact = compactMatchText(alias)
+  if compact == "" then
+    return nil
+  end
+
+  return CURRENT_INSTANCE_COMPACT_ALIASES[compact]
+      or CURRENT_INSTANCE_COMPACT_ALIASES[(compact:gsub("^the", "", 1))]
+      or findCompactAliasByPrefix(compact)
+end
 
 local OPEN_WORLD_TITLE_PREFIXES = {
   "a growing menace:",
@@ -2232,7 +2281,7 @@ function Core.buildCurrentInstanceTarget(info)
   local originalCount = #(aliases)
   for i = 1, originalCount do
     local alias = aliases[i]
-    local mappedAliases = CURRENT_INSTANCE_ALIASES[alias] or CURRENT_INSTANCE_ALIASES[(alias:gsub("^the ", "", 1))]
+    local mappedAliases = findInstanceAliases(alias)
     if type(mappedAliases) == "table" then
       for j = 1, #(mappedAliases) do
         appendUniqueNormalized(aliases, seen, mappedAliases[j])
@@ -2253,6 +2302,20 @@ function Core.buildCurrentInstanceTarget(info)
   }
 end
 
+local function aliasMatchesQuestText(alias, combined, compactCombined)
+  if alias == "" then
+    return false
+  end
+
+  if string.find(combined, alias, 1, true) then
+    return true
+  end
+
+  local isSingleWord = not string.find(alias, " ", 1, true)
+
+  return isSingleWord and string.find(compactCombined, alias, 1, true) ~= nil
+end
+
 local function questMatchesBuiltTarget(quest, target)
   if type(quest) ~= "table" or not target then
     return false
@@ -2264,10 +2327,11 @@ local function questMatchesBuiltTarget(quest, target)
   end
 
   local combined = normalizeMatchText(Core.questTitle(quest) .. " " .. Core.objectiveText(quest))
+  local compactCombined = compactMatchText(combined)
 
   for i = 1, #(target.aliases) do
     local alias = target.aliases[i]
-    if alias ~= "" and string.find(combined, alias, 1, true) then
+    if aliasMatchesQuestText(alias, combined, compactCombined) then
       return true, alias
     end
   end
