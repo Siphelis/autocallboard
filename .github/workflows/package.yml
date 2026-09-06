@@ -1,0 +1,79 @@
+name: Package addon
+
+# Declenche par le push d'un tag (fait par gprod).
+# workflow_dispatch permet aussi un build manuel a la demande,
+# qui produit un artefact telechargeable sans creer de Release.
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Construire le zip de l'addon
+        run: |
+          set -euo pipefail
+
+          # La version vient du .toc : elle fait foi cote addon.
+          VERSION=$(sed -n 's/^##[[:space:]]*Version:[[:space:]]*//p' autocallboard/*.toc \
+                    | head -n 1 | tr -d '\r' | sed 's/[[:space:]]*$//')
+
+          if [ -z "$VERSION" ]; then
+            echo "Impossible de lire '## Version:' dans le .toc" >&2
+            exit 1
+          fi
+
+          # Le dossier est renomme AutoCallboard (majuscules du .toc) pour
+          # pouvoir etre glisse tel quel dans Interface/AddOns/.
+          mkdir -p dist/AutoCallboard
+          cp -r autocallboard/. dist/AutoCallboard/
+
+          ( cd dist && zip -r "AutoCallboard-${VERSION}.zip" AutoCallboard )
+
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "ASSET=dist/AutoCallboard-${VERSION}.zip" >> "$GITHUB_ENV"
+
+          echo "Zip construit : AutoCallboard-${VERSION}.zip"
+
+      - name: Publier la Release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          # Un tag contenant un '-' (ex: v2.3.2-4) est une pre-release :
+          # il ne prendra pas le badge "Latest".
+          PRERELEASE=""
+          case "$GITHUB_REF_NAME" in
+            *-*) PRERELEASE="--prerelease" ;;
+          esac
+
+          if ! gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
+            gh release create "$GITHUB_REF_NAME" \
+              --title "$GITHUB_REF_NAME" \
+              --generate-notes \
+              $PRERELEASE
+          fi
+
+          gh release upload "$GITHUB_REF_NAME" "$ASSET" --clobber
+
+          echo "Release $GITHUB_REF_NAME publiee avec $ASSET"
+
+      - name: Artefact de build (hors tag)
+        if: github.ref_type != 'tag'
+        uses: actions/upload-artifact@v4
+        with:
+          name: AutoCallboard-${{ env.VERSION }}
+          path: dist/*.zip
+          if-no-files-found: error
