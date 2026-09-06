@@ -649,43 +649,6 @@ function RT.GetNpcBoardInfo()
   }
 end
 
-function RT.GetTooltipLineText(index)
-  local line = _G["GameTooltipTextLeft" .. tostring(index)]
-
-  if line and line.GetText then
-    return line:GetText()
-  end
-
-  return nil
-end
-
-function RT.GetWorldTooltipBoardName()
-  if not GameTooltip or not GameTooltip.IsShown or not GameTooltip:IsShown() then
-    return nil
-  end
-
-  local focus = GetMouseFocus and GetMouseFocus() or nil
-  local worldTooltip = WorldFrame and focus == WorldFrame
-
-  if not worldTooltip and GameTooltip.IsOwned and WorldFrame and GameTooltip:IsOwned(WorldFrame) then
-    worldTooltip = true
-  end
-
-  if not worldTooltip then
-    return nil
-  end
-
-  for i = 1, 4 do
-    local isBoard, boardName = RT.IsObjectiveBoardName(RT.GetTooltipLineText(i))
-
-    if isBoard then
-      return boardName
-    end
-  end
-
-  return nil
-end
-
 function RT.MarkObjectiveBoardOpened(source)
   RT.objectiveBoardReadyUntil = GetTime() + (state and state.summonDuration or 30)
   RT.objectiveBoardAccessOpen = true
@@ -713,7 +676,9 @@ function RT.MarkObjectiveBoardClosed(source)
   end
 end
 
-local function TargetBoardName(name)
+TargetCallboard = function()
+  local name = state and state.targetName
+
   if not name or name == "" then
     return false
   end
@@ -724,23 +689,6 @@ local function TargetBoardName(name)
 
   if UnitExists("target") and UnitName("target") == name then
     return true, name
-  end
-
-  return false
-end
-
-TargetCallboard = function()
-  local found, targetName
-  for i = 1, #(BOARD_TARGET_PRIMARY_NAMES) do
-    found, targetName = TargetBoardName(BOARD_TARGET_PRIMARY_NAMES[i])
-    if found then
-      return true, targetName
-    end
-  end
-
-  found, targetName = TargetBoardName(state.targetName)
-  if found then
-    return true, targetName
   end
 
   return false
@@ -793,8 +741,8 @@ StartCallboardFlow = function()
 
   local targeted, targetName = TargetCallboard()
   if targeted then
-    Log("summon", "opening nearby board ", targetName)
-    QueueCallboardFollowup("slash nearby board")
+    Log("summon", "opening summoned callboard ", targetName)
+    QueueCallboardFollowup("slash summoned callboard")
 
     UpdateSummonStatus()
     return
@@ -842,10 +790,6 @@ StartCallboardFlow = function()
   end
 
   UpdateSummonStatus()
-end
-
-function RT.GetSummonCastThrottleRemaining()
-  return SecondsRemaining(nextSummonCastAt)
 end
 
 function RT.GetCallboardActiveRemaining()

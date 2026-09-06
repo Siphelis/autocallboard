@@ -24,7 +24,6 @@ local summonStatusText
 local preClickCooldownRemaining = 0
 local preClickWasActive = false
 local preClickWasUsable = true
-local preClickTargetedBoardName
 
 local ApplySummonButtonAttributes
 local PositionMinimapButton
@@ -60,25 +59,6 @@ function RT.UpdateShareButtonState()
   end
 end
 
-
-function RT.RefreshCallboardButtonEnabled()
-  if not button then
-    return
-  end
-
-  local blocked = RT.IsSummonBlockedIndoors()
-  if blocked == RT.summonBlockedIndoors then
-    return
-  end
-
-  if InCombatLockdown and InCombatLockdown() then
-    return
-  end
-
-  RT.summonBlockedIndoors = blocked
-  SetButtonEnabled(button, not blocked)
-  Log("summon", "bouton callboard ", (blocked and "grise (interieur)" or "actif"))
-end
 
 function RT.SyncOverlayFrameLevels()
   local referenceFrame = _G and _G.ObjectivesMainFrame or nil
@@ -204,7 +184,6 @@ function RT.ConfigureStartButton(target)
       return
     end
 
-    preClickTargetedBoardName = nil
     preClickWasActive = IsCallboardActive()
     RT.ApplySecureMacroButtonAttributes(target, "", "start")
     end)
@@ -220,7 +199,6 @@ function RT.ConfigureStartButton(target)
     end
 
     RT.StartRolling()
-    preClickTargetedBoardName = nil
     UpdateSummonStatus()
     end)
 end
@@ -737,34 +715,26 @@ local function CreateCallboardButton()
   Skin.Button(button)
   ApplySummonButtonAttributes()
   button:SetScript("PreClick", function()
-    preClickTargetedBoardName = nil
     preClickCooldownRemaining = GetSummonCooldownRemaining()
     preClickWasActive = IsCallboardActive()
     preClickWasUsable = IsSummonSpellUsable()
 
-    if not preClickWasActive then
-      local targeted, targetName = TargetCallboard()
-      if targeted then
-        preClickTargetedBoardName = targetName
-        RT.ApplySecureMacroButtonAttributes(button, "", "callboard nearby board")
-      else
-        ApplySummonButtonAttributes()
-      end
+    if preClickWasActive then
+      RT.ApplySecureMacroButtonAttributes(button, "", "callboard active")
+    else
+      ApplySummonButtonAttributes()
     end
     end)
   button:SetScript("PostClick", function()
-    if preClickTargetedBoardName then
-      Log("summon", "button using nearby board ", preClickTargetedBoardName)
-      QueueCallboardFollowup("button nearby board")
-    elseif preClickWasActive then
+    if preClickWasActive then
       RT.ResumeRollingAfterCallboardActive("secure button active")
       QueueCallboardFollowup("secure button active")
     elseif preClickCooldownRemaining and preClickCooldownRemaining > 0 then
       Log("summon", "blocked secure click cooldown=", preClickCooldownRemaining)
     elseif not preClickWasUsable then
       if TargetCallboard() then
-        Log("summon", "button using nearby board fallback")
-        QueueCallboardFollowup("button nearby board")
+        Log("summon", "button using summoned callboard")
+        QueueCallboardFollowup("button summoned callboard")
       else
         Log("summon", "blocked secure click unusable")
       end
@@ -772,7 +742,6 @@ local function CreateCallboardButton()
       RT.BeginSummonAttempt("secure button")
     end
 
-    preClickTargetedBoardName = nil
     ApplySummonButtonAttributes()
     UpdateSummonStatus()
     end)

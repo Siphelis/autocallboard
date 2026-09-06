@@ -235,18 +235,11 @@ local CheckPendingSummonAttempt = RT.CheckPendingSummonAttempt
 local SyncPendingSummonCooldown = RT.SyncPendingSummonCooldown
 local IsSummonStatusBusy = RT.IsSummonStatusBusy
 
-local indoorTask = { fn = RT.RefreshCallboardButtonEnabled, every = 2 }
-
 local TASKS = {
   { fn = RT.WatchCurrentObjectives, every = 0.5 },
   { fn = RT.WatchDifficultyChange, every = 0.5 },
   { fn = RT.SyncOverlayFrameLevels, every = 0.5 },
-  indoorTask,
 }
-
-local function WakeIndoorCheck()
-  indoorTask.nextAt = nil
-end
 
 local function Busy()
   return RT.rolling
@@ -453,16 +446,9 @@ end
 
 EVENTS.ZONE_CHANGED_NEW_AREA = function()
   RT.InvalidateInstanceTarget()
-  WakeIndoorCheck()
 end
 
 EVENTS.PLAYER_ENTERING_WORLD = EVENTS.ZONE_CHANGED_NEW_AREA
-
-EVENTS.ZONE_CHANGED = function()
-  WakeIndoorCheck()
-end
-
-EVENTS.ZONE_CHANGED_INDOORS = EVENTS.ZONE_CHANGED
 
 frame:SetScript("OnEvent", function(_, event, arg1, arg2, arg3, arg4, arg5)
   if RT.DebugEvent then
@@ -487,8 +473,6 @@ frame:RegisterEvent("GOSSIP_SHOW")
 frame:RegisterEvent("GOSSIP_CLOSED")
 frame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 frame:RegisterEvent("PLAYER_ENTERING_WORLD")
-frame:RegisterEvent("ZONE_CHANGED")
-pcall(frame.RegisterEvent, frame, "ZONE_CHANGED_INDOORS")
 pcall(frame.RegisterEvent, frame, "QUEST_TURNED_IN")
 pcall(frame.RegisterEvent, frame, "UNIT_SPELLCAST_SUCCEEDED")
 pcall(frame.RegisterEvent, frame, "SPELL_UPDATE_COOLDOWN")
