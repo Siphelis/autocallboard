@@ -60,6 +60,25 @@ function RT.UpdateShareButtonState()
 end
 
 
+function RT.RefreshCallboardButtonEnabled()
+  if not button then
+    return
+  end
+
+  local blocked = RT.IsSummonBlockedIndoors()
+  if blocked == RT.summonBlockedIndoors then
+    return
+  end
+
+  if InCombatLockdown and InCombatLockdown() then
+    return
+  end
+
+  RT.summonBlockedIndoors = blocked
+  SetButtonEnabled(button, not blocked)
+  Log("summon", "bouton callboard ", (blocked and "grise (interieur)" or "actif"))
+end
+
 function RT.SyncOverlayFrameLevels()
   local referenceFrame = _G and _G.ObjectivesMainFrame or nil
   local referenceLevel = 20
