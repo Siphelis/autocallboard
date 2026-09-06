@@ -7,6 +7,8 @@ looking for the moment it appears, selects it, and stops right on cue.
 Add to that a memory of every quest you've ever seen, saved selection lists shared across your characters, a "current dungeon quest" mode, automatic party sharing, and full integration with the server's build system. All wrapped in a sleek, understated interface, available in
 English, French, German, or Spanish.
 
+[English](README.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Español](README.es.md)
+
 ---
 
 ## Table of Contents

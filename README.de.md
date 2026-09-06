@@ -12,6 +12,8 @@ Integration in das Build-System des Servers. Das alles in einer
 schlanken, dezenten Oberfläche, verfügbar auf Deutsch, Englisch,
 Französisch und Spanisch.
 
+[English](README.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Español](README.es.md)
+
 ---
 
 ## Inhaltsverzeichnis
