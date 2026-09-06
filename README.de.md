@@ -184,9 +184,9 @@ Aliase: `/acb` und `/autocallboard`.
 | `/acb minimap on/off` | Zeigt oder versteckt den Minimap-Button. |
 | `/acb export` / `import` | Öffnet das Export- oder Importfenster für den Quest-Katalog. |
 
-Der **Callboard**-Button beschwört oder öffnet das nächstgelegene
-Board; der Reroll-Geschwindigkeitsregler bietet 4 Voreinstellungen
-(Turbo, Schnell, Normal, Sicher) direkt im Panel.
+Der **Callboard**-Button beschwört das Callboard; der
+Reroll-Geschwindigkeitsregler bietet 4 Voreinstellungen (Turbo, Schnell,
+Normal, Sicher) direkt im Panel.
 
 ## 🌍 Sprachen
 

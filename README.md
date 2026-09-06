@@ -173,9 +173,8 @@ Aliases: `/acb` and `/autocallboard`.
 | `/acb minimap on/off` | Shows or hides the minimap button. |
 | `/acb export` / `import` | Opens the export or import window for the quest catalog. |
 
-The **Callboard** button summons or opens the nearest board; the reroll
-speed slider offers 4 presets (Turbo, Fast, Normal, Safe) right from the
-panel.
+The **Callboard** button summons the Callboard; the reroll speed slider
+offers 4 presets (Turbo, Fast, Normal, Safe) right from the panel.
 
 ## 🌍 Languages
 

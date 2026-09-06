@@ -184,10 +184,9 @@ Alias: `/acb` y `/autocallboard`.
 | `/acb minimap on/off` | Muestra u oculta el botón del minimapa. |
 | `/acb export` / `import` | Abre la ventana de exportación o importación del catálogo de misiones. |
 
-El botón **Callboard** invoca o abre el tablero más cercano; el
-control deslizante de velocidad de re-tirada ofrece 4 ajustes
-predefinidos (Turbo, Rápido, Normal, Seguro) directamente desde el
-panel.
+El botón **Callboard** invoca el Callboard; el control deslizante de
+velocidad de re-tirada ofrece 4 ajustes predefinidos (Turbo, Rápido,
+Normal, Seguro) directamente desde el panel.
 
 ## 🌍 Idiomas
 

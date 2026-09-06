@@ -184,9 +184,9 @@ Alias : `/acb` et `/autocallboard`.
 | `/acb minimap on/off` | Affiche ou masque le bouton de la minimap. |
 | `/acb export` / `import` | Ouvre la fenêtre d'export ou d'import du catalogue de quêtes. |
 
-Le bouton **Callboard** invoque ou ouvre le tableau le plus proche ; le
-curseur de vitesse de relance propose 4 préréglages (Turbo, Rapide,
-Normal, Sûr) directement depuis le panneau.
+Le bouton **Callboard** invoque le Callboard ; le curseur de vitesse de
+relance propose 4 préréglages (Turbo, Rapide, Normal, Sûr) directement
+depuis le panneau.
 
 ## 🌍 Langues
 
