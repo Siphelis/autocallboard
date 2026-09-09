@@ -82,7 +82,7 @@ tiempo. AutoCallboard hace ese trabajo por ti.
 ## 🕹️ Inicio rápido
 
 ```
-/acb           → abre (o inicia directamente) el panel de control
+/acb           → muestra la versión instalada
 /acb quests    → abre la ventana de misiones conocidas
 /acb roll      → inicia la re-tirada
 /acb stop      → detiene la re-tirada
@@ -166,7 +166,8 @@ Alias: `/acb` y `/autocallboard`.
 
 | Comando | Efecto |
 | --- | --- |
-| `/acb` (o `run` / `call`) | Abre el panel e inicia la re-tirada de una sola vez. |
+| `/acb` (o `version` / `v`) | Muestra la versión instalada de la extensión. |
+| `/acb run` (o `call`) | Abre el panel y reanuda el flujo del tablero. La invocación en sí debe hacerse con el botón Callboard. |
 | `/acb help` | Abre la ayuda integrada. |
 | `/acb show` / `hide` | Muestra u oculta el panel de control. |
 | `/acb roll` (o `autoroll`) | Inicia la re-tirada. |

@@ -82,7 +82,7 @@ dich.
 ## 🕹️ Schnellstart
 
 ```
-/acb           → öffnet (oder startet direkt) das Kontrollpanel
+/acb           → zeigt die installierte Version
 /acb quests    → öffnet das Fenster der bekannten Quests
 /acb roll      → startet das Rerollen
 /acb stop      → stoppt das Rerollen
@@ -166,7 +166,8 @@ Aliase: `/acb` und `/autocallboard`.
 
 | Befehl | Effekt |
 | --- | --- |
-| `/acb` (oder `run` / `call`) | Öffnet das Panel und startet in einem Schritt das Rerollen. |
+| `/acb` (oder `version` / `v`) | Zeigt die installierte Addon-Version. |
+| `/acb run` (oder `call`) | Öffnet das Panel und nimmt den Board-Ablauf wieder auf. Das Beschwören selbst läuft zwingend über die Callboard-Schaltfläche. |
 | `/acb help` | Öffnet die integrierte Hilfe. |
 | `/acb show` / `hide` | Zeigt oder versteckt das Kontrollpanel. |
 | `/acb roll` (oder `autoroll`) | Startet das Rerollen. |

@@ -72,7 +72,7 @@ AutoCallboard does that work for you.
 ## 🕹️ Quick start
 
 ```
-/acb           → opens (or directly starts) the control panel
+/acb           → shows the installed version
 /acb quests    → opens the known quests window
 /acb roll      → starts rerolling
 /acb stop      → stops rerolling
@@ -155,7 +155,8 @@ Aliases: `/acb` and `/autocallboard`.
 
 | Command | Effect |
 | --- | --- |
-| `/acb` (or `run` / `call`) | Opens the panel and starts rerolling in one go. |
+| `/acb` (or `version` / `v`) | Prints the installed addon version. |
+| `/acb run` (or `call`) | Opens the panel and resumes the board flow. Summoning itself must be done with the Callboard button. |
 | `/acb help` | Opens the built-in help. |
 | `/acb show` / `hide` | Shows or hides the control panel. |
 | `/acb roll` (or `autoroll`) | Starts rerolling. |
