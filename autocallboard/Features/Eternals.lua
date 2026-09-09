@@ -129,7 +129,9 @@ local function CreateButton()
   statusText:SetPoint("CENTER", button, "CENTER", 0, 0)
   statusText:SetTextColor(0.85, 0.78, 1, 1)
 
-  button:SetScript("OnDragStart", function() button:StartMoving() end)
+  button:SetScript("OnDragStart", function()
+    if not InCombatLockdown() and not RT.state.appearance.locked then button:StartMoving() end
+  end)
   button:SetScript("OnDragStop", function() button:StopMovingOrSizing() end)
   button:SetScript("OnMouseUp", function(_, mouseButton)
     if mouseButton == "RightButton" then

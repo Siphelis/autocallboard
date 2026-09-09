@@ -17,6 +17,8 @@ local DEFAULTS = {
   autoAccept = true,
   autoAcceptShared = false,
   autoCurrentInstanceQuest = false,
+  travelEnabled = true,
+  travelAuto = false,
   maxRerolls = 50,
   rerollDelay = 0.1,
   rerollTimeout = 1.5,
@@ -374,7 +376,7 @@ end
 local MERGE_NONEMPTY_STRING = { "targetName", "rerollFrame", "objectivePrefix", "objectiveButtonField" }
 local MERGE_STRING = { "summonSpell", "language" }
 local MERGE_BOOLEAN = {
-  "autoAccept", "autoCurrentInstanceQuest",
+  "autoAccept", "autoCurrentInstanceQuest", "travelEnabled", "travelAuto",
   "presetsMigrated", "questPanelExpanded", "buttonShown",
   "accountListSeeded",
 }
@@ -473,6 +475,18 @@ function Core.mergeState(saved, adopt)
     })
   end
 
+  state.appearance = Core.copyAppearance(saved.appearance)
+  state.windowPositions = {}
+  if type(saved.windowPositions) == "table" then
+    for name, point in pairs(saved.windowPositions) do
+      if type(name) == "string" and name:match("^AutoCallboard") and type(point) == "table" then
+        local copy = {}
+        mergeNested(point, copy, {point = "nonEmptyString", relativePoint = "nonEmptyString", x = "number", y = "number"})
+        state.windowPositions[name] = copy
+      end
+    end
+  end
+
   if type(saved.minimap) == "table" then
     mergeNested(saved.minimap, state.minimap, { shown = "boolean", angle = "number" })
   end
@@ -516,17 +530,26 @@ local BOOLEAN_SETTING_COMMANDS = {
   autoinstance = "autoCurrentInstanceQuest",
   currentinstance = "autoCurrentInstanceQuest",
   instancequest = "autoCurrentInstanceQuest",
+  travel = "travelEnabled",
+  tp = "travelEnabled",
+  travelauto = "travelAuto",
+  autotravel = "travelAuto",
+  tpauto = "travelAuto",
 }
 
 local BOOLEAN_SETTING_USAGE = {
   autoAccept = "USAGE_ACCEPT",
   autoAcceptShared = "USAGE_AUTOACCEPTQUESTS",
   autoCurrentInstanceQuest = "USAGE_AUTOINSTANCE",
+  travelEnabled = "USAGE_TRAVEL",
+  travelAuto = "USAGE_TRAVELAUTO",
 }
 
 local SIMPLE_SLASH_KINDS = {
   help = "help", show = "show", hide = "hide", reset = "reset",
   quests = "quests", quest = "quests", roll = "roll", autoroll = "roll", stop = "stop",
+  run = "run", call = "run", version = "version", v = "version",
+  settings = "settings", options = "settings", tools = "tools",
 }
 
 local SIMPLE_SLASH_RESULTS = {
@@ -546,8 +569,8 @@ local SIMPLE_SLASH_RESULTS = {
 function Core.parseSlash(input)
   local message = trim(input)
 
-  if message == "" or message == "run" or message == "call" then
-    return { kind = "run" }
+  if message == "" then
+    return { kind = "version" }
   end
 
   local command, rest = message:match("^(%S+)%s*(.-)$")
@@ -1223,6 +1246,7 @@ function Core.copyCharacterState(entry)
     activeSelectionId = tonumber(source.activeSelectionId),
     openGroupId = tonumber(source.openGroupId),
     echoBar = Core.copyEchoBar(source.echoBar),
+    toolbar = Core.copyToolbar(source.toolbar),
   }
 end
 

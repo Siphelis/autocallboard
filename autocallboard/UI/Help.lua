@@ -7,7 +7,7 @@ local Localized = RT.Localized
 local helpWindow
 
 local function HelpName(text)
-  return "|cffb048f8" .. tostring(text or "") .. "|r"
+  return Skin.AccentCode() .. tostring(text or "") .. "|r"
 end
 
 local function GetHelpText()
@@ -85,7 +85,7 @@ local function ShowAddonHelp()
     helpWindow.body:SetPoint("BOTTOMRIGHT", helpWindow, "BOTTOMRIGHT", -24, 44)
     helpWindow.body:SetJustifyH("LEFT")
     helpWindow.body:SetJustifyV("TOP")
-    helpWindow.body:SetTextColor(THEME.text[1], THEME.text[2], THEME.text[3], THEME.text[4] or 1)
+    Skin.ApplyColor(helpWindow.body, "SetTextColor", THEME.text)
 
     helpWindow.okButton = Skin.MakeButton(helpWindow, {
       width = 78,

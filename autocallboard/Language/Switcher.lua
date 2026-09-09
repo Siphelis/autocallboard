@@ -60,6 +60,7 @@ function RT.RefreshLocalizedText()
   end
 
   RT.SyncQuestDataControls()
+  if RT.RefreshSettingsLanguage then RT.RefreshSettingsLanguage() end
 end
 
 function RT.LanguageInitials(code)

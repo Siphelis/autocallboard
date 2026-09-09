@@ -27,6 +27,7 @@ local pendingRerollUntil
 local lastObjectiveSignature
 local lastCapturedSignature
 local selectedQuest
+local travelWarningKey
 local nextSelectedQuestCheckAt
 local lastSelectedQuestScanAt
 local nextQuestRefreshAt
@@ -448,6 +449,7 @@ StopRolling = function(message)
   RT.learningQuestList = false
   nextSelectedQuestCheckAt = nil
   RT.blockedMatchKey = nil
+  travelWarningKey = nil
 
   if message then
     SetQuestStatus(message)
@@ -468,6 +470,23 @@ local function HandleMatch(match)
   local title = Core.questTitle(match.quest)
   local matchKey = tostring(match.index) .. ":" .. tostring(match.key)
   local matchLabel = match.label or L.MATCH_LABEL_WANTED
+
+  if RT.CheckQuestTravelBeforeSelection then
+    local allowed, reason, message = RT.CheckQuestTravelBeforeSelection(match.quest)
+    if not allowed then
+      SetRollPause("travel", message)
+      nextRollAt = GetTime() + ROLL_EVAL_INTERVAL
+      if reason == "unreachable" and travelWarningKey ~= matchKey then
+        travelWarningKey = matchKey
+        if UIErrorsFrame and UIErrorsFrame.AddMessage then
+          UIErrorsFrame:AddMessage(message, 1, 0.1, 0.1, 1)
+        end
+      end
+      UpdateQuestWindow()
+      return
+    end
+    travelWarningKey = nil
+  end
 
   if not RT.IsCallboardReadyForQuestActions() then
     SetRollPause("no_callboard", string.format(L.QUEST_FOUND_WAITING_CALLBOARD, matchLabel, title))

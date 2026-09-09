@@ -206,7 +206,7 @@ local function ShowQuestDataWindow(mode)
     RT.questDataSelectionOverlay:SetTexture(Skin.WHITE8X8)
     RT.questDataSelectionOverlay:SetPoint("TOPLEFT", scrollFrame, "TOPLEFT", 3, -3)
     RT.questDataSelectionOverlay:SetPoint("BOTTOMRIGHT", scrollFrame, "BOTTOMRIGHT", -22, 3)
-    RT.questDataSelectionOverlay:SetVertexColor(THEME.selection[1], THEME.selection[2], THEME.selection[3], THEME.selection[4] or 0.28)
+    Skin.ApplyColor(RT.questDataSelectionOverlay, "SetVertexColor", THEME.selection)
     RT.questDataSelectionOverlay:Hide()
 
     dataEditBox = CreateFrame("EditBox", "AutoCallboardQuestDataEditBox", scrollFrame)
@@ -220,7 +220,7 @@ local function ShowQuestDataWindow(mode)
     end
     Skin.StripFrameTextures(dataEditBox)
     if dataEditBox.SetTextColor then
-      dataEditBox:SetTextColor(THEME.text[1], THEME.text[2], THEME.text[3])
+      Skin.ApplyColor(dataEditBox, "SetTextColor", THEME.text)
     end
     if dataEditBox.SetBackdrop then
       dataEditBox:SetBackdrop(nil)

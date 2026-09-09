@@ -152,6 +152,14 @@ function RT.SetField(field, value)
     RT.SetCallboardButtonText(value)
   elseif field == "summonSpellID" then
     RT.ApplySummonButtonAttributes()
+  elseif field == "travelEnabled" then
+    if RT.OnTravelEnabledChanged then
+      RT.OnTravelEnabledChanged()
+    end
+  elseif field == "travelAuto" then
+    if RT.OnTravelAutoChanged then
+      RT.OnTravelAutoChanged()
+    end
   elseif field == "autoCurrentInstanceQuest" then
     RT.currentInstanceQuestSignature = nil
 
@@ -172,12 +180,18 @@ end
 local function HandleSlash(input)
   local parsed = Core.parseSlash(input)
 
-  if parsed.kind == "run" then
+  if parsed.kind == "version" then
+    Print(string.format(L.SLASH_VERSION, RT.GetAddonVersion()))
+  elseif parsed.kind == "run" then
     if not RT.IsControlFrameShown() then
       RT.ShowControlFrame(true)
     end
 
     StartCallboardFlow()
+  elseif parsed.kind == "settings" then
+    RT.ShowSettings()
+  elseif parsed.kind == "tools" then
+    RT.ShowSettings()
   elseif parsed.kind == "help" then
     RT.ShowAddonHelp()
   elseif parsed.kind == "show" then
@@ -237,6 +251,17 @@ local IsSummonStatusBusy = RT.IsSummonStatusBusy
 
 local indoorTask = { fn = RT.RefreshCallboardButtonEnabled, every = 2 }
 
+local travelTask = {
+  fn = function()
+    if not RT.WatchTravelSuggestion then
+      return 5
+    end
+
+    return RT.WatchTravelSuggestion()
+  end,
+  every = 1,
+}
+
 local eternalsTask = {
   fn = function()
     if not RT.WatchEternalSequence then
@@ -254,6 +279,7 @@ local TASKS = {
   { fn = RT.SyncOverlayFrameLevels, every = 0.5 },
   indoorTask,
   eternalsTask,
+  travelTask,
 }
 
 local function WakeIndoorCheck()
@@ -352,10 +378,12 @@ EVENTS.ADDON_LOADED = function(arg1)
     pcall(RegisterAddonMessagePrefix, RT.questSharePrefix)
   end
   RT.InstallSharedQuestAutoAcceptHook()
+  RT.InitAppearance()
   RT.CreateCallboardButton()
   RT.CreateMinimapButton()
   RT.RefreshBindingNames()
   RT.ApplyEchoBar()
+  RT.InitSettingsAccess()
 
   RT.buildsRefreshAt = GetTime() + RT.buildsRefreshDelay
 

@@ -13,7 +13,6 @@ local INTERACT_DELAY = 1.25
 
 local callboardActiveUntil
 local fallbackCooldownUntil
-local nextSummonCastAt
 local pendingInteractAt
 local pendingAcceptUntil
 local UpdateSummonStatus
@@ -308,7 +307,6 @@ function RT.CheckPendingSummonAttempt()
   RT.pendingSummonVerifyUntil = nil
   RT.pendingSummonSource = nil
   RT.nextSummonVerifyCheckAt = nil
-  nextSummonCastAt = nil
   Log("summon", "summon attempt was not verified source=", source)
 
   if RT.IsRolling() then
@@ -759,36 +757,11 @@ StartCallboardFlow = function()
     return
   end
 
-  local now = GetTime()
-
-  if nextSummonCastAt and now < nextSummonCastAt then
-    RT.SetRollPause("no_callboard", L.PAUSED_WAITING_SUMMON)
-    Log("summon", "summon throttled remaining=", nextSummonCastAt - now)
-    UpdateSummonStatus()
-    return
-  end
-
-  nextSummonCastAt = now + 3
-
-  local summonMacroText = RT.GetSummonMacroText()
-
-  if summonMacroText and RunMacroText then
-    Log("summon", "RunMacroText ", summonMacroText:gsub("\n", " | "))
-    RunMacroText(summonMacroText)
-    RT.BeginSummonAttempt("slash")
-  elseif RT.GetSummonSpellName() ~= "" and CastSpellByName then
-    Log("summon", "CastSpellByName ", RT.GetSummonSpellName())
-    CastSpellByName(RT.GetSummonSpellName())
-    RT.BeginSummonAttempt("slash")
-  elseif state.summonSpellID and CastSpellByID then
-    Log("summon", "CastSpellByID ", state.summonSpellID)
-    CastSpellByID(state.summonSpellID)
-    RT.BeginSummonAttempt("slash")
-  else
-    Log("summon", "no spell cast API available")
-    TryInteract()
-  end
-
+  -- A slash command runs on a tainted execution path, where the client forbids
+  -- RunMacroText and every CastSpell* API. The summon can only come from a
+  -- hardware click on the secure Callboard button, so point the player at it.
+  Log("summon", "summon needs the secure button (tainted slash path)")
+  RT.Print(L.SUMMON_NEEDS_BUTTON)
   UpdateSummonStatus()
 end
 

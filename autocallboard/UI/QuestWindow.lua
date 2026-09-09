@@ -530,6 +530,27 @@ function RT.SyncRollSpeedControl()
   slider:SetDisplayValue(preset and preset.index or 1)
 end
 
+function RT.SyncTravelCheckbox()
+  SyncCheckbox(RT.travelCheckbox, state and state.travelEnabled)
+  SyncCheckbox(RT.travelAutoCheckbox, state and state.travelAuto)
+
+  local auto = RT.travelAutoCheckbox
+
+  if auto then
+    if state and state.travelEnabled then
+      auto:Enable()
+      auto:SetAlpha(1)
+    else
+      auto:Disable()
+      auto:SetAlpha(0.48)
+    end
+
+    if Skin.SetCheckboxVisual then
+      Skin.SetCheckboxVisual(auto)
+    end
+  end
+end
+
 function RT.UpdateAutoCurrentInstanceControl()
   SyncCheckbox(RT.autoCurrentInstanceCheckbox, state and state.autoCurrentInstanceQuest)
 end
@@ -657,14 +678,7 @@ UpdateQuestWindow = function()
 
   RT.SyncKnownQuestTypeButtons()
 
-  if RT.questGoldText then
-    local tracker = GetGoldTrackerState()
-    local totalSpent = tracker and tracker.totalSpent or 0
-    local lastQuestSpent = tracker and tracker.lastQuestSpent or 0
-    local currentSpend = RT.trackedQuestSpend or 0
-
-    RT.questGoldText:SetText(string.format(L.GOLD_SPENT_STATUS, FormatMoney(totalSpent), FormatMoney(lastQuestSpent), FormatMoney(currentSpend)))
-  end
+  RT.RefreshGoldDisplay()
 
   RT.UpdateRollToggleButtonState(RT.startRollButton, service ~= nil)
   RT.UpdateRollToggleButtonState(RT.controlFrame and RT.controlFrame.startButton or nil, true)
@@ -720,7 +734,7 @@ local function MakeQuestRow(parent, width)
   row.title:SetPoint("LEFT", row, "LEFT", 3, 0)
   row.title:SetWidth(width - 36)
   row.title:SetJustifyH("LEFT")
-  row.title:SetTextColor(THEME.gold[1], THEME.gold[2], THEME.gold[3])
+  Skin.ApplyColor(row.title, "SetTextColor", THEME.gold)
 
   row:EnableMouseWheel(true)
   row:SetScript("OnMouseWheel", function(_, delta)
@@ -771,7 +785,7 @@ ConfigureKnownQuestRow = function(row, entry)
     row.key = nil
     row.title:SetWidth(KNOWN_QUEST_ROW_WIDTH - 12)
     row.title:SetText("[" .. tostring(entry.title or L.QUEST_TYPE_OTHER) .. "]")
-    row.title:SetTextColor(THEME.heading[1], THEME.heading[2], THEME.heading[3], THEME.heading[4] or 1)
+    Skin.ApplyColor(row.title, "SetTextColor", THEME.heading)
     if row.checkbox then
       row.checkbox:SetChecked(false)
       row.checkbox:Hide()
@@ -793,7 +807,7 @@ ConfigureKnownQuestRow = function(row, entry)
   row.key = quest.key
   row.title:SetWidth(KNOWN_QUEST_ROW_WIDTH - 36)
   row.title:SetText(QuestLabel(quest))
-  row.title:SetTextColor(wanted and THEME.good[1] or THEME.gold[1], wanted and THEME.good[2] or THEME.gold[2], wanted and THEME.good[3] or THEME.gold[3])
+  Skin.ApplyColor(row.title, "SetTextColor", wanted and THEME.good or THEME.gold)
   if row.checkbox then
     row.checkbox:SetChecked(wanted)
     Skin.SetCheckboxVisual(row.checkbox)
@@ -821,7 +835,7 @@ function RT.CreateQuestWindow()
       questSearchBox:ClearFocus()
     end
 
-    if RT.controlFrame and not RT.questPanelChanging then
+    if RT.controlFrame and not RT.questPanelChanging and not RT.questWindowCreating then
       RT.SetQuestPanelExpanded(false)
     end
     end)
@@ -868,7 +882,7 @@ function RT.CreateQuestWindow()
   RT.UpdateEchoBarControls()
 
   local searchLabel = questWindow:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-  searchLabel:SetPoint("TOPLEFT", questWindow, "TOPLEFT", 24, -84)
+  searchLabel:SetPoint("TOPLEFT", questWindow, "TOPLEFT", 24, -52)
   Localized(searchLabel, "SEARCH_LABEL")
   Skin.MutedText(searchLabel)
 
@@ -920,6 +934,25 @@ function RT.CreateQuestWindow()
   })
   RT.UpdateMinimapShownControl()
 
+  RT.travelCheckbox = Skin.SettingCheckbox(questWindow, {
+    point = { "TOPRIGHT", questWindow, "TOPRIGHT", -24, -140 },
+    labelKey = "TRAVEL_LABEL",
+    tipKey = "TRAVEL_TOOLTIP",
+    onClick = function(self)
+      RT.SetTravelEnabled(self:GetChecked() and true or false)
+      end,
+  })
+
+  RT.travelAutoCheckbox = Skin.SettingCheckbox(questWindow, {
+    point = { "TOPRIGHT", questWindow, "TOPRIGHT", -24, -168 },
+    labelKey = "TRAVEL_AUTO_LABEL",
+    tipKey = "TRAVEL_AUTO_TOOLTIP",
+    onClick = function(self)
+      RT.SetTravelAutoEnabled(self:GetChecked() and true or false)
+      end,
+  })
+  RT.SyncTravelCheckbox()
+
   local rollSpeedPresets = Core.rollSpeedPresetList()
 
   local function RollSpeedPresetAt(value)
@@ -958,7 +991,7 @@ function RT.CreateQuestWindow()
   RT.SyncRollSpeedControl()
 
   local categoryLabel = questWindow:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-  categoryLabel:SetPoint("TOPLEFT", questWindow, "TOPLEFT", 24, -112)
+  categoryLabel:SetPoint("TOPLEFT", questWindow, "TOPLEFT", 24, -84)
   Localized(categoryLabel, "SHOW_LABEL")
   Skin.MutedText(categoryLabel)
 
@@ -996,7 +1029,7 @@ function RT.CreateQuestWindow()
   RT.SyncKnownQuestTypeButtons()
 
   RT.knownPageText = questWindow:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-  RT.knownPageText:SetPoint("TOPLEFT", questWindow, "TOPLEFT", 24, -144)
+  RT.knownPageText:SetPoint("TOPLEFT", questWindow, "TOPLEFT", 24, -116)
   RT.knownPageText:SetWidth(QUEST_WINDOW_WIDTH - 62)
   RT.knownPageText:SetJustifyH("LEFT")
   RT.knownPageText:SetText(L.QUEST_WINDOW_KNOWN_PAGE_DEFAULT)
@@ -1004,7 +1037,7 @@ function RT.CreateQuestWindow()
 
   knownScrollFrame = CreateFrame("ScrollFrame", "AutoCallboardKnownQuestScrollFrame", questWindow, "FauxScrollFrameTemplate")
   knownScrollFrame:SetPoint("TOPLEFT", RT.knownPageText, "BOTTOMLEFT", -4, -8)
-  knownScrollFrame:SetPoint("BOTTOMRIGHT", questWindow, "BOTTOMRIGHT", -34, 150)
+  knownScrollFrame:SetPoint("BOTTOMRIGHT", questWindow, "BOTTOMRIGHT", -34, 120)
   knownScrollFrame:EnableMouseWheel(true)
   local knownScrollBar = Skin.ScrollBar(knownScrollFrame)
   if knownScrollBar then
@@ -1103,7 +1136,11 @@ function RT.CreateQuestWindow()
   questStatusText:SetJustifyH("LEFT")
   Skin.MutedText(questStatusText)
 
+  RT.AttachSettingsControls()
+  RT.LayoutMainToolbar()
+  RT.questWindowCreating = true
   questWindow:Hide()
+  RT.questWindowCreating = nil
 end
 
 ShowQuestWindow = function()

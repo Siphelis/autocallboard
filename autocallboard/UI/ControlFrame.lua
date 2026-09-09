@@ -505,31 +505,25 @@ local function CreateMinimapButton()
   end
 
   minimapButton = CreateFrame("Button", "AutoCallboardMinimapButton", Minimap or UIParent)
-  minimapButton:SetWidth(20)
-  minimapButton:SetHeight(20)
+  minimapButton:SetWidth(28)
+  minimapButton:SetHeight(28)
   minimapButton:SetFrameStrata("MEDIUM")
   minimapButton:RegisterForClicks("LeftButtonUp", "RightButtonUp")
   minimapButton:RegisterForDrag("LeftButton")
-  minimapButton:SetMovable(true)
   Skin.StripButtonChrome(minimapButton)
-  if minimapButton.SetBackdrop then
-    minimapButton:SetBackdrop(Skin.BACKDROP)
-    Skin.ApplyColor(minimapButton, "SetBackdropColor", THEME.checkbox)
-    Skin.ApplyColor(minimapButton, "SetBackdropBorderColor", THEME.heading)
-  end
-
+  local disc = minimapButton:CreateTexture(nil, "BACKGROUND")
+  disc:SetAllPoints(minimapButton)
+  disc:SetTexture("Interface\\Buttons\\UI-RadioButton")
+  disc:SetTexCoord(0.25, 0.5, 0, 1)
+  Skin.ApplyColor(disc, "SetVertexColor", THEME.heading)
   minimapText = minimapButton:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-  minimapText:SetWidth(18)
-  minimapText:SetHeight(18)
   minimapText:SetPoint("CENTER", minimapButton, "CENTER", 0, 0)
-  minimapText:SetJustifyH("CENTER")
-  minimapText:SetJustifyV("MIDDLE")
   minimapText:SetText("ACB")
-  minimapText:SetFont(Skin.BUTTON_FONT, 7)
-  minimapText:SetTextColor(THEME.heading[1], THEME.heading[2], THEME.heading[3], THEME.heading[4] or 1)
+  minimapText:SetFont(Skin.BUTTON_FONT, 8)
+  Skin.ApplyColor(minimapText, "SetTextColor", THEME.buttonText)
 
   minimapButton:SetScript("OnDragStart", function()
-    minimapButton:SetScript("OnUpdate", UpdateMinimapDragPosition)
+    if not state.appearance.locked then minimapButton:SetScript("OnUpdate", UpdateMinimapDragPosition) end
     end)
   minimapButton:SetScript("OnDragStop", function()
     minimapButton:SetScript("OnUpdate", nil)
@@ -537,12 +531,7 @@ local function CreateMinimapButton()
     end)
   minimapButton:SetScript("OnClick", function(_, mouseButton)
     if mouseButton == "RightButton" then
-      if controlFrame and not controlFrame:IsShown() then
-        RT.SaveControlFrameShown(true)
-        controlFrame:Show()
-      end
-
-      RT.ToggleQuestPanel()
+      RT.ShowSettings()
       return
     end
 
@@ -554,7 +543,7 @@ local function CreateMinimapButton()
     end
     end)
   minimapButton:SetScript("OnEnter", function(self)
-    Skin.ApplyColor(self, "SetBackdropBorderColor", THEME.buttonHoverBorder)
+    Skin.ApplyColor(disc, "SetVertexColor", THEME.buttonHoverBorder)
     GameTooltip:SetOwner(self, "ANCHOR_LEFT")
     GameTooltip:AddLine(L.ADDON_NAME_TOOLTIP)
     GameTooltip:AddLine(L.MINIMAP_TOOLTIP_LEFT_CLICK, 1, 1, 1)
@@ -563,8 +552,7 @@ local function CreateMinimapButton()
     GameTooltip:Show()
     end)
   minimapButton:SetScript("OnLeave", function(self)
-    Skin.ApplyColor(self, "SetBackdropColor", THEME.checkbox)
-    Skin.ApplyColor(self, "SetBackdropBorderColor", THEME.heading)
+    Skin.ApplyColor(disc, "SetVertexColor", THEME.heading)
     GameTooltip:Hide()
     end)
 
@@ -572,7 +560,7 @@ local function CreateMinimapButton()
 end
 
 local function StartMovingButton(self)
-  if IsShiftKeyDown() then
+  if IsShiftKeyDown() and not InCombatLockdown() and not state.appearance.locked then
     controlFrame:StartMoving()
   end
 end
@@ -641,7 +629,7 @@ local function CreateCallboardButton()
   controlFrame:SetClampedToScreen(true)
   Skin.Frame(controlFrame)
   controlFrame:SetScript("OnDragStart", function(self)
-    self:StartMoving()
+    if not InCombatLockdown() and not state.appearance.locked then self:StartMoving() end
     end)
   controlFrame:SetScript("OnDragStop", function(self)
     self:StopMovingOrSizing()

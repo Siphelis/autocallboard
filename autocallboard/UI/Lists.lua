@@ -863,7 +863,7 @@ local function CreateGroupBand(index, isList)
   band.arrow = band:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
   band.arrow:SetPoint("TOP", band, "TOP", 0, -6)
   band.arrow:SetText("<<")
-  band.arrow:SetTextColor(THEME.heading[1], THEME.heading[2], THEME.heading[3], THEME.heading[4] or 1)
+  Skin.ApplyColor(band.arrow, "SetTextColor", THEME.heading)
 
   band.labelHolder = CreateFrame("Frame", nil, band)
   band.labelHolder:SetPoint("TOPLEFT", band, "TOPLEFT", 3, -BAND_LABEL_TOP)
@@ -1065,7 +1065,7 @@ local function FillPanel(panel, entries, storedCount)
       row.entry = entry
 
       if entry.difficulty then
-        row.title:SetText(entry.name .. " |cffb048f8[" .. Core.difficultyLabel(entry.difficulty) .. "]|r")
+        row.title:SetText(entry.name .. " " .. Skin.AccentCode() .. "[" .. Core.difficultyLabel(entry.difficulty) .. "]|r")
       else
         row.title:SetText(entry.name)
       end
@@ -1118,7 +1118,7 @@ RefreshListsWindow = function()
 
   ApplyBandLabel(listBand, L.LISTS_WINDOW_TITLE)
   listBand.count:SetText(tostring(#(listStored)))
-  listBand.label:SetTextColor(THEME.text[1], THEME.text[2], THEME.text[3], THEME.text[4] or 1)
+  Skin.ApplyColor(listBand.label, "SetTextColor", THEME.text)
   Skin.Frame(listBand, "soft")
 
   if listsWindow.newGroupButton then
@@ -1143,7 +1143,7 @@ RefreshListsWindow = function()
     band.groupId = group.id
     ApplyBandLabel(band, group.name)
     band.count:SetText(tostring(Core.selectionCount(profile, group.id)))
-    band.label:SetTextColor(THEME.text[1], THEME.text[2], THEME.text[3], THEME.text[4] or 1)
+    Skin.ApplyColor(band.label, "SetTextColor", THEME.text)
     Skin.Frame(band, "soft")
   end
 end
@@ -1240,8 +1240,7 @@ local function ShowDropFeedback(panel, gap, visibleSlot, refused)
     panel.dropLine:SetVertexColor(DROP_REFUSED_BORDER[1], DROP_REFUSED_BORDER[2],
         DROP_REFUSED_BORDER[3], 1)
   else
-    panel.dropLine:SetVertexColor(THEME.checkboxChecked[1], THEME.checkboxChecked[2],
-        THEME.checkboxChecked[3], 1)
+    Skin.ApplyColor(panel.dropLine, "SetVertexColor", THEME.checkboxChecked)
   end
 
   panel.dropLine:Show()
@@ -1550,8 +1549,7 @@ function RT.CreateListsWindow()
   listsWindow.groupDropLine = listsWindow.dropLayer:CreateTexture(nil, "OVERLAY")
   listsWindow.groupDropLine:SetTexture(Skin.WHITE8X8)
   listsWindow.groupDropLine:SetWidth(DROP_LINE_HEIGHT)
-  listsWindow.groupDropLine:SetVertexColor(THEME.checkboxChecked[1], THEME.checkboxChecked[2],
-      THEME.checkboxChecked[3], 1)
+  Skin.ApplyColor(listsWindow.groupDropLine, "SetVertexColor", THEME.checkboxChecked)
   listsWindow.groupDropLine:Hide()
 
   listsWindow.newGroupButton = Skin.MakeButton(listsWindow, {

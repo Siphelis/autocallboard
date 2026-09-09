@@ -783,7 +783,7 @@ local function CreateEchoBar()
   echoDotButton:SetScript("OnDragStart", function()
     local bar = EchoBarState()
 
-    if bar and not bar.locked then
+    if bar and not bar.locked and not InCombatLockdown() and not RT.state.appearance.locked then
       echoBar:StartMoving()
     end
     end)

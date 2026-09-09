@@ -26,6 +26,7 @@ local THEME = {
   button = PLUM,
   buttonBorder = PLUM,
   buttonStop = ICE,
+  buttonStopText = { RGB(10, 10, 10, 1) },
   buttonDisabledBorder = { RGB(75, 46, 131, 0) },
   buttonHoverBorder = { RGB(232, 121, 255, 1) },
   buttonText = LILAC,
@@ -44,8 +45,16 @@ local THEME = {
   heading = ORCHID,
 }
 
+local colors = {}
+
 local function ApplyColor(target, methodName, color)
   if target and target[methodName] and color then
+    local entries = colors[methodName]
+    if not entries then
+      entries = setmetatable({}, { __mode = "k" })
+      colors[methodName] = entries
+    end
+    entries[target] = color
     target[methodName](target, color[1], color[2], color[3], color[4] or 1)
   end
 end
@@ -77,6 +86,7 @@ local function SetButtonVisual(target, mode)
 
   if isStopState then
     bg = THEME.buttonStop
+    text = THEME.buttonStopText
   end
 
   if not disabled and visualMode == "hover" then
@@ -89,7 +99,7 @@ local function SetButtonVisual(target, mode)
   ApplyColor(target, "SetBackdropBorderColor", border)
 
   if target.GetFontString and target:GetFontString() then
-    target:GetFontString():SetTextColor(text[1], text[2], text[3], text[4] or 1)
+    ApplyColor(target:GetFontString(), "SetTextColor", text)
   end
 
   if target._acbGloss then
@@ -114,7 +124,7 @@ local function SkinCloseButton(target, parent)
   local text = target:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
   text:SetPoint("CENTER", target, "CENTER", 0, 0)
   text:SetText("X")
-  text:SetTextColor(THEME.closeText[1], THEME.closeText[2], THEME.closeText[3], THEME.closeText[4] or 1)
+  ApplyColor(text, "SetTextColor", THEME.closeText)
 
   target:SetScript("OnClick", function()
     if parent then
@@ -124,12 +134,12 @@ local function SkinCloseButton(target, parent)
   target:SetScript("OnEnter", function()
     ApplyColor(target, "SetBackdropColor", THEME.close)
     ApplyColor(target, "SetBackdropBorderColor", THEME.closeBorder)
-    text:SetTextColor(THEME.closeText[1], THEME.closeText[2], THEME.closeText[3], THEME.closeText[4] or 1)
+    ApplyColor(text, "SetTextColor", THEME.closeText)
     end)
   target:SetScript("OnLeave", function()
     ApplyColor(target, "SetBackdropColor", THEME.close)
     ApplyColor(target, "SetBackdropBorderColor", THEME.closeBorder)
-    text:SetTextColor(THEME.closeText[1], THEME.closeText[2], THEME.closeText[3], THEME.closeText[4] or 1)
+    ApplyColor(text, "SetTextColor", THEME.closeText)
     end)
 end
 
@@ -141,6 +151,9 @@ local function SkinFrame(target, variant)
   if not target._acbBackdrop then
     target:SetBackdrop(BACKDROP)
     target._acbBackdrop = true
+    if target:GetParent() == UIParent and RT.state and RT.state.appearance then
+      target:SetScale(RT.state.appearance.scale)
+    end
   end
 
   local soft = variant == "soft"
@@ -279,7 +292,7 @@ local function SetScrollButtonVisual(target, mode)
   ApplyColor(target, "SetBackdropBorderColor", visualMode == "hover" and THEME.buttonHoverBorder or THEME.buttonBorder)
 
   if target._acbScrollGlyph then
-    target._acbScrollGlyph:SetTextColor(THEME.buttonText[1], THEME.buttonText[2], THEME.buttonText[3], THEME.buttonText[4] or 1)
+    ApplyColor(target._acbScrollGlyph, "SetTextColor", THEME.buttonText)
   end
 end
 
@@ -366,7 +379,7 @@ local function SkinScrollBar(scrollFrame)
     local thumb = scrollBar:GetThumbTexture()
     if thumb then
       thumb:SetTexture(WHITE8X8)
-      thumb:SetVertexColor(THEME.button[1], THEME.button[2], THEME.button[3], THEME.button[4] or 1)
+      ApplyColor(thumb, "SetVertexColor", THEME.button)
       thumb:Show()
     end
   end
@@ -407,7 +420,7 @@ local function SkinCheckbox(target)
     check:SetTexture(WHITE8X8)
     check:SetPoint("TOPLEFT", target, "TOPLEFT", 4, -4)
     check:SetPoint("BOTTOMRIGHT", target, "BOTTOMRIGHT", -4, 4)
-    check:SetVertexColor(THEME.checkboxChecked[1], THEME.checkboxChecked[2], THEME.checkboxChecked[3], THEME.checkboxChecked[4] or 1)
+    ApplyColor(check, "SetVertexColor", THEME.checkboxChecked)
     target._acbCheck = check
   end
 
@@ -435,7 +448,7 @@ local function SkinEditBox(target)
   StripFrameTextures(target)
 
   if target.SetTextColor then
-    target:SetTextColor(THEME.text[1], THEME.text[2], THEME.text[3])
+    ApplyColor(target, "SetTextColor", THEME.text)
   end
 
   if target.SetBackdrop then
@@ -461,19 +474,19 @@ end
 
 local function SkinTitleText(target)
   if target and target.SetTextColor then
-    target:SetTextColor(THEME.title[1], THEME.title[2], THEME.title[3])
+    ApplyColor(target, "SetTextColor", THEME.title)
   end
 end
 
 local function SkinHeadingText(target)
   if target and target.SetTextColor then
-    target:SetTextColor(THEME.heading[1], THEME.heading[2], THEME.heading[3], THEME.heading[4] or 1)
+    ApplyColor(target, "SetTextColor", THEME.heading)
   end
 end
 
 local function SkinMutedText(target)
   if target and target.SetTextColor then
-    target:SetTextColor(THEME.muted[1], THEME.muted[2], THEME.muted[3])
+    ApplyColor(target, "SetTextColor", THEME.muted)
   end
 end
 
@@ -494,17 +507,17 @@ local function SkinHelpButton(target)
   target._acbHelpText = target:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
   target._acbHelpText:SetPoint("CENTER", target, "CENTER", 0, 0)
   target._acbHelpText:SetText("?")
-  target._acbHelpText:SetTextColor(THEME.closeText[1], THEME.closeText[2], THEME.closeText[3], THEME.closeText[4] or 1)
+  ApplyColor(target._acbHelpText, "SetTextColor", THEME.closeText)
 
   target:SetScript("OnEnter", function()
     ApplyColor(target, "SetBackdropColor", THEME.close)
     ApplyColor(target, "SetBackdropBorderColor", THEME.closeBorder)
-    target._acbHelpText:SetTextColor(THEME.closeText[1], THEME.closeText[2], THEME.closeText[3], THEME.closeText[4] or 1)
+    ApplyColor(target._acbHelpText, "SetTextColor", THEME.closeText)
     end)
   target:SetScript("OnLeave", function()
     ApplyColor(target, "SetBackdropColor", THEME.close)
     ApplyColor(target, "SetBackdropBorderColor", THEME.closeBorder)
-    target._acbHelpText:SetTextColor(THEME.closeText[1], THEME.closeText[2], THEME.closeText[3], THEME.closeText[4] or 1)
+    ApplyColor(target._acbHelpText, "SetTextColor", THEME.closeText)
     end)
 end
 
@@ -534,7 +547,7 @@ local function MenuItemVisual(item, hovered)
     color = THEME.heading
   end
 
-  item.label:SetTextColor(color[1], color[2], color[3], color[4] or 1)
+  ApplyColor(item.label, "SetTextColor", color)
 end
 
 local function CreateMenuItem(menu, index)
@@ -548,14 +561,14 @@ local function CreateMenuItem(menu, index)
   item.marker:SetWidth(3)
   item.marker:SetPoint("TOPLEFT", item, "TOPLEFT", 4, -4)
   item.marker:SetPoint("BOTTOMLEFT", item, "BOTTOMLEFT", 4, 4)
-  item.marker:SetVertexColor(THEME.checkboxChecked[1], THEME.checkboxChecked[2], THEME.checkboxChecked[3], THEME.checkboxChecked[4] or 1)
+  ApplyColor(item.marker, "SetVertexColor", THEME.checkboxChecked)
   item.marker:Hide()
 
   item.arrow = item:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
   item.arrow:SetPoint("RIGHT", item, "RIGHT", -5, 0)
   item.arrow:SetFont(BUTTON_FONT, 9, "OUTLINE")
   item.arrow:SetText(">")
-  item.arrow:SetTextColor(THEME.text[1], THEME.text[2], THEME.text[3], THEME.text[4] or 1)
+  ApplyColor(item.arrow, "SetTextColor", THEME.text)
   item.arrow:Hide()
 
   item.label = item:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
@@ -772,14 +785,14 @@ local function SkinSlider(parent, options)
   track:SetHeight(4)
   track:SetPoint("LEFT", slider, "LEFT", 0, 0)
   track:SetPoint("RIGHT", slider, "RIGHT", 0, 0)
-  track:SetVertexColor(THEME.borderDim[1], THEME.borderDim[2], THEME.borderDim[3], THEME.borderDim[4] or 1)
+  ApplyColor(track, "SetVertexColor", THEME.borderDim)
 
   slider:SetThumbTexture(WHITE8X8)
   local thumb = slider:GetThumbTexture()
   if thumb then
     thumb:SetWidth(10)
     thumb:SetHeight(16)
-    thumb:SetVertexColor(THEME.button[1], THEME.button[2], THEME.button[3], THEME.button[4] or 1)
+    ApplyColor(thumb, "SetVertexColor", THEME.button)
   end
 
   slider._acbTooltip = options.tooltip
@@ -787,13 +800,13 @@ local function SkinSlider(parent, options)
   slider.titleText = slider:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
   slider.titleText:SetPoint("BOTTOMLEFT", slider, "TOPLEFT", 0, 5)
   slider.titleText:SetText(options.title or "")
-  slider.titleText:SetTextColor(THEME.muted[1], THEME.muted[2], THEME.muted[3], THEME.muted[4] or 1)
+  ApplyColor(slider.titleText, "SetTextColor", THEME.muted)
 
   slider.valueText = slider:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
   slider.valueText:SetPoint("TOPLEFT", slider, "BOTTOMLEFT", 0, -5)
   slider.valueText:SetWidth((options.width or 160) + 160)
   slider.valueText:SetJustifyH("LEFT")
-  slider.valueText:SetTextColor(THEME.text[1], THEME.text[2], THEME.text[3], THEME.text[4] or 1)
+  ApplyColor(slider.valueText, "SetTextColor", THEME.text)
 
   local function renderValue()
     local value = slider:GetValue()
@@ -828,7 +841,7 @@ local function SkinSlider(parent, options)
     end)
   slider:SetScript("OnEnter", function(self)
     if thumb then
-      thumb:SetVertexColor(THEME.buttonHoverBorder[1], THEME.buttonHoverBorder[2], THEME.buttonHoverBorder[3], THEME.buttonHoverBorder[4] or 1)
+      ApplyColor(thumb, "SetVertexColor", THEME.buttonHoverBorder)
     end
     if self._acbTooltip then
       GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -839,7 +852,7 @@ local function SkinSlider(parent, options)
     end)
   slider:SetScript("OnLeave", function(self)
     if thumb then
-      thumb:SetVertexColor(THEME.button[1], THEME.button[2], THEME.button[3], THEME.button[4] or 1)
+      ApplyColor(thumb, "SetVertexColor", THEME.button)
     end
     GameTooltip:Hide()
     end)
@@ -925,8 +938,22 @@ local function BuildWindow(name, opts)
   if opts.movable then
     frame:SetMovable(true)
     frame:RegisterForDrag("LeftButton")
-    frame:SetScript("OnDragStart", function(self) self:StartMoving() end)
-    frame:SetScript("OnDragStop", function(self) self:StopMovingOrSizing() end)
+    frame:SetScript("OnDragStart", function(self)
+      if not InCombatLockdown() and not RT.state.appearance.locked then self:StartMoving() end
+    end)
+    frame:SetScript("OnDragStop", function(self)
+      self:StopMovingOrSizing()
+      if name then
+        RT.state.windowPositions = RT.state.windowPositions or {}
+        local point = RT.state.windowPositions[name] or {}
+        RT.state.windowPositions[name] = point
+        RT.SavePoint(self, point)
+      end
+    end)
+    if name then frame:HookScript("OnShow", function(self)
+      local point = RT.state.windowPositions and RT.state.windowPositions[name]
+      if point then RT.RestorePoint(self, point) end
+    end) end
   end
 
   if opts.titleKey then
@@ -1022,7 +1049,7 @@ local function BuildDialog()
   frame.body:SetWidth(DIALOG_WIDTH - 36)
   frame.body:SetJustifyH("LEFT")
   frame.body:SetJustifyV("TOP")
-  frame.body:SetTextColor(THEME.text[1], THEME.text[2], THEME.text[3], THEME.text[4] or 1)
+  ApplyColor(frame.body, "SetTextColor", THEME.text)
 
   frame.editBox = CreateFrame("EditBox", "AutoCallboardDialogEditBox", frame, "InputBoxTemplate")
   frame.editBox:SetWidth(DIALOG_WIDTH - 44)
@@ -1109,7 +1136,7 @@ local function DialogChoiceRow(frame, index)
   row.label:SetPoint("LEFT", row, "LEFT", 8, 0)
   row.label:SetPoint("RIGHT", row, "RIGHT", -8, 0)
   row.label:SetJustifyH("LEFT")
-  row.label:SetTextColor(THEME.text[1], THEME.text[2], THEME.text[3], THEME.text[4] or 1)
+  ApplyColor(row.label, "SetTextColor", THEME.text)
 
   row:SetScript("OnEnter", function(self) DialogChoiceVisual(self) end)
   row:SetScript("OnLeave", function(self) DialogChoiceVisual(self) end)
@@ -1260,7 +1287,7 @@ local function PaintRow(row, selected, hovered, disabled)
   end
 
   local color = disabled and THEME.buttonDisabledText or THEME.text
-  row.title:SetTextColor(color[1], color[2], color[3], color[4] or 1)
+  ApplyColor(row.title, "SetTextColor", color)
 end
 
 local function BuildSettingCheckbox(parent, opts)
@@ -1309,3 +1336,76 @@ AutoCallboardSkin.MutedText = SkinMutedText
 AutoCallboardSkin.HelpButton = SkinHelpButton
 AutoCallboardSkin.Menu = SkinMenu
 AutoCallboardSkin.Slider = SkinSlider
+
+-- Original palette is kept once for an exact reset; active color tables stay put.
+local originals = {}
+for key, value in pairs(THEME) do
+  originals[key] = {unpack(value)}
+  THEME[key] = {unpack(value)}
+end
+
+function AutoCallboardSkin.UnpackColor(value)
+  return math.floor(value / 65536) / 255, math.floor(value / 256) % 256 / 255, value % 256 / 255
+end
+
+local function luminance(r, g, b)
+  local function linear(v) return v <= 0.04045 and v / 12.92 or ((v + 0.055) / 1.055) ^ 2.4 end
+  return 0.2126 * linear(r) + 0.7152 * linear(g) + 0.0722 * linear(b)
+end
+
+function AutoCallboardSkin.ApplyAppearance(config)
+  local br, bg, bb = AutoCallboardSkin.UnpackColor(config.background)
+  local ar, ag, ab = AutoCallboardSkin.UnpackColor(config.accent)
+  local neutral = luminance(br, bg, bb) > 0.179 and 0.04 or 0.96
+  local background = {bg = true, bgSoft = true, card = true, debugList = true,
+    checkbox = true, close = true, closeBorder = true}
+  local foreground = {text = true, muted = true, title = true, gold = true, good = true}
+  for key, value in pairs(THEME) do
+    local original = originals[key]
+    for i = 1, 4 do value[i] = original[i] end
+    if background[key] then
+      if config.background ~= 0x050505 then value[1], value[2], value[3] = br, bg, bb end
+      if key == "bg" or key == "bgSoft" or key == "card" or key == "debugList" then
+        value[4] = original[4] * config.opacity / 0.96
+      end
+    elseif foreground[key] then
+      if config.background ~= 0x050505 then value[1], value[2], value[3] = neutral, neutral, neutral end
+    elseif key ~= "buttonText" and key ~= "buttonDisabledText" and key ~= "buttonStop" and key ~= "buttonStopText" then
+      if config.accent ~= 0xB048F8 then
+        local brightness = math.max(original[1], original[2], original[3]) / (248 / 255)
+        value[1], value[2], value[3] = math.min(1, ar * brightness), math.min(1, ag * brightness), math.min(1, ab * brightness)
+      end
+    end
+  end
+  if config.accent ~= 0xB048F8 then
+    local text = luminance(unpack(THEME.button)) > 0.179 and 0.04 or 0.96
+    for _, key in ipairs({"buttonText", "buttonDisabledText"}) do
+      THEME[key][1], THEME[key][2], THEME[key][3] = text, text, text
+    end
+  end
+  -- Text accents must contrast with the chosen window background.
+  if config.background ~= 0x050505 or config.accent ~= 0xB048F8 then
+    for _, key in ipairs({"heading", "closeText"}) do
+      local value, base = THEME[key], luminance(br, bg, bb)
+      for step = 1, 20 do
+        local lum = luminance(unpack(value))
+        if (math.max(lum, base) + 0.05) / (math.min(lum, base) + 0.05) >= 4.5 then break end
+        for i = 1, 3 do value[i] = value[i] + (neutral - value[i]) * 0.2 end
+      end
+    end
+  end
+  for method, entries in pairs(colors) do
+    for widget, value in pairs(entries) do widget[method](widget, unpack(value)) end
+  end
+end
+
+function AutoCallboardSkin.ScaleRoots(scale)
+  for widget in pairs(colors.SetBackdropColor or {}) do
+    if widget.GetParent and widget:GetParent() == UIParent then widget:SetScale(scale) end
+  end
+end
+
+function AutoCallboardSkin.AccentCode()
+  local c = THEME.heading
+  return string.format("|cff%02x%02x%02x", c[1] * 255, c[2] * 255, c[3] * 255)
+end
