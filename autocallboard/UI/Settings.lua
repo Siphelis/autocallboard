@@ -181,7 +181,7 @@ local function CreateSettings()
     local field = key
     colorButtons[key] = Button(pages[2], i == 1 and "UI_BACKGROUND" or "UI_ACCENT", 0, -(i - 1) * 42, 260, function() PickColor(field) end)
   end
-  for i, spec in ipairs({{"scale", "UI_SCALE", 0.7, 1.4}, {"opacity", "UI_OPACITY", 0.25, 1}}) do
+  for i, spec in ipairs({{"scale", "UI_SCALE", 0.2, 1.4}, {"opacity", "UI_OPACITY", 0.25, 1}}) do
     local key = spec[1]
     sliders[key] = Skin.Slider(pages[2], {width = 250, min = spec[3], max = spec[4], step = 0.05,
       title = L[spec[2]], format = function(value) return string.format("%d%%", value * 100 + 0.5) end,
@@ -231,7 +231,7 @@ end
 function RT.AttachSettingsControls()
   CreateSettings()
   local page = pages[1]
-  for i, name in ipairs({"autoCurrentInstanceCheckbox", "echoBarCheckbox", "autoAcceptSharedCheckbox", "minimapShownCheckbox", "travelCheckbox", "travelAutoCheckbox"}) do
+  for i, name in ipairs({"autoCurrentInstanceCheckbox", "echoBarCheckbox", "autoAcceptSharedCheckbox", "minimapShownCheckbox", "travelCheckbox", "travelAutoCheckbox", "remoteRollCheckbox"}) do
     local widget = RT[name]
     widget:SetParent(page)
     widget:ClearAllPoints(); widget:SetPoint("TOPLEFT", page, "TOPLEFT", 0, -(i - 1) * 30)
@@ -241,13 +241,13 @@ function RT.AttachSettingsControls()
   RT.echoBarOrientationButton:SetParent(page)
   RT.echoBarOrientationButton:ClearAllPoints(); RT.echoBarOrientationButton:SetPoint("TOPLEFT", page, "TOPLEFT", 400, -30)
   RT.rollSpeedSlider:SetParent(page)
-  RT.rollSpeedSlider:ClearAllPoints(); RT.rollSpeedSlider:SetPoint("TOPLEFT", page, "TOPLEFT", 0, -265)
+  RT.rollSpeedSlider:ClearAllPoints(); RT.rollSpeedSlider:SetPoint("TOPLEFT", page, "TOPLEFT", 0, -280)
   RT.rollSpeedSlider:SetWidth(480)
   RT.rollSpeedSlider.valueText:SetWidth(520)
   RT.languageButton:SetParent(page)
-  RT.languageButton:ClearAllPoints(); RT.languageButton:SetPoint("TOPLEFT", page, "TOPLEFT", 0, -340)
-  local accept = Check(page, "UI_AUTO_ACCEPT", 0, -180, function(self) RT.SetField("autoAccept", self:GetChecked() and true or false) end)
-  local eternals = Check(page, "UI_ETERNALS", 0, -210, function(self)
+  RT.languageButton:ClearAllPoints(); RT.languageButton:SetPoint("TOPLEFT", page, "TOPLEFT", 0, -355)
+  local accept = Check(page, "UI_AUTO_ACCEPT", 0, -210, function(self) RT.SetField("autoAccept", self:GetChecked() and true or false) end)
+  local eternals = Check(page, "UI_ETERNALS", 0, -240, function(self)
     if SlashCmdList.AUTOCALLBOARDETERNALS then SlashCmdList.AUTOCALLBOARDETERNALS(self:GetChecked() and "on" or "off") end
   end)
   page:SetScript("OnShow", function()

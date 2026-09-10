@@ -1337,7 +1337,6 @@ AutoCallboardSkin.HelpButton = SkinHelpButton
 AutoCallboardSkin.Menu = SkinMenu
 AutoCallboardSkin.Slider = SkinSlider
 
--- Original palette is kept once for an exact reset; active color tables stay put.
 local originals = {}
 for key, value in pairs(THEME) do
   originals[key] = {unpack(value)}
@@ -1383,7 +1382,6 @@ function AutoCallboardSkin.ApplyAppearance(config)
       THEME[key][1], THEME[key][2], THEME[key][3] = text, text, text
     end
   end
-  -- Text accents must contrast with the chosen window background.
   if config.background ~= 0x050505 or config.accent ~= 0xB048F8 then
     for _, key in ipairs({"heading", "closeText"}) do
       local value, base = THEME[key], luminance(br, bg, bb)

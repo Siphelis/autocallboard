@@ -88,7 +88,7 @@ local function CaptureCurrentObjectives()
     return {}
   end
 
-  if not RT.IsCallboardDataAvailable() then
+  if not RT.CanReadObjectiveChoices() then
     lastCapturedSignature = nil
     return {}
   end
@@ -403,6 +403,20 @@ local function SelectObjectiveIndex(index)
   end
 
   local objective = GetCurrentObjectives()[index]
+  local active = GetActiveObjective()
+
+  if active then
+    local activeID = tonumber(active.questId) or 0
+    local wantedID = tonumber(objective and objective.questId) or 0
+
+    if activeID ~= wantedID then
+      Log("quest", "select skipped, objective already active id=", activeID)
+      StartSelectedQuestPause(active)
+      return false
+    end
+  end
+
+  local boardWasOpen = RT.IsBoardSessionOpen()
   local selected
 
   if ProjectEbonhold and ProjectEbonhold.sendToServer and ProjectEbonhold.CS and ProjectEbonhold.CS.REQUEST_SELECT_OBJECTIVE then
@@ -415,7 +429,10 @@ local function SelectObjectiveIndex(index)
   if selected then
     SetQuestStatus(string.format(L.OBJECTIVE_SELECTED_SLOT, index))
     StartSelectedQuestPause(objective, index)
-    RT.CloseObjectiveBoardAfterSelection("selected slot " .. tostring(index))
+
+    if boardWasOpen then
+      RT.CloseObjectiveBoardAfterSelection("selected slot " .. tostring(index))
+    end
   end
 
   return selected
@@ -746,9 +763,20 @@ local function ProcessRolling()
     return
   end
 
-  if not RT.IsBoardSessionOpen() then
+  local boardSessionOpen = RT.IsBoardSessionOpen()
+
+  if not boardSessionOpen and not RT.IsRemoteRollEnabled() then
     if not rollPausedReason then
       SetRollPause("no_callboard", L.PAUSED_WAITING_CALLBOARD_UI)
+    end
+
+    nextRollAt = now + ROLL_EVAL_INTERVAL
+    return
+  end
+
+  if not boardSessionOpen and not RT.HasCurrentObjectiveData() then
+    if not rollPausedReason then
+      SetRollPause("no_callboard", L.BOARD_ACCESS_DATA_MISSING)
     end
 
     nextRollAt = now + ROLL_EVAL_INTERVAL
@@ -781,17 +809,21 @@ local function ProcessRolling()
   end
 end
 
-local function RefreshQuestWindowIfNeeded()
+local function RefreshQuestWindowIfNeeded(now)
   if not RT.IsQuestWindowShown() then
     return
   end
 
-  local now = GetTime()
+  now = now or GetTime()
   if nextQuestRefreshAt and now < nextQuestRefreshAt then
     return
   end
 
   nextQuestRefreshAt = now + QUEST_REFRESH_INTERVAL
+
+  if not RT.CanReadObjectiveChoices() then
+    return
+  end
 
   local signature = ObjectiveSignature(GetCurrentObjectives())
   if signature ~= lastCapturedSignature then

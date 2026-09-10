@@ -17,6 +17,10 @@ local autoQuestKey
 local MaybeAutoTravel
 local requestedList
 local checkpointDataReady = false
+local lastTravelCheckpoints
+local lastTravelUnlockedCount
+local lastTravelLocation
+local lastTravelAreaId
 
 local LOCATION_ALIASES = {
   tirisfalglades = "tirisfal", elwynnforest = "elwynn", redridgemountains = "redridge",
@@ -122,7 +126,7 @@ local function WorldPoint(checkpoint, boundsByName)
   if not zone then
     return nil
   end
-  local bounds = boundsByName[NormalizeLocation(zone.name)] or zone.bounds
+  local bounds = (boundsByName and boundsByName[NormalizeLocation(zone.name)]) or zone.bounds
   if not bounds or bounds[5] ~= tonumber(checkpoint.serverMapId) then
     return nil
   end
@@ -132,6 +136,50 @@ local function WorldPoint(checkpoint, boundsByName)
   end
   return { x = bounds[1] + (bounds[2] - bounds[1]) * x,
     y = bounds[3] + (bounds[4] - bounds[3]) * y, map = WorldMapKey(zone, bounds[5]) }
+end
+
+function Core.travelZoneKey(location, areaId)
+  local wanted = NormalizeLocation(location)
+
+  if wanted == "" then
+    wanted = NormalizeLocation((Core.travelAreaNames or {})[tonumber(areaId)])
+  end
+
+  if wanted == "" then
+    return ""
+  end
+
+  return subzonesByName[wanted] or wanted
+end
+
+function RT.GetCurrentZoneKey()
+  if not GetMapInfo then
+    return ""
+  end
+
+  local mapOpen = WorldMapFrame and WorldMapFrame.IsShown and WorldMapFrame:IsShown()
+
+  if not mapOpen and SetMapToCurrentZone then
+    SetMapToCurrentZone()
+  end
+
+  return NormalizeLocation(GetMapInfo())
+end
+
+function RT.IsPlayerInTravelZone(location, areaId)
+  local wanted = Core.travelZoneKey(location, areaId)
+
+  if wanted == "" then
+    return false
+  end
+
+  local here = RT.GetCurrentZoneKey()
+
+  if here == "" then
+    return false
+  end
+
+  return here == wanted
 end
 
 function Core.chooseTravelCheckpoint(checkpoints, location, areaId)
@@ -149,19 +197,23 @@ function Core.chooseTravelCheckpoint(checkpoints, location, areaId)
     return nil
   end
 
-  local boundsByName = {}
-  for name, bounds in pairs(ProjectEbonhold and ProjectEbonhold.WorldMapBounds or {}) do
-    if type(bounds) == "table" and type(bounds[1]) == "number" and type(bounds[2]) == "number"
-        and type(bounds[3]) == "number" and type(bounds[4]) == "number" and type(bounds[5]) == "number"
-        and bounds[1] > bounds[2] and bounds[3] > bounds[4] then
-      boundsByName[NormalizeLocation(name)] = bounds
+  local boundsByName
+  local ebonBounds = ProjectEbonhold and ProjectEbonhold.WorldMapBounds
+  if ebonBounds then
+    boundsByName = {}
+    for name, bounds in pairs(ebonBounds) do
+      if type(bounds) == "table" and type(bounds[1]) == "number" and type(bounds[2]) == "number"
+          and type(bounds[3]) == "number" and type(bounds[4]) == "number" and type(bounds[5]) == "number"
+          and bounds[1] > bounds[2] and bounds[3] > bounds[4] then
+        boundsByName[NormalizeLocation(name)] = bounds
+      end
     end
   end
 
   local anchors = {}
   local targetZone = zonesByName[wanted]
   if targetZone then
-    local bounds = boundsByName[wanted] or targetZone.bounds
+    local bounds = (boundsByName and boundsByName[wanted]) or targetZone.bounds
     if bounds then
       anchors[1] = { x = (bounds[1] + bounds[2]) / 2, y = (bounds[3] + bounds[4]) / 2,
         map = WorldMapKey(targetZone, bounds[5]) }
@@ -450,6 +502,12 @@ function MaybeAutoTravel(questKey)
     return false
   end
 
+  if RT.IsPlayerInTravelZone(lastTravelLocation, lastTravelAreaId) then
+    autoQuestKey = questKey
+    Log("travel", "auto skipped, already in ", tostring(lastTravelLocation))
+    return false
+  end
+
   autoQuestKey = questKey
 
   return RT.TravelToSuggestion("auto")
@@ -468,6 +526,10 @@ end
 function RT.ClearTravelSuggestion()
   suggestion = nil
   suggestionQuestKey = nil
+  lastTravelCheckpoints = nil
+  lastTravelUnlockedCount = nil
+  lastTravelLocation = nil
+  lastTravelAreaId = nil
   UpdateButton()
 end
 
@@ -497,14 +559,26 @@ function RT.RefreshTravelSuggestion(source, skipAuto)
 
   if unlocked <= 0 then
     RT.RequestTravelCheckpoints("refresh")
-    suggestion = nil
-    suggestionQuestKey = nil
-    UpdateButton()
+    RT.ClearTravelSuggestion()
     return nil
   end
 
   local location = Core.travelLocationFromText(Core.objectiveText(objective))
   local areaId = Core.objectiveMetadata(objective)
+
+  if source == "watch" and suggestionQuestKey == questKey and lastTravelCheckpoints == checkpoints
+      and lastTravelUnlockedCount == unlocked and lastTravelLocation == location and lastTravelAreaId == areaId then
+    if not skipAuto then
+      MaybeAutoTravel(questKey)
+    end
+    return suggestion
+  end
+
+  lastTravelCheckpoints = checkpoints
+  lastTravelUnlockedCount = unlocked
+  lastTravelLocation = location
+  lastTravelAreaId = areaId
+
   local chosen = Core.chooseTravelCheckpoint(checkpoints, location, areaId)
 
   if (chosen and chosen.id) ~= (suggestion and suggestion.id) or suggestionQuestKey ~= questKey then

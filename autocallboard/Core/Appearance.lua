@@ -2,7 +2,7 @@ local Core = AutoCallboardCore
 
 local DEFAULT = { background = 0x050505, accent = 0xB048F8, scale = 1, opacity = 0.96,
   locked = false, goldTotal = true, goldLast = true, goldCurrent = true, goldSession = false, goldMain = false }
-local LIMIT = { background = {0, 0xFFFFFF}, accent = {0, 0xFFFFFF}, scale = {0.7, 1.4}, opacity = {0.25, 1} }
+local LIMIT = { background = {0, 0xFFFFFF}, accent = {0, 0xFFFFFF}, scale = {0.2, 1.4}, opacity = {0.25, 1} }
 
 function Core.copyAppearance(source)
   local result = {}
@@ -15,7 +15,6 @@ function Core.copyAppearance(source)
   return result
 end
 
--- This is the order of the existing control-frame buttons, per character.
 function Core.copyToolbar(source)
   if type(source) ~= "table" then return {1, 2, 3, 4, 5, 6} end
   local result, seen = {}, {}

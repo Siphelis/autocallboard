@@ -570,6 +570,10 @@ function RT.UpdateMinimapShownControl()
   SyncCheckbox(RT.minimapShownCheckbox, state and state.minimap and state.minimap.shown)
 end
 
+function RT.UpdateRemoteRollControl()
+  SyncCheckbox(RT.remoteRollCheckbox, state and state.remoteRoll)
+end
+
 local function GetKnownMaxScrollOffset()
   local entries = RT.GetKnownQuestEntries()
 
@@ -952,6 +956,16 @@ function RT.CreateQuestWindow()
       end,
   })
   RT.SyncTravelCheckbox()
+
+  RT.remoteRollCheckbox = Skin.SettingCheckbox(questWindow, {
+    point = { "TOPRIGHT", questWindow, "TOPRIGHT", -24, -196 },
+    labelKey = "REMOTE_ROLL_LABEL",
+    tipKey = "REMOTE_ROLL_TOOLTIP",
+    onClick = function(self)
+      RT.SetField("remoteRoll", self:GetChecked() and true or false)
+      end,
+  })
+  RT.UpdateRemoteRollControl()
 
   local rollSpeedPresets = Core.rollSpeedPresetList()
 

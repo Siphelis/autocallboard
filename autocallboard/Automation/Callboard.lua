@@ -449,6 +449,14 @@ function RT.IsCallboardDataAvailable()
       and RT.HasCurrentObjectiveData()
 end
 
+function RT.CanReadObjectiveChoices()
+  if RT.IsCallboardDataAvailable() then
+    return true
+  end
+
+  return RT.IsRemoteRollEnabled() and RT.HasCurrentObjectiveData()
+end
+
 function RT.IsBoardSessionOpen()
   local npcBoard = RT.GetNpcBoardInfo and RT.GetNpcBoardInfo() or nil
   local uiOpen = RT.IsCallboardUiPresent()
@@ -467,11 +475,23 @@ function RT.IsCallboardReadyForQuestActions()
     return false
   end
 
-  if not RT.IsBoardSessionOpen() then
+  if not RT.IsBoardSessionOpen() and not RT.IsRemoteRollEnabled() then
     return false
   end
 
   return RT.HasCurrentObjectiveData()
+end
+
+function RT.IsRemoteRollEnabled()
+  if not state or not state.remoteRoll then
+    return false
+  end
+
+  if not GetObjectivesService() then
+    return false
+  end
+
+  return true
 end
 
 function RT.GetBoardAccessState(action)
@@ -510,6 +530,26 @@ function RT.GetBoardAccessState(action)
       message = L.BOARD_ACCESS_DATA_MISSING,
       boardName = npcBoard and npcBoard.name or nil,
       boardObjectId = npcBoard and npcBoard.objectId or nil,
+    }
+  end
+
+  if RT.IsRemoteRollEnabled() then
+    if dataReady then
+      return {
+        ok = true,
+        remote = true,
+        source = "remote",
+        reason = "remote",
+        message = L.BOARD_ACCESS_REMOTE,
+      }
+    end
+
+    return {
+      ok = false,
+      remote = true,
+      needsData = true,
+      reason = "objective_data_missing",
+      message = L.BOARD_ACCESS_DATA_MISSING,
     }
   end
 
@@ -757,9 +797,6 @@ StartCallboardFlow = function()
     return
   end
 
-  -- A slash command runs on a tainted execution path, where the client forbids
-  -- RunMacroText and every CastSpell* API. The summon can only come from a
-  -- hardware click on the secure Callboard button, so point the player at it.
   Log("summon", "summon needs the secure button (tainted slash path)")
   RT.Print(L.SUMMON_NEEDS_BUTTON)
   UpdateSummonStatus()
