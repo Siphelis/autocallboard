@@ -241,6 +241,7 @@ LISTS_ROW_STOP_TO_SWITCH = "Stoppe das Callboard, bevor du die Liste wechselst."
 LISTS_ROW_NEED_RESTED = "Du musst Stufe 10 sein, dich in einem Ruhegebiet (Gasthaus oder Hauptstadt) befinden und nicht im Kampf sein, um die Schwierigkeit zu ändern.",
 LISTS_ROW_LEFT_CLICK_CLEAR = "Linksklick, um deine Auswahl zu leeren.",
 LISTS_ROW_LEFT_CLICK_LOAD = "Linksklick zum Laden. Rechtsklick für weitere Optionen.",
+LISTS_ROW_LEFT_CLICK_UNLOAD = "Linksklick zum Abwählen. Rechtsklick für weitere Optionen.",
 LISTS_WINDOW_TITLE = "Gespeicherte Listen",
 LISTS_WINDOW_EMPTY = "Noch keine gespeicherten Listen.",
 

@@ -424,6 +424,14 @@ local function SkinCheckbox(target)
     target._acbCheck = check
   end
 
+  if not target._acbSetChecked and target.SetChecked then
+    target._acbSetChecked = target.SetChecked
+    target.SetChecked = function(self, value)
+      self._acbSetChecked(self, value)
+      SetCheckboxVisual(self)
+    end
+  end
+
   SetCheckboxVisual(target)
 
   if not target._acbCheckboxHooks and target.HookScript then

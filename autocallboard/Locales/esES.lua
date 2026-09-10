@@ -241,6 +241,7 @@ LISTS_ROW_STOP_TO_SWITCH = "Detén el Callboard antes de cambiar de lista.",
 LISTS_ROW_NEED_RESTED = "Debes ser nivel 10, estar en una zona de descanso (posada o ciudad capital) y fuera de combate para cambiar la dificultad.",
 LISTS_ROW_LEFT_CLICK_CLEAR = "Clic izquierdo para vaciar tu selección.",
 LISTS_ROW_LEFT_CLICK_LOAD = "Clic izquierdo para cargar. Clic derecho para más opciones.",
+LISTS_ROW_LEFT_CLICK_UNLOAD = "Clic izquierdo para deseleccionarla. Clic derecho para más opciones.",
 LISTS_WINDOW_TITLE = "Listas guardadas",
 LISTS_WINDOW_EMPTY = "Aún no hay listas guardadas.",
 

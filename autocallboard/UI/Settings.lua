@@ -108,7 +108,7 @@ function RT.LayoutMainToolbar()
     RT.questWindow:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, -82 - row * 29)
   end
   if not RT.questPanelChanging then
-    local expanded = RT.IsQuestWindowShown()
+    local expanded = RT.IsQuestWindowShown() and not RT.questWindowCreating
     RT.SetControlFrameSize(expanded and RT.controlExpandedWidth or width, expanded and RT.controlExpandedHeight or RT.controlCollapsedHeight)
   end
   PlaceGold()

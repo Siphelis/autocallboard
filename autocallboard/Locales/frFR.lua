@@ -241,6 +241,7 @@ LISTS_ROW_STOP_TO_SWITCH = "Arrête le Callboard avant de changer de liste.",
 LISTS_ROW_NEED_RESTED = "Tu dois être niveau 10, dans une zone de repos (auberge ou capitale) et hors combat pour changer de difficulté.",
 LISTS_ROW_LEFT_CLICK_CLEAR = "Clic gauche pour vider ta sélection.",
 LISTS_ROW_LEFT_CLICK_LOAD = "Clic gauche pour charger. Clic droit pour plus d'options.",
+LISTS_ROW_LEFT_CLICK_UNLOAD = "Clic gauche pour la désélectionner. Clic droit pour plus d'options.",
 LISTS_WINDOW_TITLE = "Listes enregistrées",
 LISTS_WINDOW_EMPTY = "Aucune liste enregistrée pour l'instant.",
 

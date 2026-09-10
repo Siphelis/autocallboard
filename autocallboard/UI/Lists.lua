@@ -116,8 +116,16 @@ function RT.LoadSelectionPreset(entry)
   RT.RefreshQuestWindow()
 end
 
+function RT.IsSelectionActive(entry)
+  return entry ~= nil and entry.id ~= nil and RT.GetActiveSelectionId() == entry.id
+end
+
 function RT.IsSelectionDifficultyLocked(entry)
   if not entry or entry.difficulty == nil then
+    return false
+  end
+
+  if RT.IsSelectionActive(entry) then
     return false
   end
 
@@ -135,6 +143,12 @@ function RT.RequestLoadSelection(entry)
 
   if RT.IsRolling() then
     Print(L.LISTS_CANNOT_SWITCH_ROLLING)
+    return
+  end
+
+  if RT.IsSelectionActive(entry) then
+    RT.LoadSelectionPreset(RT.noneSelectionEntry)
+    RefreshListsWindow()
     return
   end
 
@@ -504,7 +518,7 @@ function RT.RefreshListRowVisual(row, hovered)
   end
 
   Skin.PaintRow(row,
-      entry.id ~= nil and RT.GetActiveSelectionId() == entry.id,
+      RT.IsSelectionActive(entry),
       hovered and not drag,
       RT.IsRolling() or RT.IsSelectionDifficultyLocked(entry))
 
@@ -589,6 +603,8 @@ local function CreateListRow(parent, name)
 
     if RT.IsRolling() then
       GameTooltip:AddLine(L.LISTS_ROW_STOP_TO_SWITCH, 1, 0.4, 0.4)
+    elseif RT.IsSelectionActive(entry) then
+      GameTooltip:AddLine(L.LISTS_ROW_LEFT_CLICK_UNLOAD, 0.8, 0.8, 0.8)
     elseif RT.IsSelectionDifficultyLocked(entry) then
       GameTooltip:AddLine(L.LISTS_ROW_NEED_RESTED, 1, 0.4, 0.4)
     elseif entry.id == nil then

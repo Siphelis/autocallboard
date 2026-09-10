@@ -241,6 +241,7 @@ LISTS_ROW_STOP_TO_SWITCH = "Stop the Callboard before switching lists.",
 LISTS_ROW_NEED_RESTED = "You must be level 10, rested (inn or capital city), and not in combat to change difficulty.",
 LISTS_ROW_LEFT_CLICK_CLEAR = "Left-click to clear your selection.",
 LISTS_ROW_LEFT_CLICK_LOAD = "Left-click to load. Right-click for more options.",
+LISTS_ROW_LEFT_CLICK_UNLOAD = "Left-click to unload it. Right-click for more options.",
 LISTS_WINDOW_TITLE = "Saved Lists",
 LISTS_WINDOW_EMPTY = "No saved lists yet.",
 

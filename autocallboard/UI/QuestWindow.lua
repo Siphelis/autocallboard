@@ -1150,9 +1150,9 @@ function RT.CreateQuestWindow()
   questStatusText:SetJustifyH("LEFT")
   Skin.MutedText(questStatusText)
 
+  RT.questWindowCreating = true
   RT.AttachSettingsControls()
   RT.LayoutMainToolbar()
-  RT.questWindowCreating = true
   questWindow:Hide()
   RT.questWindowCreating = nil
 end
