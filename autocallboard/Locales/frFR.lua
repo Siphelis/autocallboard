@@ -287,6 +287,7 @@ SHARE_ACCEPTED_QUEST = "Quête acceptée partagée : %s",
 
 OBJECTIVE_LABEL = "Objectif %d",
 OBJECTIVE_SELECTED_SLOT = "Emplacement d'objectif %d sélectionné.",
+QUEST_ABANDONED_RESUMING = "Quête abandonnée : %s. Elle est écartée du roll.",
 QUEST_DONE_RESUMING = "Quête terminée : %s. Reprise du roll.",
 QUEST_FOUND_SELECTED = "Trouvé et sélectionné %s : %s dans l'emplacement %d.",
 QUEST_FOUND_SELECT_FAILED = "Trouvé %s : %s dans l'emplacement %d, mais la sélection a échoué.",

@@ -287,6 +287,7 @@ SHARE_ACCEPTED_QUEST = "Shared accepted quest: %s",
 
 OBJECTIVE_LABEL = "Objective %d",
 OBJECTIVE_SELECTED_SLOT = "Selected objective slot %d.",
+QUEST_ABANDONED_RESUMING = "Quest abandoned: %s. It is left out of the roll.",
 QUEST_DONE_RESUMING = "Quest done: %s. Resuming roll.",
 QUEST_FOUND_SELECTED = "Found and selected %s: %s in slot %d.",
 QUEST_FOUND_SELECT_FAILED = "Found %s: %s in slot %d, but selection failed.",

@@ -16,6 +16,7 @@ local state = RT.state
 local ROLL_EVAL_INTERVAL = 0.5
 local QUEST_REFRESH_INTERVAL = 0.4
 local SELECTED_QUEST_SCAN_FLOOR = 0.25
+local ABANDON_GRACE = 5
 
 local rolling = false
 local rollPausedReason
@@ -27,6 +28,9 @@ local pendingRerollUntil
 local lastObjectiveSignature
 local lastCapturedSignature
 local selectedQuest
+local excludedQuests = {}
+local satisfiedInstances = {}
+local lastAbandonAt
 local travelWarningKey
 local nextSelectedQuestCheckAt
 local lastSelectedQuestScanAt
@@ -103,8 +107,12 @@ local function CaptureCurrentObjectives()
   lastCapturedSignature = signature
   local previousCount = #(state.knownQuests or {})
 
-  state.knownQuests = Core.captureKnownQuests(state.knownQuests, objectives, rollCount, true)
-  RT.TouchState()
+  local known, changed = Core.captureKnownQuests(state.knownQuests, objectives, rollCount, true)
+  state.knownQuests = known
+
+  if changed then
+    RT.TouchState()
+  end
 
   local nextCount = #(state.knownQuests or {})
   if nextCount > previousCount then
@@ -232,10 +240,15 @@ local function StartSelectedQuestPause(quest, index)
     return
   end
 
+  local zoneOrSort, questType = Core.objectiveMetadata(quest)
+
   selectedQuest = {
     key = Core.questKey(quest),
     questId = tonumber(quest.questId or quest.id) or 0,
     title = Core.questTitle(quest),
+    objectiveText = Core.objectiveText(quest),
+    zoneOrSort = zoneOrSort,
+    questType = questType,
     selectedAt = GetTime(),
     seenInLog = false,
     seenActiveObjective = false,
@@ -261,10 +274,114 @@ RT.ShouldHoldObjectiveChoices = function()
   return Core.shouldHoldObjectiveChoices(rolling, rollPausedReason, selectedQuest ~= nil)
 end
 
+local function ReleaseInstanceAnchor(signature, key, sticky)
+  local entry = satisfiedInstances[signature]
+
+  if entry and entry.key == key then
+    entry.sticky = entry.sticky or sticky == true
+    return false
+  end
+
+  satisfiedInstances[signature] = { key = key, sticky = sticky == true }
+
+  return true
+end
+
+local function InstanceQuestStillBlocked(entry)
+  if entry.sticky or excludedQuests[entry.key] then
+    return true
+  end
+
+  local objectives = GetCurrentObjectives()
+
+  for i = 1, #(objectives or {}) do
+    if Core.questKey(objectives[i]) == entry.key then
+      local questID = tonumber(objectives[i].questId) or 0
+
+      return questID > 0 and type(IsQuestFlaggedCompleted) == "function"
+          and IsQuestFlaggedCompleted(questID) == true
+    end
+  end
+
+  return true
+end
+
+local function InstanceTargetForRoll(source)
+  local target = RT.RefreshCurrentInstanceQuestTarget(source)
+  local entry = target and satisfiedInstances[RT.instanceTargetSignature]
+
+  if not entry then
+    return target
+  end
+
+  if not InstanceQuestStillBlocked(entry) then
+    satisfiedInstances[RT.instanceTargetSignature] = nil
+    Log("instance", "instance quest available again, anchor restored signature=", RT.instanceTargetSignature)
+    return target
+  end
+
+  local objectives = GetCurrentObjectives()
+
+  for i = 1, #(objectives or {}) do
+    if Core.questKey(objectives[i]) == entry.key then
+      return target, entry.key
+    end
+  end
+
+  return nil
+end
+
+local function ExclusionsWithCompletedQuests(objectives)
+  if type(objectives) ~= "table" or type(IsQuestFlaggedCompleted) ~= "function" then
+    return excludedQuests
+  end
+
+  local exclusions
+
+  for i = 1, #(objectives) do
+    local quest = objectives[i]
+    local questID = tonumber(quest and quest.questId) or 0
+    local key = Core.questKey(quest)
+
+    if questID > 0 and key and IsQuestFlaggedCompleted(questID) then
+      if not exclusions then
+        exclusions = {}
+        for excludedKey, value in pairs(excludedQuests) do
+          exclusions[excludedKey] = value
+        end
+      end
+      exclusions[key] = true
+    end
+  end
+
+  return exclusions or excludedQuests
+end
+
+local function NoteSelectedQuestComplete()
+  if not selectedQuest or selectedQuest.seenComplete then
+    return
+  end
+
+  local questID = tonumber(selectedQuest.questId) or 0
+
+  if questID > 0 and IsQuestFlaggedCompleted and IsQuestFlaggedCompleted(questID) then
+    selectedQuest.seenComplete = true
+    return
+  end
+
+  local found, complete = FindSelectedQuestInLog()
+
+  if found and complete then
+    selectedQuest.seenComplete = true
+  end
+end
+
 local function IsSelectedQuestDone()
   if not selectedQuest then
     return false
   end
+
+  NoteSelectedQuestComplete()
 
   local questID = tonumber(selectedQuest.questId) or 0
   local activeObjective = GetActiveObjective()
@@ -300,11 +417,138 @@ local function IsSelectedQuestDone()
   return false
 end
 
+local function KeyForAbandonedTitle(title)
+  local normalized = NormalizeQuestTitle(title or "")
+  if normalized == "" then
+    return nil
+  end
+
+  if selectedQuest and NormalizeQuestTitle(selectedQuest.title) == normalized then
+    return selectedQuest.key
+  end
+
+  local objectives = GetCurrentObjectives()
+  if type(objectives) == "table" then
+    for i = 1, #(objectives) do
+      if NormalizeQuestTitle(Core.questTitle(objectives[i])) == normalized then
+        return Core.questKey(objectives[i])
+      end
+    end
+  end
+
+  return nil
+end
+
+local function ExcludeQuestFromRoll(key, source)
+  if type(key) ~= "string" or key == "" then
+    return false
+  end
+
+  if not excludedQuests[key] then
+    excludedQuests[key] = true
+    Log("quest", "quest excluded from the roll key=", key, " source=", source)
+  end
+
+  return true
+end
+
+function RT.NoteQuestAbandoned(title)
+  if ExcludeQuestFromRoll(KeyForAbandonedTitle(title), "abandon") then
+    return
+  end
+
+  if selectedQuest and NormalizeQuestTitle(title or "") ~= ""
+      and NormalizeQuestTitle(selectedQuest.title) ~= NormalizeQuestTitle(title) then
+    if GetNumQuestLogEntries and GetQuestLogTitle then
+      for index = 1, GetNumQuestLogEntries() do
+        local logTitle = GetQuestLogTitle(index)
+        if NormalizeQuestTitle(logTitle) == NormalizeQuestTitle(title) then
+          return
+        end
+      end
+    end
+  end
+
+  lastAbandonAt = GetTime()
+end
+
+local function CollectionKeyForQuest(questID, title)
+  local desired = state.desiredQuests
+  if type(desired) ~= "table" then
+    return nil
+  end
+
+  local byID = Core.questKey({ questId = questID })
+  if byID and desired[byID] then
+    return byID
+  end
+
+  local byTitle = Core.questKey({ title = title })
+  if byTitle and desired[byTitle] then
+    return byTitle
+  end
+
+  return nil
+end
+
+function RT.NoteQuestAccepted(questID, title)
+  if not next(excludedQuests) then
+    return false
+  end
+
+  local key = CollectionKeyForQuest(questID, title)
+  if not key or excludedQuests[key] then
+    return false
+  end
+
+  RT.ClearAbandonedQuestExclusions()
+  Log("quest", "abandon exclusions lifted by key=", key)
+
+  return true
+end
+
+local function SelectedQuestWasAbandoned()
+  if not selectedQuest then
+    return false
+  end
+
+  if selectedQuest.key and excludedQuests[selectedQuest.key] then
+    return true
+  end
+
+  if selectedQuest.seenComplete then
+    return false
+  end
+
+  if lastAbandonAt and GetTime() - lastAbandonAt <= ABANDON_GRACE then
+    ExcludeQuestFromRoll(selectedQuest.key, "abandon grace")
+    return true
+  end
+
+  return false
+end
+
 local function ResumeAfterSelectedQuest(source)
   local title = selectedQuest and selectedQuest.title or L.SELECTED_QUEST_FALLBACK
+  local abandoned = SelectedQuestWasAbandoned()
+  local instanceSignature = selectedQuest and selectedQuest.instanceSignature
+
+  if not abandoned and not instanceSignature and selectedQuest and selectedQuest.key then
+    local target = RT.RefreshCurrentInstanceQuestTarget("resume")
+
+    if target and Core.questMatchesInstanceTarget(selectedQuest, target) then
+      instanceSignature = RT.instanceTargetSignature
+    end
+  end
+
+  if not abandoned and instanceSignature and selectedQuest.key then
+    ReleaseInstanceAnchor(instanceSignature, selectedQuest.key, true)
+    Log("instance", "instance quest completed, anchor released signature=", instanceSignature)
+  end
 
   if RT.LogRollNote then
-    RT.LogRollNote("questGone", selectedQuest and selectedQuest.questId, title)
+    RT.LogRollNote(abandoned and "questAbandoned" or "questGone",
+      selectedQuest and selectedQuest.questId, title)
   end
 
   selectedQuest = nil
@@ -312,6 +556,13 @@ local function ResumeAfterSelectedQuest(source)
   rollCount = 0
   ClearRollPause("quest_selected")
   nextRollAt = GetTime() + 0.2
+
+  if abandoned then
+    SetQuestStatus(string.format(L.QUEST_ABANDONED_RESUMING, title))
+    Log("quest", "quest abandoned source=", source, " title=", title)
+    return
+  end
+
   SetQuestStatus(string.format(L.QUEST_DONE_RESUMING, title))
   Log("quest", "quest done source=", source, " title=", title)
 end
@@ -344,6 +595,7 @@ local function ToggleDesiredQuest(key)
     desired[key] = nil
   else
     desired[key] = true
+    excludedQuests[key] = nil
   end
 
   local entry = RT.EnsureCharacterState()
@@ -525,6 +777,10 @@ local function HandleMatch(match)
     end
 
     if SelectObjectiveIndex(match.index) then
+      if match.source == "currentInstance" and selectedQuest then
+        selectedQuest.instanceSignature = RT.instanceTargetSignature
+      end
+
       RT.blockedMatchKey = nil
       Log("quest", "hard stop on ", match.source or "wanted", " quest slot=", match.index, " key=", match.key, " title=", title)
       SetQuestStatus(string.format(L.QUEST_FOUND_SELECTED, matchLabel, title, match.index))
@@ -565,8 +821,26 @@ EvaluateCurrentObjectives = function()
   end
 
   local objectives = GetCurrentObjectives()
-  local currentInstanceTarget = RT.RefreshCurrentInstanceQuestTarget("evaluate")
-  local match = Core.findRollObjective(objectives, state.desiredQuests, currentInstanceTarget)
+  local currentInstanceTarget, completedInstanceQuestKey = InstanceTargetForRoll("evaluate")
+  local exclusions = ExclusionsWithCompletedQuests(objectives)
+
+  if completedInstanceQuestKey then
+    if exclusions == excludedQuests then
+      exclusions = {}
+      for key, value in pairs(excludedQuests) do
+        exclusions[key] = value
+      end
+    end
+    exclusions[completedInstanceQuestKey] = true
+  end
+
+  local match, releasedInstanceQuestKey =
+      Core.findRollObjective(objectives, state.desiredQuests, currentInstanceTarget, exclusions)
+
+  if releasedInstanceQuestKey and currentInstanceTarget
+      and ReleaseInstanceAnchor(RT.instanceTargetSignature, releasedInstanceQuestKey, false) then
+    Log("instance", "instance quest unavailable, anchor released signature=", RT.instanceTargetSignature, " key=", releasedInstanceQuestKey)
+  end
 
   if match then
     HandleMatch(match)
@@ -861,7 +1135,7 @@ end
 
 StartRolling = function(confirmedUntargeted)
   local desiredCount = CountDesiredQuests()
-  local currentInstanceTarget = RT.RefreshCurrentInstanceQuestTarget("start")
+  local currentInstanceTarget = InstanceTargetForRoll("start")
   local autoCurrentInstanceEnabled = state and state.autoCurrentInstanceQuest
 
   if Core.needsUntargetedRollConfirm(state and state.desiredQuests)
@@ -920,13 +1194,67 @@ StartRolling = function(confirmedUntargeted)
     SetRollPause("no_wanted", L.PAUSED_ENTER_INSTANCE_OR_PICK)
   elseif RT.learningQuestList then
     SetQuestStatus(L.ROLLING_TO_LEARN)
-  elseif currentInstanceTarget and not EvaluateCurrentObjectives() then
-    SetQuestStatus(string.format(L.ROLLING_CURRENT_INSTANCE, GetQuestTypeName(currentInstanceTarget.questType), tostring(currentInstanceTarget.name)))
   elseif not EvaluateCurrentObjectives() then
-    SetQuestStatus(string.format(L.ROLLING_WANTED_QUESTS, desiredCount))
+    if currentInstanceTarget then
+      SetQuestStatus(string.format(L.ROLLING_CURRENT_INSTANCE, GetQuestTypeName(currentInstanceTarget.questType), tostring(currentInstanceTarget.name)))
+    else
+      SetQuestStatus(string.format(L.ROLLING_WANTED_QUESTS, desiredCount))
+    end
   end
 
   UpdateRollToggleButtons()
+end
+
+function RT.InstallAbandonQuestHook()
+  if RT.abandonQuestHooked or type(hooksecurefunc) ~= "function" then
+    return
+  end
+
+  local function capture()
+    if not GetAbandonQuestName then
+      return
+    end
+
+    local ok, name = pcall(GetAbandonQuestName)
+    if ok and type(name) == "string" and name ~= "" then
+      RT.abandonQuestCandidate = name
+    end
+  end
+
+  if type(SetAbandonQuest) == "function" then
+    pcall(hooksecurefunc, "SetAbandonQuest", capture)
+  end
+
+  if type(AbandonQuest) ~= "function" then
+    return
+  end
+
+  local hooked = pcall(hooksecurefunc, "AbandonQuest", function()
+    capture()
+    RT.NoteQuestAbandoned(RT.abandonQuestCandidate)
+    RT.abandonQuestCandidate = nil
+    end)
+
+  RT.abandonQuestHooked = hooked
+
+  if not hooked then
+    Log("quest", "AbandonQuest hook refused, abandons will not leave the roll")
+  end
+end
+
+function RT.IsQuestExcludedFromRoll(key)
+  return excludedQuests[key] == true
+end
+
+function RT.ClearExcludedQuests()
+  excludedQuests = {}
+  satisfiedInstances = {}
+  lastAbandonAt = nil
+end
+
+function RT.ClearAbandonedQuestExclusions()
+  excludedQuests = {}
+  lastAbandonAt = nil
 end
 
 function RT.IsRolling()

@@ -71,11 +71,42 @@ local function PlaceGold()
   RT.RefreshGoldDisplay()
 end
 
+local function WidestText(fontString, ...)
+  if not fontString then return 0 end
+  local previous, widest = fontString:GetText(), 0
+  for index = 1, select("#", ...) do
+    fontString:SetText((select(index, ...)))
+    widest = math.max(widest, fontString:GetStringWidth() or 0)
+  end
+  fontString:SetText(previous)
+  return widest
+end
+
+local function CollapsedFloor(frame)
+  local chrome = 0
+  for _, button in pairs({frame.settingsButton, frame.helpButton, frame.closeButton}) do
+    chrome = chrome + ((button.GetWidth and button:GetWidth()) or 0) + 4
+  end
+
+  local floor = (frame.title and frame.title:GetStringWidth() or 0) + 2 * (chrome + 8)
+
+  floor = math.max(floor, 20 + WidestText(RT.summonStatusText,
+    string.format(L.SUMMON_STATUS_ACTIVE, "0000s", "0000s"),
+    string.format(L.SUMMON_STATUS_COOLDOWN, "0000s"),
+    L.SUMMON_STATUS_READY))
+
+  if Config().goldMain and RT.questGoldText then
+    floor = math.max(floor, 20 + (RT.questGoldText:GetStringWidth() or 0))
+  end
+
+  return floor
+end
+
 function RT.LayoutMainToolbar()
   local frame = RT.controlFrame
   if not buttons or InCombatLockdown() then return end
   local order = Character().toolbar
-  local width, x, row = 424, 10, 0
+  local width, x, row = CollapsedFloor(frame), 10, 0
   local function PlaceButton(button)
     local label = button:GetFontString()
     local size = math.min(240, math.max(54, (label and label:GetStringWidth() or 50) + 18))
@@ -96,7 +127,6 @@ function RT.LayoutMainToolbar()
     end
     PlaceButton(button)
   end
-  if frame.settingsButton and not frame.settingsButton:IsShown() then PlaceButton(frame.settingsButton) end
   local extra = row * 29 + (Config().goldMain and 22 or 0)
   RT.controlCollapsedWidth, RT.controlCollapsedHeight = width, 84 + extra
   RT.controlExpandedHeight = 620 + extra
@@ -275,8 +305,6 @@ end
 function RT.InitSettingsAccess()
   local frame = RT.controlFrame
   buttons = {frame.listsButton, frame.buildsButton, AutoCallboardButton, frame.startButton, frame.shareButton, frame.questButton}
-  frame.settingsButton = Button(frame, "UI_SETTINGS", 10, -30, 90, function() RT.ShowSettings() end)
-  buttons[11] = frame.settingsButton
   RT.PositionControlHeader = function()
     RT.summonStatusText:SetWidth(frame:GetWidth() - 20)
     if RT.questGoldText and Config().goldMain then RT.questGoldText:SetWidth(frame:GetWidth() - 20) end

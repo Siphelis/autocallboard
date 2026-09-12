@@ -285,9 +285,7 @@ local function BuildTooltip(owner, build, extraKey)
   local _, activeSlot = RT.GetActiveBuild()
   local allowed, reason = RT.CanSwitchBuild()
 
-  GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
-  GameTooltip:AddLine(RT.BuildLabel(build),
-      THEME.heading[1], THEME.heading[2], THEME.heading[3])
+  Skin.OpenTip(owner, "ANCHOR_RIGHT", RT.BuildLabel(build))
 
   if tonumber(build.slot) == activeSlot then
     GameTooltip:AddLine(L.BUILDS_ROW_ACTIVE, 0.8, 0.8, 0.8)
@@ -723,7 +721,7 @@ local function CreateEchoCell(index)
     if self.slot then
       BuildTooltip(self, self.build or { slot = self.slot }, "ECHO_BAR_CLEAR_TIP")
     else
-      GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+      Skin.OpenTip(self, "ANCHOR_RIGHT")
       GameTooltip:AddLine(L.ECHO_BAR_EMPTY_TIP, 0.8, 0.8, 0.8)
       GameTooltip:Show()
     end
@@ -802,7 +800,7 @@ local function CreateEchoBar()
   echoDotButton:SetScript("OnEnter", function(self)
     local bar = EchoBarState()
 
-    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    Skin.OpenTip(self, "ANCHOR_RIGHT")
     GameTooltip:AddLine(bar and bar.locked and L.ECHO_BAR_LOCKED_TIP or L.ECHO_BAR_UNLOCKED_TIP,
         0.8, 0.8, 0.8)
     GameTooltip:Show()

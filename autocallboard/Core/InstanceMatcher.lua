@@ -191,38 +191,60 @@ local function questMatchesBuiltTarget(quest, target)
   return false
 end
 
-local function findObjectiveForBuiltTarget(objectives, target)
+function Core.isQuestExcluded(excluded, key)
+  return type(excluded) == "table" and key ~= nil and excluded[key] == true
+end
+
+local function findObjectiveForBuiltTarget(objectives, target, excluded)
   if not Core.isObjectiveChoiceList(objectives) or not target then
     return nil
   end
 
+  local blockedKey
+
   for i = 1, #(objectives) do
+    local key = Core.questKey(objectives[i])
     local matched, alias = questMatchesBuiltTarget(objectives[i], target)
+
     if matched then
-      return {
-        index = i,
-        key = Core.questKey(objectives[i]),
-        quest = objectives[i],
-        source = "currentInstance",
-        label = L.MATCH_LABEL_CURRENT_INSTANCE,
-        matchedAlias = alias,
-        questType = target.questType,
-        target = target,
-      }
+      if Core.isQuestExcluded(excluded, key) then
+        blockedKey = blockedKey or key
+      else
+        return {
+          index = i,
+          key = key,
+          quest = objectives[i],
+          source = "currentInstance",
+          label = L.MATCH_LABEL_CURRENT_INSTANCE,
+          matchedAlias = alias,
+          questType = target.questType,
+          target = target,
+        }
+      end
     end
   end
 
-  return nil
+  return nil, blockedKey
 end
 
-function Core.findDesiredObjective(objectives, desired)
+function Core.questMatchesInstanceTarget(quest, currentInstanceTarget)
+  local target = Core.buildCurrentInstanceTarget(currentInstanceTarget)
+
+  if not target then
+    return false
+  end
+
+  return (questMatchesBuiltTarget(quest, target)) == true
+end
+
+function Core.findDesiredObjective(objectives, desired, excluded)
   if not Core.isObjectiveChoiceList(objectives) or type(desired) ~= "table" then
     return nil
   end
 
   for i = 1, #(objectives) do
     local key = Core.questKey(objectives[i])
-    if key and desired[key] then
+    if key and desired[key] and not Core.isQuestExcluded(excluded, key) then
       return {
         index = i,
         key = key,
@@ -234,14 +256,24 @@ function Core.findDesiredObjective(objectives, desired)
   return nil
 end
 
-function Core.findRollObjective(objectives, desired, currentInstanceTarget)
+function Core.findRollObjective(objectives, desired, currentInstanceTarget, excluded)
   local target = Core.buildCurrentInstanceTarget(currentInstanceTarget)
 
   if target then
-    return findObjectiveForBuiltTarget(objectives, target)
+    local match, blockedKey = findObjectiveForBuiltTarget(objectives, target, excluded)
+
+    if match then
+      return match
+    end
+
+    if not blockedKey then
+      return nil
+    end
+
+    return Core.findDesiredObjective(objectives, desired, excluded), blockedKey
   end
 
-  return Core.findDesiredObjective(objectives, desired)
+  return Core.findDesiredObjective(objectives, desired, excluded)
 end
 
 function Core.shouldHoldObjectiveChoices(isRolling, pauseReason, hasSelectedQuest)

@@ -378,6 +378,7 @@ EVENTS.ADDON_LOADED = function(arg1)
     pcall(RegisterAddonMessagePrefix, RT.questSharePrefix)
   end
   RT.InstallSharedQuestAutoAcceptHook()
+  RT.InstallAbandonQuestHook()
   RT.InitAppearance()
   RT.CreateCallboardButton()
   RT.CreateMinimapButton()
@@ -473,6 +474,9 @@ end
 
 EVENTS.QUEST_LOG_UPDATE = function()
   RT.ProcessPendingAcceptedQuestShare("QUEST_LOG_UPDATE")
+  if RT.RefreshLastAcceptedQuest then
+    RT.RefreshLastAcceptedQuest()
+  end
   RT.ResetSelectedQuestCheck()
   RT.CheckSelectedQuestProgress("QUEST_LOG_UPDATE")
   CheckEternalQuest("QUEST_LOG_UPDATE")

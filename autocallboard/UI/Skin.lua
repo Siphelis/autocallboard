@@ -59,6 +59,25 @@ local function ApplyColor(target, methodName, color)
   end
 end
 
+local function tipText(key)
+  return (AutoCallboardLocale and AutoCallboardLocale[key]) or key
+end
+
+local function OpenTip(owner, anchor, title)
+  GameTooltip:SetOwner(owner, anchor or "ANCHOR_RIGHT")
+
+  if GameTooltip.SetBackdropColor then
+    GameTooltip:SetBackdropColor(THEME.bg[1], THEME.bg[2], THEME.bg[3], 1)
+    GameTooltip:SetBackdropBorderColor(THEME.border[1], THEME.border[2], THEME.border[3], THEME.border[4] or 1)
+  end
+
+  if title then
+    GameTooltip:AddLine(tipText(title), THEME.heading[1], THEME.heading[2], THEME.heading[3])
+  end
+
+  return GameTooltip
+end
+
 local function IsMouseOverFrame(target)
   if not target then
     return false
@@ -107,40 +126,77 @@ local function SetButtonVisual(target, mode)
   end
 end
 
-local function SkinCloseButton(target, parent)
+local CHROME_SIZE = 18
+local CHROME_MARK_SIZE = 12
+local GEAR_TEXTURE = "Interface\\WorldMap\\Gear_64Grey"
+
+local function SetChromeVisual(target, visualMode)
+  local hovered = visualMode == "hover"
+
+  ApplyColor(target, "SetBackdropBorderColor", hovered and THEME.buttonHoverBorder or THEME.closeBorder)
+
+  if target._acbChromeMark then
+    ApplyColor(target._acbChromeMark, target._acbChromeTint, hovered and THEME.buttonHoverBorder or THEME.closeText)
+  end
+end
+
+local function SkinChromeButton(target, glyph, texture, tipKey, hides)
   if not target then
     return
   end
 
-  target:SetWidth(18)
-  target:SetHeight(18)
+  target:SetWidth(CHROME_SIZE)
+  target:SetHeight(CHROME_SIZE)
 
   if target.SetBackdrop then
     target:SetBackdrop(BACKDROP)
     ApplyColor(target, "SetBackdropColor", THEME.close)
-    ApplyColor(target, "SetBackdropBorderColor", THEME.closeBorder)
   end
 
-  local text = target:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-  text:SetPoint("CENTER", target, "CENTER", 0, 0)
-  text:SetText("X")
-  ApplyColor(text, "SetTextColor", THEME.closeText)
+  if texture then
+    target._acbChromeMark = target:CreateTexture(nil, "OVERLAY")
+    target._acbChromeMark:SetTexture(texture)
+    target._acbChromeMark:SetWidth(CHROME_MARK_SIZE)
+    target._acbChromeMark:SetHeight(CHROME_MARK_SIZE)
+    target._acbChromeTint = "SetVertexColor"
+  else
+    target._acbChromeMark = target:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    target._acbChromeMark:SetText(glyph)
+    target._acbChromeTint = "SetTextColor"
+  end
 
-  target:SetScript("OnClick", function()
-    if parent then
-      parent:Hide()
-    end
+  target._acbChromeMark:SetPoint("CENTER", target, "CENTER", 0, 0)
+  SetChromeVisual(target)
+
+  if hides then
+    target:SetScript("OnClick", function()
+      hides:Hide()
+      end)
+  end
+
+  target:SetScript("OnEnter", function(self)
+    SetChromeVisual(self, "hover")
+    OpenTip(self, "ANCHOR_RIGHT", tipKey)
+    GameTooltip:Show()
     end)
-  target:SetScript("OnEnter", function()
-    ApplyColor(target, "SetBackdropColor", THEME.close)
-    ApplyColor(target, "SetBackdropBorderColor", THEME.closeBorder)
-    ApplyColor(text, "SetTextColor", THEME.closeText)
+  target:SetScript("OnLeave", function(self)
+    SetChromeVisual(self)
+    GameTooltip:Hide()
     end)
-  target:SetScript("OnLeave", function()
-    ApplyColor(target, "SetBackdropColor", THEME.close)
-    ApplyColor(target, "SetBackdropBorderColor", THEME.closeBorder)
-    ApplyColor(text, "SetTextColor", THEME.closeText)
-    end)
+
+  return target
+end
+
+local function SkinCloseButton(target, parent)
+  return SkinChromeButton(target, "X", nil, "BUTTON_CLOSE", parent)
+end
+
+local function SkinHelpButton(target)
+  return SkinChromeButton(target, "?", nil, "UI_HELP")
+end
+
+local function SkinGearButton(target, tipKey)
+  return SkinChromeButton(target, nil, GEAR_TEXTURE, tipKey or "UI_SETTINGS")
 end
 
 local function SkinFrame(target, variant)
@@ -498,37 +554,6 @@ local function SkinMutedText(target)
   end
 end
 
-local function SkinHelpButton(target)
-  if not target then
-    return
-  end
-
-  target:SetWidth(18)
-  target:SetHeight(18)
-
-  if target.SetBackdrop then
-    target:SetBackdrop(BACKDROP)
-    ApplyColor(target, "SetBackdropColor", THEME.close)
-    ApplyColor(target, "SetBackdropBorderColor", THEME.closeBorder)
-  end
-
-  target._acbHelpText = target:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-  target._acbHelpText:SetPoint("CENTER", target, "CENTER", 0, 0)
-  target._acbHelpText:SetText("?")
-  ApplyColor(target._acbHelpText, "SetTextColor", THEME.closeText)
-
-  target:SetScript("OnEnter", function()
-    ApplyColor(target, "SetBackdropColor", THEME.close)
-    ApplyColor(target, "SetBackdropBorderColor", THEME.closeBorder)
-    ApplyColor(target._acbHelpText, "SetTextColor", THEME.closeText)
-    end)
-  target:SetScript("OnLeave", function()
-    ApplyColor(target, "SetBackdropColor", THEME.close)
-    ApplyColor(target, "SetBackdropBorderColor", THEME.closeBorder)
-    ApplyColor(target._acbHelpText, "SetTextColor", THEME.closeText)
-    end)
-end
-
 local MENU_EDGE = 8
 local MENU_PAD_TOP = 8
 local MENU_PAD_BOTTOM = 8
@@ -852,8 +877,7 @@ local function SkinSlider(parent, options)
       ApplyColor(thumb, "SetVertexColor", THEME.buttonHoverBorder)
     end
     if self._acbTooltip then
-      GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-      GameTooltip:AddLine(self.titleText:GetText() or "")
+      OpenTip(self, "ANCHOR_RIGHT", self.titleText:GetText() or "")
       GameTooltip:AddLine(self._acbTooltip, 1, 1, 1)
       GameTooltip:Show()
     end
@@ -886,10 +910,6 @@ local function localize(widget, key)
   end
 end
 
-local function tipText(key)
-  return (AutoCallboardLocale and AutoCallboardLocale[key]) or key
-end
-
 local function applyPoints(widget, one, many)
   if one then
     widget:SetPoint(one[1], one[2], one[3], one[4], one[5])
@@ -913,8 +933,7 @@ local function AttachHoverTip(widget, titleKey, bodyKey, kind, extra)
   widget:SetScript("OnEnter", function(self)
     visual(self, "hover")
     if hasTip then
-      GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-      if titleKey then GameTooltip:AddLine(tipText(titleKey)) end
+      OpenTip(self, "ANCHOR_RIGHT", titleKey)
       if bodyKey then GameTooltip:AddLine(tipText(bodyKey), 1, 1, 1) end
       if extra then extra(self) end
       GameTooltip:Show()
@@ -1302,7 +1321,12 @@ local function BuildSettingCheckbox(parent, opts)
   local checkbox = CreateFrame("CheckButton", nil, parent)
   applyPoints(checkbox, opts.point)
   SkinCheckbox(checkbox)
-  if opts.onClick then checkbox:SetScript("OnClick", opts.onClick) end
+  if opts.onClick then
+    checkbox:SetScript("OnClick", opts.onClick)
+    checkbox:HookScript("OnClick", function(self)
+      SetCheckboxVisual(self)
+      end)
+  end
   AttachHoverTip(checkbox, opts.labelKey, opts.tipKey, "checkbox")
 
   local label = parent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
@@ -1314,6 +1338,7 @@ local function BuildSettingCheckbox(parent, opts)
 end
 
 AutoCallboardSkin.HoverTip = AttachHoverTip
+AutoCallboardSkin.OpenTip = OpenTip
 AutoCallboardSkin.Window = BuildWindow
 AutoCallboardSkin.MakeButton = BuildButton
 AutoCallboardSkin.SettingCheckbox = BuildSettingCheckbox
@@ -1342,6 +1367,7 @@ AutoCallboardSkin.TitleText = SkinTitleText
 AutoCallboardSkin.HeadingText = SkinHeadingText
 AutoCallboardSkin.MutedText = SkinMutedText
 AutoCallboardSkin.HelpButton = SkinHelpButton
+AutoCallboardSkin.GearButton = SkinGearButton
 AutoCallboardSkin.Menu = SkinMenu
 AutoCallboardSkin.Slider = SkinSlider
 

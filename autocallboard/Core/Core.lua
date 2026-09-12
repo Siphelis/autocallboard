@@ -558,17 +558,75 @@ local QUEST_REWARD_FIELDS = {
 
 Core.questRewardFields = QUEST_REWARD_FIELDS
 
-local function copyRewardFields(target, source)
-  for i = 1, #(QUEST_REWARD_FIELDS) do
-    local field = QUEST_REWARD_FIELDS[i]
-    target[field] = tonumber(source[field]) or 0
+local indexedList, indexedMap, indexedCount
+
+local function questIndexKey(quest)
+  if type(quest) ~= "table" then
+    return nil
   end
 
-  return target
+  if type(quest.key) == "string" and quest.key ~= "" then
+    return quest.key
+  end
+
+  return Core.questKey(quest)
+end
+
+local function knownQuestIndex(quests)
+  if type(quests) ~= "table" then
+    return nil
+  end
+
+  local count = #(quests)
+
+  if indexedList == quests and indexedCount == count then
+    return indexedMap
+  end
+
+  local map = {}
+
+  for i = 1, count do
+    local key = questIndexKey(quests[i])
+
+    if key then
+      map[key] = quests[i]
+    end
+  end
+
+  indexedList = quests
+  indexedMap = map
+  indexedCount = count
+
+  return map
+end
+
+local function noteIndexedQuest(quests, key, quest)
+  if indexedList ~= quests then
+    return
+  end
+
+  indexedMap[key] = quest
+  indexedCount = #(quests)
+end
+
+local function copyRewardFields(target, source)
+  local changed = false
+
+  for i = 1, #(QUEST_REWARD_FIELDS) do
+    local field = QUEST_REWARD_FIELDS[i]
+    local value = tonumber(source[field]) or 0
+
+    if target[field] ~= value then
+      target[field] = value
+      changed = true
+    end
+  end
+
+  return target, changed
 end
 
 local function buildQuestEntry(source, key, title, zoneOrSort, questType, seen, lastSeenRoll)
-  return copyRewardFields({
+  local entry = copyRewardFields({
     key = key,
     questId = tonumber(source.questId) or 0,
     title = title,
@@ -578,6 +636,8 @@ local function buildQuestEntry(source, key, title, zoneOrSort, questType, seen, 
     seen = seen,
     lastSeenRoll = lastSeenRoll,
   }, source)
+
+  return entry
 end
 
 function Core.copyQuest(quest)
@@ -719,22 +779,11 @@ function Core.countDesiredKnownQuests(quests, desired)
     return knownCount, missingCount, missingKeys
   end
 
-  local present = {}
-
-  if type(quests) == "table" then
-    for i = 1, #(quests) do
-      local quest = quests[i]
-      local key = type(quest) == "table" and type(quest.key) == "string" and quest.key or Core.questKey(quest)
-
-      if key then
-        present[key] = true
-      end
-    end
-  end
+  local present = knownQuestIndex(quests)
 
   for key, enabled in pairs(desired) do
     if enabled == true then
-      if present[key] then
+      if present and present[key] then
         knownCount = knownCount + 1
       else
         missingCount = missingCount + 1
@@ -825,17 +874,12 @@ function Core.captureKnownQuests(existing, objectives, rollCount, adopt)
   local known = (adopt and type(existing) == "table") and existing or Core.copyQuestList(existing)
 
   if not Core.isObjectiveChoiceList(objectives) then
-    return known
+    return known, false
   end
 
-  local indexByKey = {}
+  local indexByKey = knownQuestIndex(known)
   local inserted = false
-
-  for i = 1, #(known) do
-    if type(known[i].key) == "string" then
-      indexByKey[known[i].key] = i
-    end
-  end
+  local changed = false
 
   for i = 1, #(objectives) do
     local objective = objectives[i]
@@ -844,20 +888,39 @@ function Core.captureKnownQuests(existing, objectives, rollCount, adopt)
 
     if key and title ~= "" then
       local zoneOrSort, questType = Core.objectiveMetadata(objective)
-      local entry = indexByKey[key] and known[indexByKey[key]]
+      local entry = indexByKey[key]
 
       if entry then
+        local objectiveText = Core.objectiveText(objective)
+        local nextZone = zoneOrSort > 0 and zoneOrSort or entry.zoneOrSort or 0
+        local nextType = questType > 0 and questType or entry.questType or 0
+        local _, rewardsChanged = copyRewardFields(entry, objective)
+
+        if entry.objectiveText ~= objectiveText
+            or entry.zoneOrSort ~= nextZone
+            or entry.questType ~= nextType
+            or rewardsChanged then
+          entry.objectiveText = objectiveText
+          entry.zoneOrSort = nextZone
+          entry.questType = nextType
+          changed = true
+        end
+
         entry.seen = (entry.seen or 0) + 1
         entry.lastSeenRoll = rollCount or entry.lastSeenRoll or 0
-        entry.objectiveText = Core.objectiveText(objective)
-        entry.zoneOrSort = zoneOrSort > 0 and zoneOrSort or entry.zoneOrSort or 0
-        entry.questType = questType > 0 and questType or entry.questType or 0
-        copyRewardFields(entry, objective)
+
+        if Core.onKnownQuestTouched then
+          Core.onKnownQuestTouched(entry)
+        end
       else
-        table.insert(known, buildQuestEntry(
-          objective, key, title, zoneOrSort, questType, 1, rollCount or 0))
-        indexByKey[key] = #(known)
+        local created = buildQuestEntry(
+          objective, key, title, zoneOrSort, questType, 1, rollCount or 0)
+
+        table.insert(known, created)
+        indexByKey[key] = created
+        noteIndexedQuest(known, key, created)
         inserted = true
+        changed = true
       end
     end
   end
@@ -866,7 +929,7 @@ function Core.captureKnownQuests(existing, objectives, rollCount, adopt)
     table.sort(known, byTitle)
   end
 
-  return known
+  return known, changed
 end
 
 function Core.isObjectiveChoiceList(objectives)

@@ -287,6 +287,7 @@ SHARE_ACCEPTED_QUEST = "Misión aceptada compartida: %s",
 
 OBJECTIVE_LABEL = "Objetivo %d",
 OBJECTIVE_SELECTED_SLOT = "Ranura de objetivo %d seleccionada.",
+QUEST_ABANDONED_RESUMING = "Misión abandonada: %s. Queda excluida de las tiradas.",
 QUEST_DONE_RESUMING = "Misión completada: %s. Reanudando las tiradas.",
 QUEST_FOUND_SELECTED = "Encontrada y seleccionada %s: %s en la ranura %d.",
 QUEST_FOUND_SELECT_FAILED = "Encontrada %s: %s en la ranura %d, pero la selección falló.",

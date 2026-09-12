@@ -287,6 +287,7 @@ SHARE_ACCEPTED_QUEST = "Angenommene Quest geteilt: %s",
 
 OBJECTIVE_LABEL = "Ziel %d",
 OBJECTIVE_SELECTED_SLOT = "Zielplatz %d ausgewählt.",
+QUEST_ABANDONED_RESUMING = "Quest abgebrochen: %s. Sie bleibt vom Rollen ausgeschlossen.",
 QUEST_DONE_RESUMING = "Quest erledigt: %s. Rollen wird fortgesetzt.",
 QUEST_FOUND_SELECTED = "%s gefunden und ausgewählt: %s in Platz %d.",
 QUEST_FOUND_SELECT_FAILED = "%s gefunden: %s in Platz %d, aber die Auswahl schlug fehl.",

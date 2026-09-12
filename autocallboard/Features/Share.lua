@@ -314,6 +314,10 @@ function RT.TrackAcceptedQuest(arg1, arg2)
     title = entry and entry.title or "",
     acceptedAt = GetTime(),
   }
+
+  if RT.NoteQuestAccepted then
+    RT.NoteQuestAccepted(questID, RT.lastAcceptedQuest.title)
+  end
   RT.pendingAcceptedQuestShare = {
     questID = questID,
     title = RT.lastAcceptedQuest.title,
@@ -342,6 +346,24 @@ function RT.TrackAcceptedQuest(arg1, arg2)
 
   if RT.HandleEternalQuest then
     RT.HandleEternalQuest()
+  end
+end
+
+function RT.RefreshLastAcceptedQuest()
+  local accepted = RT.lastAcceptedQuest
+  if not accepted or accepted.title ~= "" or not RT.FindQuestLogIndexByID then
+    return
+  end
+
+  local index, entry = RT.FindQuestLogIndexByID(accepted.questID, accepted.questLogIndex)
+  if not entry then
+    return
+  end
+
+  accepted.questLogIndex = index
+  accepted.title = entry.title or ""
+  if RT.NoteQuestAccepted then
+    RT.NoteQuestAccepted(accepted.questID, accepted.title)
   end
 end
 

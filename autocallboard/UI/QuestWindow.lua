@@ -23,7 +23,16 @@ local function SyncCheckbox(checkbox, value)
     return
   end
 
-  checkbox:SetChecked(value and true or false)
+  value = value and true or false
+
+  local mark = checkbox._acbCheck
+  local checked = checkbox.GetChecked and (checkbox:GetChecked() and true or false)
+
+  if checked == value and mark and (mark:IsShown() and true or false) == value then
+    return
+  end
+
+  checkbox:SetChecked(value)
   Skin.SetCheckboxVisual(checkbox)
 end
 
@@ -124,6 +133,10 @@ end
 
 RT.questSearchHaystacks = setmetatable({}, { __mode = "k" })
 
+Core.onKnownQuestTouched = function(quest)
+  RT.questSearchHaystacks[quest] = nil
+end
+
 local function QuestMatchesSearch(quest, query)
   if not query or query == "" then
     return true
@@ -204,8 +217,17 @@ function RT.GetActiveQuestTypeFilterNames()
 end
 
 function RT.SyncKnownQuestTypeButtons()
-  for i = 1, #(RT.knownQuestTypeButtons) do
-    local checkbox = RT.knownQuestTypeButtons[i]
+  local buttons = RT.knownQuestTypeButtons
+  local revision = RT.knownFilterRevision or 0
+
+  if buttons._acbSyncedRevision == revision then
+    return
+  end
+
+  buttons._acbSyncedRevision = revision
+
+  for i = 1, #(buttons) do
+    local checkbox = buttons[i]
     SyncCheckbox(checkbox, Core.questTypeFilterEnabled(RT.knownQuestTypeFilters, checkbox._acbQuestType))
   end
 end
@@ -464,7 +486,7 @@ local function PositionTooltipNearCursor(owner)
 end
 
 local function AnchorTooltipNearCursor(owner)
-  GameTooltip:SetOwner(owner or UIParent, "ANCHOR_NONE")
+  Skin.OpenTip(owner or UIParent, "ANCHOR_NONE")
   PositionTooltipNearCursor(owner)
 end
 
@@ -520,13 +542,27 @@ end
 
 function RT.SyncRollSpeedControl()
   local slider = RT.rollSpeedSlider
-  if not slider or slider._acbDragging then
+  if not slider then
     return
   end
 
-  slider._acbTooltip = L.ROLL_SPEED_TOOLTIP
+  if slider._acbDragging then
+    slider._acbSyncedTooltip = nil
+    return
+  end
 
-  local preset = Core.nearestRollSpeedPreset(state and state.rerollDelay)
+  local delay = state and state.rerollDelay
+  local tooltip = L.ROLL_SPEED_TOOLTIP
+
+  if slider._acbSyncedTooltip == tooltip and slider._acbSyncedDelay == delay then
+    return
+  end
+
+  slider._acbSyncedTooltip = tooltip
+  slider._acbSyncedDelay = delay
+  slider._acbTooltip = tooltip
+
+  local preset = Core.nearestRollSpeedPreset(delay)
   slider:SetDisplayValue(preset and preset.index or 1)
 end
 
@@ -666,18 +702,27 @@ UpdateQuestWindow = function()
   end
 
   if RT.knownPageText then
+    local pageText = RT.knownPageText
 
     local selectedKnownCount, selectedMissingCount =
         Core.countDesiredKnownQuests(state and state.knownQuests, state and state.desiredQuests)
 
-    RT.knownPageText:SetText(RT.FormatKnownQuestHeader(
-        state and state.knownQuests or {},
-        knownFiltered,
-        knownEntries,
-        knownFilterMode,
-        RT.GetActiveQuestTypeFilterNames(),
-        selectedKnownCount,
-        selectedMissingCount))
+    if pageText._acbHeaderEntries ~= knownEntries
+        or pageText._acbHeaderKnown ~= selectedKnownCount
+        or pageText._acbHeaderMissing ~= selectedMissingCount then
+      pageText._acbHeaderEntries = knownEntries
+      pageText._acbHeaderKnown = selectedKnownCount
+      pageText._acbHeaderMissing = selectedMissingCount
+
+      pageText:SetText(RT.FormatKnownQuestHeader(
+          state and state.knownQuests or {},
+          knownFiltered,
+          knownEntries,
+          knownFilterMode,
+          RT.GetActiveQuestTypeFilterNames(),
+          selectedKnownCount,
+          selectedMissingCount))
+    end
   end
 
   RT.SyncKnownQuestTypeButtons()
@@ -772,19 +817,37 @@ local function MakeQuestRow(parent, width)
   return row
 end
 
+local EMPTY_ROW = {}
+
+local function ClearKnownQuestRow(row)
+  if row._acbRowEntry == EMPTY_ROW then
+    return
+  end
+
+  row._acbRowEntry = EMPTY_ROW
+  row._acbRowWanted = nil
+  row.quest = nil
+  row.key = nil
+  row:Hide()
+end
+
 ConfigureKnownQuestRow = function(row, entry)
   if not row then
     return
   end
 
   if not entry then
-    row.quest = nil
-    row.key = nil
-    row:Hide()
+    ClearKnownQuestRow(row)
     return
   end
 
   if entry.kind == "header" then
+    if row._acbRowEntry == entry then
+      return
+    end
+
+    row._acbRowEntry = entry
+    row._acbRowWanted = nil
     row.quest = nil
     row.key = nil
     row.title:SetWidth(KNOWN_QUEST_ROW_WIDTH - 12)
@@ -800,13 +863,18 @@ ConfigureKnownQuestRow = function(row, entry)
 
   local quest = entry.quest
   if not quest then
-    row.quest = nil
-    row.key = nil
-    row:Hide()
+    ClearKnownQuestRow(row)
     return
   end
 
-  local wanted = quest.key and state.desiredQuests and state.desiredQuests[quest.key] == true
+  local wanted = quest.key ~= nil and state.desiredQuests ~= nil and state.desiredQuests[quest.key] == true
+
+  if row._acbRowEntry == entry and row._acbRowWanted == wanted then
+    return
+  end
+
+  row._acbRowEntry = entry
+  row._acbRowWanted = wanted
   row.quest = quest
   row.key = quest.key
   row.title:SetWidth(KNOWN_QUEST_ROW_WIDTH - 36)
@@ -1024,6 +1092,9 @@ function RT.CreateQuestWindow()
     checkbox:SetScript("OnClick", function(self)
       RT.SetKnownQuestTypeFilter(self._acbQuestType)
     end)
+    checkbox:HookScript("OnClick", function(self)
+      Skin.SetCheckboxVisual(self)
+    end)
     checkbox:SetScript("OnEnter", function(self)
       Skin.SetCheckboxVisual(self, "hover")
     end)
@@ -1086,6 +1157,8 @@ function RT.CreateQuestWindow()
     knownQuestRows[i] = MakeQuestRow(questWindow, KNOWN_QUEST_ROW_WIDTH)
     knownQuestRows[i]:SetPoint("TOPLEFT", RT.knownPageText, "BOTTOMLEFT", 0, -10 - ((i - 1) * QUEST_ROW_HEIGHT))
   end
+
+  RT.knownQuestRows = knownQuestRows
 
   local questToolbarWidth = 72 + 8 + 54 + 8 + 66 + 8 + 66
 

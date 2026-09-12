@@ -588,8 +588,7 @@ local function CreateListRow(parent, name)
       return
     end
 
-    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-    GameTooltip:AddLine(entry.name, THEME.heading[1], THEME.heading[2], THEME.heading[3])
+    Skin.OpenTip(self, "ANCHOR_RIGHT", entry.name)
 
     if entry.id == nil then
       GameTooltip:AddLine(L.LISTS_ROW_CLEAR_ENTRY, 1, 1, 1)
@@ -933,8 +932,7 @@ local function CreateGroupBand(index, isList)
       title = self.group.name
     end
 
-    GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-    GameTooltip:AddLine(title, THEME.heading[1], THEME.heading[2], THEME.heading[3])
+    Skin.OpenTip(self, "ANCHOR_LEFT", title)
     GameTooltip:AddLine(string.format(L.LISTS_ROW_QUEST_COUNT_GROUP,
         Core.selectionCount(AccountProfile(), groupId)), 1, 1, 1)
     GameTooltip:AddLine(L.LISTS_OPEN_GROUP_TOOLTIP, 0.8, 0.8, 0.8)
