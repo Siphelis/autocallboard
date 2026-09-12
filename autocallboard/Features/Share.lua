@@ -23,26 +23,20 @@ function RT.GetQuestLogEntryInfo(index)
     return nil
   end
 
-  local title, _, _, fourth, fifth, sixth, seventh, eighth, ninth = GetQuestLogTitle(index)
+  local title, _, _, _, isHeader, _, isComplete, _, questID = GetQuestLogTitle(index)
   if not title then
     return nil
   end
 
-  local wrathQuestID = tonumber(ninth)
-  if wrathQuestID and wrathQuestID > 0 then
-    return {
-      title = title,
-      isHeader = fifth,
-      isComplete = seventh,
-      questID = wrathQuestID,
-    }
+  questID = tonumber(questID)
+  if questID and questID <= 0 then
+    questID = nil
   end
 
-  local questID = tonumber(eighth)
   return {
     title = title,
-    isHeader = fourth,
-    isComplete = sixth,
+    isHeader = isHeader,
+    isComplete = isComplete,
     questID = questID,
   }
 end

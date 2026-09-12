@@ -8,10 +8,12 @@ local Log = RT.Log
 RT.instanceTargetDirty = true
 
 local MAP_FILE_NAME_MAX_ATTEMPTS = 20
+local MAP_RETRY_INTERVAL = 0.5
 
 function RT.InvalidateInstanceTarget()
   RT.instanceTargetDirty = true
   RT.instanceTargetMapAttempts = 0
+  RT.instanceTargetRetryAt = nil
 end
 
 local function GetCurrentMapFileName()
@@ -117,6 +119,12 @@ function RT.GetCurrentInstanceQuestTarget()
     return RT.instanceTargetCache, RT.instanceTargetReason
   end
 
+  local now = GetTime()
+
+  if RT.instanceTargetRetryAt and now < RT.instanceTargetRetryAt then
+    return RT.instanceTargetCache, RT.instanceTargetReason
+  end
+
   local target, reason = RT.ComputeCurrentInstanceQuestTarget()
 
   if target then
@@ -127,6 +135,13 @@ function RT.GetCurrentInstanceQuestTarget()
   end
 
   RT.instanceTargetDirty = RT.instanceTargetMapPending == true
+
+  if RT.instanceTargetDirty then
+    RT.instanceTargetRetryAt = now + MAP_RETRY_INTERVAL
+  else
+    RT.instanceTargetRetryAt = nil
+  end
+
   RT.instanceTargetCache = target
   RT.instanceTargetReason = reason
 

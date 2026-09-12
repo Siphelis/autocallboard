@@ -122,8 +122,6 @@ local function CaptureCurrentObjectives()
   return objectives
 end
 
-RT.CaptureCurrentObjectives = CaptureCurrentObjectives
-
 local function CountDesiredQuests()
   return Core.desiredQuestCount(state and state.desiredQuests)
 end
@@ -139,8 +137,6 @@ local function SetQuestStatus(message)
 
   Log("quest", message)
 end
-
-RT.SetQuestStatus = SetQuestStatus
 
 function RT.ConfirmUntargetedRoll()
   SetQuestStatus(L.UNTARGETED_ROLL_CONFIRM_PROMPT)
@@ -200,10 +196,6 @@ SetRollPause = function(reason, message)
   Log("roll", "paused reason=", reason)
 end
 
-RT.SetRollPause = function(...)
-  return SetRollPause(...)
-end
-
 ClearRollPause = function(reason)
   if reason and rollPausedReason ~= reason then
     return
@@ -215,10 +207,6 @@ ClearRollPause = function(reason)
 
   rollPausedReason = nil
   rollPauseMessage = nil
-end
-
-RT.ClearRollPause = function(...)
-  return ClearRollPause(...)
 end
 
 RT.SetManualBoardOpenRequired = function(source)
@@ -260,14 +248,6 @@ local function StartSelectedQuestPause(quest, index)
     selectedLabel = selectedLabel .. string.format(L.STATUS_PAUSED_SELECTED_SLOT_SUFFIX, tostring(index))
   end
   SetRollPause("quest_selected", selectedLabel .. ".")
-end
-
-RT.StartSelectedQuestPause = function(quest, index)
-  return StartSelectedQuestPause(quest, index)
-end
-
-RT.GetSelectedQuest = function()
-  return selectedQuest
 end
 
 RT.ShouldHoldObjectiveChoices = function()
@@ -850,10 +830,6 @@ EvaluateCurrentObjectives = function()
   return false
 end
 
-RT.EvaluateCurrentObjectives = function()
-  return EvaluateCurrentObjectives()
-end
-
 ResumeRollingAfterCallboardActive = function(source)
   if not rolling then
     return
@@ -881,10 +857,6 @@ ResumeRollingAfterCallboardActive = function(source)
   Log("roll", "callboard active resume source=", source)
 
   EvaluateCurrentObjectives()
-end
-
-RT.ResumeRollingAfterCallboardActive = function(...)
-  return ResumeRollingAfterCallboardActive(...)
 end
 
 function RT.RollDelay()

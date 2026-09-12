@@ -112,8 +112,10 @@ local function ResolveFramePath(path)
   for segment in string.gmatch(path, "[^%.]+") do
     if not current then
       current = _G[segment]
-    else
+    elseif type(current) == "table" then
       current = current[segment]
+    else
+      return nil
     end
 
     if not current then

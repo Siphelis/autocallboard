@@ -12,27 +12,27 @@ local SEQUENCE_TIMEOUT = 900
 
 local ETERNAL_MAP = {
   {
-    keyword = "eternal water", label = L.ETERNAL_LABEL_WATER, itemName = L.ETERNAL_ITEM_WATER,
+    keyword = "eternal water", labelKey = "ETERNAL_LABEL_WATER", itemKey = "ETERNAL_ITEM_WATER",
     crystalItem = 37705, eternalItem = 35622,
     toEternalSpell = 49245, toCrystalSpell = 56040,
   },
   {
-    keyword = "eternal fire", label = L.ETERNAL_LABEL_FIRE, itemName = L.ETERNAL_ITEM_FIRE,
+    keyword = "eternal fire", labelKey = "ETERNAL_LABEL_FIRE", itemKey = "ETERNAL_ITEM_FIRE",
     crystalItem = 37702, eternalItem = 36860,
     toEternalSpell = 49244, toCrystalSpell = 56042,
   },
   {
-    keyword = "eternal earth", label = L.ETERNAL_LABEL_EARTH, itemName = L.ETERNAL_ITEM_EARTH,
+    keyword = "eternal earth", labelKey = "ETERNAL_LABEL_EARTH", itemKey = "ETERNAL_ITEM_EARTH",
     crystalItem = 37701, eternalItem = 35624,
     toEternalSpell = 49248, toCrystalSpell = 56041,
   },
   {
-    keyword = "eternal air", label = L.ETERNAL_LABEL_AIR, itemName = L.ETERNAL_ITEM_AIR,
+    keyword = "eternal air", labelKey = "ETERNAL_LABEL_AIR", itemKey = "ETERNAL_ITEM_AIR",
     crystalItem = 37700, eternalItem = 35623,
     toEternalSpell = 49234, toCrystalSpell = 56045,
   },
   {
-    keyword = "eternal shadow", label = L.ETERNAL_LABEL_SHADOW, itemName = L.ETERNAL_ITEM_SHADOW,
+    keyword = "eternal shadow", labelKey = "ETERNAL_LABEL_SHADOW", itemKey = "ETERNAL_ITEM_SHADOW",
     crystalItem = 37703, eternalItem = 35627,
     toEternalSpell = 49246, toCrystalSpell = 56044,
   },
@@ -43,6 +43,14 @@ for i = 1, #(ETERNAL_MAP) do
   local entry = ETERNAL_MAP[i]
   SPELL_LOOKUP[entry.toEternalSpell] = { entry = entry, step = 1 }
   SPELL_LOOKUP[entry.toCrystalSpell] = { entry = entry, step = 2 }
+end
+
+local function EntryLabel(entry)
+  return L[entry.labelKey] or entry.labelKey
+end
+
+local function EntryItemName(entry)
+  return L[entry.itemKey] or entry.itemKey
 end
 
 local pending
@@ -94,6 +102,17 @@ local function FindEntryInText(text)
   end
 
   return nil
+end
+
+local function ItemUseName(itemID)
+  if GetItemInfo then
+    local name = GetItemInfo(itemID)
+    if type(name) == "string" and name ~= "" then
+      return name
+    end
+  end
+
+  return "item:" .. tostring(itemID)
 end
 
 local function ItemCount(itemID)
@@ -155,6 +174,8 @@ local function ApplyBinding()
     return
   end
 
+  ClearBinding()
+
   if SetOverrideBindingClick then
     SetOverrideBindingClick(button, true, GetBinding(), BUTTON_NAME, "LeftButton")
   end
@@ -207,8 +228,8 @@ local function ConfigureButton(entry, step)
   if InCombatLockdown and InCombatLockdown() then
     pendingConfig = { entry = entry, step = step }
     WatchCombatEnd(true)
-    Log("config reportee (combat) element=" .. entry.label .. " step=" .. tostring(step))
-    Print(string.format(L.ETERNALS_CONVERSION_WAITING_COMBAT, entry.itemName))
+    Log("config reportee (combat) element=" .. EntryLabel(entry) .. " step=" .. tostring(step))
+    Print(string.format(L.ETERNALS_CONVERSION_WAITING_COMBAT, EntryItemName(entry)))
     return false
   end
 
@@ -217,16 +238,16 @@ local function ConfigureButton(entry, step)
 
   local itemID = (step == 1) and entry.crystalItem or entry.eternalItem
   button:SetAttribute("type", "item")
-  button:SetAttribute("item", "item:" .. tostring(itemID))
+  button:SetAttribute("item", ItemUseName(itemID))
 
   if statusText then
-    statusText:SetText(string.format(L.ETERNALS_BUTTON_STATUS, GetBinding(), entry.label, step))
+    statusText:SetText(string.format(L.ETERNALS_BUTTON_STATUS, GetBinding(), EntryLabel(entry), step))
   end
 
   button:Show()
   ApplyBinding()
 
-  Log("bouton arme element=" .. entry.label .. " step=" .. tostring(step) .. " item=" .. tostring(itemID))
+  Log("bouton arme element=" .. EntryLabel(entry) .. " step=" .. tostring(step) .. " item=" .. tostring(itemID))
 
   return true
 end
@@ -237,7 +258,7 @@ StopPending = function(reason)
   end
 
   if pending then
-    Log("sequence terminee element=" .. pending.entry.label .. " raison=" .. tostring(reason))
+    Log("sequence terminee element=" .. EntryLabel(pending.entry) .. " raison=" .. tostring(reason))
   end
 
   pending = nil
@@ -262,7 +283,7 @@ local function AdvanceToStepTwo(entry)
   end
 
   if ItemCount(entry.eternalItem) < 1 then
-    Print(string.format(L.ETERNALS_NONE_IN_INVENTORY, entry.itemName))
+    Print(string.format(L.ETERNALS_NONE_IN_INVENTORY, EntryItemName(entry)))
     StopPending("eternel absent")
     return
   end
@@ -273,21 +294,8 @@ local function AdvanceToStepTwo(entry)
 end
 
 function RT.RefreshEternalLabels()
-  local keys = {
-    { "ETERNAL_LABEL_WATER", "ETERNAL_ITEM_WATER" },
-    { "ETERNAL_LABEL_FIRE", "ETERNAL_ITEM_FIRE" },
-    { "ETERNAL_LABEL_EARTH", "ETERNAL_ITEM_EARTH" },
-    { "ETERNAL_LABEL_AIR", "ETERNAL_ITEM_AIR" },
-    { "ETERNAL_LABEL_SHADOW", "ETERNAL_ITEM_SHADOW" },
-  }
-
-  for i = 1, #(ETERNAL_MAP) do
-    ETERNAL_MAP[i].label = L[keys[i][1]]
-    ETERNAL_MAP[i].itemName = L[keys[i][2]]
-  end
-
   if pending and statusText then
-    statusText:SetText(string.format(L.ETERNALS_BUTTON_STATUS, GetBinding(), pending.entry.label, pending.step))
+    statusText:SetText(string.format(L.ETERNALS_BUTTON_STATUS, GetBinding(), EntryLabel(pending.entry), pending.step))
   end
 end
 
@@ -343,7 +351,7 @@ function RT.CheckEternalQuestStillActive(source, force)
 
   nextQuestCheckAt = now + QUEST_CHECK_INTERVAL
 
-  local itemName = pending.entry.itemName
+  local itemName = EntryItemName(pending.entry)
   local gone, reason = SequenceQuestGone()
 
   if gone then
@@ -396,8 +404,8 @@ function RT.HandleEternalQuest()
 
   local crystals = ItemCount(entry.crystalItem)
   if crystals < CRYSTAL_STACK_SIZE then
-    Print(string.format(L.ETERNALS_QUEST_NO_CRYSTAL, entry.itemName, CRYSTAL_STACK_SIZE))
-    Log("quete detectee sans cristaux suffisants element=" .. entry.label .. " count=" .. tostring(crystals))
+    Print(string.format(L.ETERNALS_QUEST_NO_CRYSTAL, EntryItemName(entry), CRYSTAL_STACK_SIZE))
+    Log("quete detectee sans cristaux suffisants element=" .. EntryLabel(entry) .. " count=" .. tostring(crystals))
     return
   end
 
@@ -408,6 +416,7 @@ function RT.HandleEternalQuest()
     questLogIndex = accepted.questLogIndex,
     title = text,
     seenInLog = false,
+    eternalBaseline = ItemCount(entry.eternalItem),
     expiresAt = GetTime() + SEQUENCE_TIMEOUT,
   }
   nextQuestCheckAt = nil
@@ -422,6 +431,8 @@ eventFrame = CreateFrame("Frame")
 eventFrame:SetScript("OnEvent", function(_, event, arg1, arg2, arg3, arg4, arg5)
   if event == "ADDON_LOADED" then
     if arg1 == "AutoCallboard" then
+      eventFrame:UnregisterEvent("ADDON_LOADED")
+
       if type(AutoCallboardEternalsDB) ~= "table" then
         AutoCallboardEternalsDB = { enabled = true, binding = DEFAULT_BINDING }
       end
@@ -491,7 +502,7 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1, arg2, arg3, arg4, arg5)
       return
     end
 
-    local spellID = tonumber(arg5) or tonumber(arg4) or tonumber(arg3)
+    local spellID = tonumber(arg5)
     local match = spellID and SPELL_LOOKUP[spellID]
 
     if not match or match.entry ~= pending.entry then
@@ -508,8 +519,14 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1, arg2, arg3, arg4, arg5)
   end
 
   if event == "BAG_UPDATE" then
-    if pending.step == 1 and ItemCount(pending.entry.eternalItem) >= 1 then
-      AdvanceToStepTwo(pending.entry)
+    if pending.step == 1 then
+      local count = ItemCount(pending.entry.eternalItem)
+
+      if count > (pending.eternalBaseline or 0) then
+        AdvanceToStepTwo(pending.entry)
+      elseif count < (pending.eternalBaseline or 0) then
+        pending.eternalBaseline = count
+      end
     end
 
     return
