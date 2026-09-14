@@ -83,10 +83,6 @@ QuestLabel = function(quest)
   return title
 end
 
-RT.QuestLabel = function(...)
-  return QuestLabel(...)
-end
-
 RT.questTypeFilterOptions = {
   { questType = 1, label = L.QUEST_TYPE_NAMES[1] },
   { questType = 2, label = L.QUEST_TYPE_NAMES[2] },
@@ -760,10 +756,6 @@ UpdateQuestWindow = function()
       questStatusText:SetText(string.format(L.STATUS_SELECTED, desiredCount, summonSummary))
     end
   end
-end
-
-RT.UpdateQuestWindow = function(...)
-  return UpdateQuestWindow(...)
 end
 
 local function MakeQuestRow(parent, width)

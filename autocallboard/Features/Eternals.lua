@@ -289,8 +289,28 @@ local function AdvanceToStepTwo(entry)
   end
 
   pending.step = 2
+  pending.eternalBaseline = ItemCount(entry.eternalItem)
+  pending.crystalBaseline = ItemCount(entry.crystalItem)
   TouchSequence()
   ConfigureButton(entry, 2)
+end
+
+local function MatchSpell(spellName, spellID)
+  local match = spellID and SPELL_LOOKUP[spellID]
+
+  if match or type(spellName) ~= "string" or spellName == "" or not GetSpellInfo then
+    return match
+  end
+
+  for id, candidate in pairs(SPELL_LOOKUP) do
+    local ok, name = pcall(GetSpellInfo, id)
+
+    if ok and name == spellName then
+      return candidate
+    end
+  end
+
+  return nil
 end
 
 function RT.RefreshEternalLabels()
@@ -502,8 +522,7 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1, arg2, arg3, arg4, arg5)
       return
     end
 
-    local spellID = tonumber(arg5)
-    local match = spellID and SPELL_LOOKUP[spellID]
+    local match = MatchSpell(arg2, tonumber(arg5))
 
     if not match or match.entry ~= pending.entry then
       return
@@ -519,14 +538,19 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1, arg2, arg3, arg4, arg5)
   end
 
   if event == "BAG_UPDATE" then
-    if pending.step == 1 then
-      local count = ItemCount(pending.entry.eternalItem)
+    local eternals = ItemCount(pending.entry.eternalItem)
 
-      if count > (pending.eternalBaseline or 0) then
+    if pending.step == 1 then
+      if eternals > (pending.eternalBaseline or 0) then
         AdvanceToStepTwo(pending.entry)
-      elseif count < (pending.eternalBaseline or 0) then
-        pending.eternalBaseline = count
+      elseif eternals < (pending.eternalBaseline or 0) then
+        pending.eternalBaseline = eternals
       end
+    elseif eternals > (pending.eternalBaseline or 0) then
+      pending.eternalBaseline = eternals
+    elseif eternals < (pending.eternalBaseline or 0)
+        and ItemCount(pending.entry.crystalItem) > (pending.crystalBaseline or 0) then
+      StopPending("succes")
     end
 
     return

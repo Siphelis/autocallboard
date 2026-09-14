@@ -15,8 +15,6 @@ local suggestionQuestKey
 local requestedAt
 local autoQuestKey
 local MaybeAutoTravel
-local requestedList
-local checkpointDataReady = false
 local lastTravelCheckpoints
 local lastTravelUnlockedCount
 local lastTravelLocation
@@ -29,6 +27,7 @@ local LOCATION_ALIASES = {
   stormwindcity = "stormwind", shattrathcity = "shattrath", silvermooncity = "silvermoon",
   darnassus = "darnassis", stockades = "stockade",
   tempestkeepnetherstorm = "tempestkeep",
+  ogrimmar = "orgrimmar",
 }
 
 local function Trim(value)
@@ -95,6 +94,8 @@ function Core.travelCheckpointUsable(checkpoint)
   return true
 end
 
+local ClientBounds
+
 local zonesByName, zonesByMap = {}, {}
 local entrancesByName = {}
 local subzonesByName = {}
@@ -138,6 +139,42 @@ local function WorldPoint(checkpoint, boundsByName)
     y = bounds[3] + (bounds[4] - bounds[3]) * y, map = WorldMapKey(zone, bounds[5]) }
 end
 
+ClientBounds = function()
+  local ebonBounds = ProjectEbonhold and ProjectEbonhold.WorldMapBounds
+
+  if not ebonBounds then
+    return nil
+  end
+
+  local boundsByName = {}
+
+  for name, bounds in pairs(ebonBounds) do
+    if type(bounds) == "table" and type(bounds[1]) == "number" and type(bounds[2]) == "number"
+        and type(bounds[3]) == "number" and type(bounds[4]) == "number" and type(bounds[5]) == "number"
+        and bounds[1] > bounds[2] and bounds[3] > bounds[4] then
+      boundsByName[NormalizeLocation(name)] = bounds
+    end
+  end
+
+  return boundsByName
+end
+
+function RT.WorldPointFor(mapName, x, y)
+  x, y = tonumber(x), tonumber(y)
+
+  if not x or not y then
+    return nil
+  end
+
+  local zone = zonesByName[NormalizeLocation(mapName)]
+
+  if not zone then
+    return nil
+  end
+
+  return WorldPoint({ mapId = zone.mapId, serverMapId = zone.serverMapId, x = x, y = y }, ClientBounds())
+end
+
 function Core.travelZoneKey(location, areaId)
   local wanted = NormalizeLocation(location)
 
@@ -152,18 +189,57 @@ function Core.travelZoneKey(location, areaId)
   return subzonesByName[wanted] or wanted
 end
 
+local MAP_REFRESH_INTERVAL = 1
+local mapRefreshedAt
+
+local function RefreshPlayerMap()
+  if not SetMapToCurrentZone then
+    return
+  end
+
+  if WorldMapFrame and WorldMapFrame.IsShown and WorldMapFrame:IsShown() then
+    return
+  end
+
+  local now = GetTime and GetTime() or 0
+
+  if mapRefreshedAt and now - mapRefreshedAt < MAP_REFRESH_INTERVAL then
+    return
+  end
+
+  mapRefreshedAt = now
+  SetMapToCurrentZone()
+end
+
+function RT.InvalidatePlayerMap()
+  mapRefreshedAt = nil
+end
+
 function RT.GetCurrentZoneKey()
   if not GetMapInfo then
     return ""
   end
 
-  local mapOpen = WorldMapFrame and WorldMapFrame.IsShown and WorldMapFrame:IsShown()
-
-  if not mapOpen and SetMapToCurrentZone then
-    SetMapToCurrentZone()
-  end
+  RefreshPlayerMap()
 
   return NormalizeLocation(GetMapInfo())
+end
+
+function RT.ReadPlayerMapPoint()
+  if not GetPlayerMapPosition then
+    return nil
+  end
+
+  RefreshPlayerMap()
+
+  local x, y = GetPlayerMapPosition("player")
+  x, y = tonumber(x), tonumber(y)
+
+  if not x or not y or (x == 0 and y == 0) then
+    return nil
+  end
+
+  return (GetMapInfo and GetMapInfo()) or "", x, y
 end
 
 function RT.IsPlayerInTravelZone(location, areaId)
@@ -197,18 +273,7 @@ function Core.chooseTravelCheckpoint(checkpoints, location, areaId)
     return nil
   end
 
-  local boundsByName
-  local ebonBounds = ProjectEbonhold and ProjectEbonhold.WorldMapBounds
-  if ebonBounds then
-    boundsByName = {}
-    for name, bounds in pairs(ebonBounds) do
-      if type(bounds) == "table" and type(bounds[1]) == "number" and type(bounds[2]) == "number"
-          and type(bounds[3]) == "number" and type(bounds[4]) == "number" and type(bounds[5]) == "number"
-          and bounds[1] > bounds[2] and bounds[3] > bounds[4] then
-        boundsByName[NormalizeLocation(name)] = bounds
-      end
-    end
-  end
+  local boundsByName = ClientBounds()
 
   local anchors = {}
   local targetZone = zonesByName[wanted]
@@ -242,7 +307,6 @@ function Core.chooseTravelCheckpoint(checkpoints, location, areaId)
   end
 
   local best, bestScore, bestRank
-  local recognized = targetZone ~= nil or #anchors > 0
 
   for i = 1, #(checkpoints) do
     local checkpoint = checkpoints[i]
@@ -281,7 +345,7 @@ function Core.chooseTravelCheckpoint(checkpoints, location, areaId)
     end
   end
 
-  return best, recognized
+  return best
 end
 
 function Core.travelCheckpointLabel(checkpoint)
@@ -337,14 +401,6 @@ local function GetCheckpoints()
     return nil
   end
 
-  if requestedList and requestedList ~= list then
-    checkpointDataReady = true
-    requestedList = nil
-  end
-  for _, checkpoint in ipairs(list) do
-    if checkpoint.unlocked then checkpointDataReady = true; break end
-  end
-
   return list
 end
 
@@ -363,8 +419,6 @@ function RT.RequestTravelCheckpoints(source)
 
   requestedAt = now
 
-  if not checkpointDataReady then requestedList = GetCheckpoints() end
-
   local ok = pcall(service.RequestCheckpoints)
   Log("travel", "requested checkpoint data ", tostring(source), " ok=", tostring(ok))
 
@@ -373,22 +427,6 @@ end
 
 function RT.IsTravelEnabled()
   return state and state.travelEnabled and true or false
-end
-
-function RT.CheckQuestTravelBeforeSelection(objective)
-  if not RT.IsRolling or not RT.IsRolling() then return true end
-  local checkpoints = GetCheckpoints()
-  if not checkpoints then return true end
-  local location = Core.travelLocationFromText(Core.objectiveText(objective))
-  local area = Core.objectiveMetadata(objective)
-  local destination, recognized = Core.chooseTravelCheckpoint(checkpoints, location, area)
-  if destination then return true end
-  if not recognized then return true end
-  if not checkpointDataReady then
-    RT.RequestTravelCheckpoints("selection")
-    return false, "pending", L.TRAVEL_CHECK_PENDING
-  end
-  return false, "unreachable", string.format(L.TRAVEL_QUEST_UNREACHABLE, Core.questTitle(objective))
 end
 
 function RT.IsTravelAutoEnabled()

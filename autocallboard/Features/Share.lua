@@ -23,7 +23,7 @@ function RT.GetQuestLogEntryInfo(index)
     return nil
   end
 
-  local title, _, _, _, isHeader, _, isComplete, _, questID = GetQuestLogTitle(index)
+  local title, _, _, _, isHeader, isCollapsed, isComplete, _, questID = GetQuestLogTitle(index)
   if not title then
     return nil
   end
@@ -36,6 +36,7 @@ function RT.GetQuestLogEntryInfo(index)
   return {
     title = title,
     isHeader = isHeader,
+    isCollapsed = isCollapsed,
     isComplete = isComplete,
     questID = questID,
   }
@@ -112,6 +113,25 @@ function RT.FindQuestLogIndexByID(questID, preferredIndex)
   end
 
   return nil
+end
+
+function RT.QuestLogTitles()
+  local titles = {}
+
+  if not GetNumQuestLogEntries then
+    return titles
+  end
+
+  for i = 1, GetNumQuestLogEntries() do
+    local entry = RT.GetQuestLogEntryInfo(i)
+    local questID = entry and not entry.isHeader and tonumber(entry.questID)
+
+    if questID and questID > 0 and titles[questID] == nil then
+      titles[questID] = entry.title or false
+    end
+  end
+
+  return titles
 end
 
 function RT.QuestShareLabel(quest)

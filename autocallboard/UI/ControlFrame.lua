@@ -825,10 +825,6 @@ local function CreateCallboardButton()
   end
 end
 
-RT.SetButtonEnabled = SetButtonEnabled
-RT.UpdateRollToggleButtonState = UpdateRollToggleButtonState
-RT.IsQuestRollStartAvailable = IsQuestRollStartAvailable
-RT.UpdateRollToggleButtons = UpdateRollToggleButtons
 RT.PositionButton = PositionButton
 RT.CreateCallboardButton = CreateCallboardButton
 RT.CreateMinimapButton = CreateMinimapButton

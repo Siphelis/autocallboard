@@ -8,6 +8,7 @@ local ACTIONS = {
   {"BUTTON_EXPORT", "ShowQuestDataWindow", "export"}, {"BUTTON_IMPORT", "ShowQuestDataWindow", "import"},
   {"UI_ETERNALS", "ShowSettings", 1}, {"UI_HELP", "ShowAddonHelp"},
   {"UI_SETTINGS", "ShowSettings"}, {"AUTO_CURRENT_INSTANCE_LABEL", "ToggleInstanceMode"},
+  {"BUTTON_ROUTES", "ToggleRouteWindow"},
 }
 local orderRows, colorButtons, sliders = {}, {}, {}
 
@@ -219,7 +220,9 @@ local function CreateSettings()
     RT.Localized(sliders[key].titleText, spec[2])
     sliders[key]:SetPoint("TOPLEFT", pages[2], "TOPLEFT", 0, -125 - (i - 1) * 75)
   end
-  checks.locked = Check(pages[2], "UI_LOCK", 0, -265, function(self) draft.locked = self:GetChecked() and true or false end)
+  Button(pages[2], "ARROW_GALLERY_OPEN", 0, -270, 250, function() RT.ToggleArrowGallery() end)
+
+  checks.locked = Check(pages[2], "UI_LOCK", 0, -320, function(self) draft.locked = self:GetChecked() and true or false end)
   for index = 1, #ACTIONS do
     local row = {}
     orderRows[index] = row
@@ -297,6 +300,10 @@ end
 
 function RT.ApplyWindowScale()
   Skin.ScaleRoots(Config().scale)
+  RT.RefreshRouteArrowScale()
+  RT.RefreshRouteArrowLock()
+  RT.OnArrowSkinChanged()
+  RT.RefreshArrowGallery()
 end
 function RT.InitAppearance()
   RT.state.appearance = Core.copyAppearance(RT.state.appearance)
@@ -332,5 +339,13 @@ function RT.RefreshSettingsLanguage()
       if id ~= 3 and id ~= 4 and id ~= 6 then button:SetText(Label(id)) end
     end
     if not InCombatLockdown() then RT.LayoutMainToolbar() end
+  end
+end
+
+function RT.SyncArrowSkinSetting()
+  local appearance = RT.state and RT.state.appearance
+
+  if settings and draft and appearance then
+    draft.arrowSkin = appearance.arrowSkin
   end
 end

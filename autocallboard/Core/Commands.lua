@@ -6,12 +6,7 @@ local tonumber = tonumber
 local tostring = tostring
 local math = math
 
-local trim = Core.trim or function(value)
-  if type(value) ~= "string" then
-    return ""
-  end
-  return (value:match("^%s*(.-)%s*$"))
-end
+local trim = Core.trim
 
 local BOOLEAN_TRUE_WORDS = { on = true, ["true"] = true, yes = true }
 local BOOLEAN_FALSE_WORDS = { off = true, ["false"] = true, no = true }
@@ -64,6 +59,7 @@ local SIMPLE_SLASH_KINDS = {
   quests = "quests", quest = "quests", roll = "roll", autoroll = "roll", stop = "stop",
   run = "run", call = "run", version = "version", v = "version",
   settings = "settings", options = "settings", tools = "tools",
+  routes = "routes", route = "routes",
 }
 
 local SIMPLE_SLASH_RESULTS = {

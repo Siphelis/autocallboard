@@ -61,6 +61,8 @@ function RT.RefreshLocalizedText()
 
   RT.SyncQuestDataControls()
   if RT.RefreshSettingsLanguage then RT.RefreshSettingsLanguage() end
+  RT.RefreshRouteWindow()
+  RT.RefreshRouteArrowLabel()
 end
 
 function RT.LanguageInitials(code)

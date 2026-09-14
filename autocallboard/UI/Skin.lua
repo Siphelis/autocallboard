@@ -46,6 +46,7 @@ local THEME = {
 }
 
 local colors = {}
+local bareRoots = setmetatable({}, { __mode = "k" })
 
 local function ApplyColor(target, methodName, color)
   if target and target[methodName] and color then
@@ -121,9 +122,33 @@ local function SetButtonVisual(target, mode)
     ApplyColor(target:GetFontString(), "SetTextColor", text)
   end
 
+  if target._acbIcon then
+    ApplyColor(target._acbIcon, "SetVertexColor", target._acbIconColor or text)
+  end
+
   if target._acbGloss then
     target._acbGloss:SetVertexColor(1, 1, 1, glossAlpha)
   end
+end
+
+local BUTTON_ICON_SIZE = 12
+
+local function SetButtonIcon(target, texture, color)
+  if not target or not target.CreateTexture then
+    return
+  end
+
+  if not target._acbIcon then
+    local icon = target:CreateTexture(nil, "OVERLAY")
+    icon:SetWidth(BUTTON_ICON_SIZE)
+    icon:SetHeight(BUTTON_ICON_SIZE)
+    icon:SetPoint("CENTER", target, "CENTER", 0, 0)
+    target._acbIcon = icon
+  end
+
+  target._acbIcon:SetTexture(texture)
+  target._acbIconColor = color
+  SetButtonVisual(target)
 end
 
 local CHROME_SIZE = 18
@@ -199,6 +224,12 @@ local function SkinGearButton(target, tipKey)
   return SkinChromeButton(target, nil, GEAR_TEXTURE, tipKey or "UI_SETTINGS")
 end
 
+local function FollowInterfaceScale(target)
+  if target:GetParent() == UIParent and RT.state and RT.state.appearance then
+    target:SetScale(RT.state.appearance.scale)
+  end
+end
+
 local function SkinFrame(target, variant)
   if not target or not target.SetBackdrop then
     return
@@ -207,9 +238,7 @@ local function SkinFrame(target, variant)
   if not target._acbBackdrop then
     target:SetBackdrop(BACKDROP)
     target._acbBackdrop = true
-    if target:GetParent() == UIParent and RT.state and RT.state.appearance then
-      target:SetScale(RT.state.appearance.scale)
-    end
+    FollowInterfaceScale(target)
   end
 
   local soft = variant == "soft"
@@ -583,7 +612,7 @@ local function MenuItemVisual(item, hovered)
   ApplyColor(item.label, "SetTextColor", color)
 end
 
-local function CreateMenuItem(menu, index)
+local function CreateMenuItem(menu)
   local item = CreateFrame("Button", nil, menu)
   item:SetHeight(MENU_ITEM_HEIGHT)
   item:RegisterForClicks("LeftButtonUp")
@@ -631,8 +660,34 @@ local function CreateMenuItem(menu, index)
     end
     end)
 
-  menu._acbItems[index] = item
   return item
+end
+
+local SkinSlider
+
+local MENU_SLIDER_HEIGHT = 48
+
+local function CreateMenuSlider(menu, options)
+  local holder = CreateFrame("Frame", nil, menu)
+  holder:SetHeight(MENU_SLIDER_HEIGHT)
+  holder._acbKind = "slider"
+  holder._acbHeight = MENU_SLIDER_HEIGHT
+
+  holder.slider = SkinSlider(holder, options)
+  holder.slider:ClearAllPoints()
+  holder.slider:SetPoint("TOPLEFT", holder, "TOPLEFT", 13, -16)
+
+  return holder
+end
+
+local function ClaimMenuRow(menu, kind, index, create)
+  local pool = menu._acbPools[kind]
+  local row = pool[index] or create()
+
+  pool[index] = row
+  menu._acbItems[index] = row
+
+  return row
 end
 
 local function SkinMenu(frameName)
@@ -657,13 +712,39 @@ local function SkinMenu(frameName)
   end
 
   menu._acbItems = {}
+  menu._acbPools = { item = {}, slider = {} }
   menu._acbCount = 0
 
   function menu:Reset()
     self._acbCount = 0
-    for i = 1, #(self._acbItems) do
-      self._acbItems[i]:Hide()
+    for _, pool in pairs(self._acbPools) do
+      for _, row in pairs(pool) do
+        row:Hide()
+      end
     end
+  end
+
+  function menu:AddSlider(options)
+    options = options or {}
+
+    local index = self._acbCount + 1
+    self._acbCount = index
+
+    local holder = ClaimMenuRow(self, "slider", index, function()
+      return CreateMenuSlider(self, options)
+    end)
+
+    holder._acbHeader = false
+    holder._acbDisabled = false
+    holder._acbHasArrow = false
+    holder.slider:SetSliderRange(options.min, options.max)
+    holder.slider:SetLabel(options.title)
+    holder.slider:SetCommit(options.onCommit)
+    holder.slider:SetFormatter(options.format)
+    holder.slider:SetDisplayValue(options.value)
+    holder:Show()
+
+    return holder
   end
 
   function menu:AddItem(text, options)
@@ -672,7 +753,9 @@ local function SkinMenu(frameName)
     local index = self._acbCount + 1
     self._acbCount = index
 
-    local item = self._acbItems[index] or CreateMenuItem(self, index)
+    local item = ClaimMenuRow(self, "item", index, function()
+      return CreateMenuItem(self)
+    end)
 
     item._acbHeader = options.header and true or false
     item._acbDisabled = options.disabled and true or false
@@ -722,10 +805,16 @@ local function SkinMenu(frameName)
 
     for i = 1, count do
       local item = self._acbItems[i]
-      local textWidth = item.label:GetStringWidth() or 0
+      local textWidth
 
-      if item._acbHasArrow then
-        textWidth = textWidth + 12
+      if item._acbKind == "slider" then
+        textWidth = item.slider:GetWidth() or 0
+      else
+        textWidth = item.label:GetStringWidth() or 0
+
+        if item._acbHasArrow then
+          textWidth = textWidth + 12
+        end
       end
 
       if textWidth > widest then
@@ -739,16 +828,19 @@ local function SkinMenu(frameName)
     end
 
     local y = -MENU_PAD_TOP
+    local stack = 0
     for i = 1, count do
       local item = self._acbItems[i]
+      local rowHeight = item._acbHeight or MENU_ITEM_HEIGHT
       item:ClearAllPoints()
       item:SetPoint("TOPLEFT", self, "TOPLEFT", MENU_EDGE, y)
       item:SetPoint("TOPRIGHT", self, "TOPRIGHT", -MENU_EDGE, y)
       item:Show()
-      y = y - MENU_ITEM_HEIGHT - MENU_ITEM_GAP
+      y = y - rowHeight - MENU_ITEM_GAP
+      stack = stack + rowHeight
     end
 
-    local height = MENU_PAD_TOP + MENU_PAD_BOTTOM + count * MENU_ITEM_HEIGHT
+    local height = MENU_PAD_TOP + MENU_PAD_BOTTOM + stack
     if count > 1 then
       height = height + (count - 1) * MENU_ITEM_GAP
     end
@@ -799,7 +891,7 @@ local function SkinMenu(frameName)
   return menu
 end
 
-local function SkinSlider(parent, options)
+function SkinSlider(parent, options)
   options = options or {}
 
   local step = options.step or 1
@@ -891,8 +983,28 @@ local function SkinSlider(parent, options)
 
   function slider:SetDisplayValue(value)
     self._acbSyncing = true
-    self:SetValue(value)
+    self:SetValue(tonumber(value) or options.min or 0)
     self._acbSyncing = false
+    renderValue()
+  end
+
+  function slider:SetSliderRange(minValue, maxValue)
+    options.min = tonumber(minValue) or options.min
+    options.max = tonumber(maxValue) or options.max
+    self:SetMinMaxValues(options.min, options.max)
+  end
+
+  function slider:SetLabel(text)
+    options.title = text or ""
+    self.titleText:SetText(options.title)
+  end
+
+  function slider:SetCommit(fn)
+    options.onCommit = fn
+  end
+
+  function slider:SetFormatter(fn)
+    options.format = fn
     renderValue()
   end
 
@@ -960,7 +1072,13 @@ local function BuildWindow(name, opts)
   if not opts.notToplevel and frame.SetToplevel then frame:SetToplevel(true) end
   if not opts.notClamped then frame:SetClampedToScreen(true) end
   frame:EnableMouse(true)
-  SkinFrame(frame)
+
+  if opts.bare then
+    bareRoots[frame] = true
+    FollowInterfaceScale(frame)
+  else
+    SkinFrame(frame)
+  end
 
   if opts.movable then
     frame:SetMovable(true)
@@ -1007,6 +1125,7 @@ local function BuildButton(parent, opts)
   elseif opts.text then button:SetText(opts.text) end
   applyPoints(button, opts.point, opts.points)
   SkinButton(button)
+  if opts.icon then SetButtonIcon(button, opts.icon, opts.iconColor) end
   if opts.onClick then button:SetScript("OnClick", opts.onClick) end
   if opts.tipTitle or opts.tipBody or opts.tipExtra then
     AttachHoverTip(button, opts.tipTitle, opts.tipBody, "button", opts.tipExtra)
@@ -1131,17 +1250,14 @@ local function BuildDialog()
     self.blocker:Hide()
     self.editBox:ClearFocus()
 
-    if not self._acbAccepted then
-      local handler = self._acbOnCancel
-      self._acbOnCancel = nil
-
-      if handler then
-        handler()
-      end
-    end
+    local handler = not self._acbAccepted and self._acbOnCancel or nil
 
     self._acbOnAccept = nil
     self._acbOnCancel = nil
+
+    if handler then
+      handler()
+    end
     end)
 
   return frame
@@ -1352,6 +1468,7 @@ AutoCallboardSkin.BACKDROP = BACKDROP
 AutoCallboardSkin.BUTTON_FONT = BUTTON_FONT
 AutoCallboardSkin.ApplyColor = ApplyColor
 AutoCallboardSkin.SetButtonVisual = SetButtonVisual
+AutoCallboardSkin.SetButtonIcon = SetButtonIcon
 AutoCallboardSkin.SetCheckboxVisual = SetCheckboxVisual
 AutoCallboardSkin.CloseButton = SkinCloseButton
 AutoCallboardSkin.Frame = SkinFrame
@@ -1432,8 +1549,10 @@ function AutoCallboardSkin.ApplyAppearance(config)
 end
 
 function AutoCallboardSkin.ScaleRoots(scale)
-  for widget in pairs(colors.SetBackdropColor or {}) do
-    if widget.GetParent and widget:GetParent() == UIParent then widget:SetScale(scale) end
+  for _, roots in ipairs({colors.SetBackdropColor or {}, bareRoots}) do
+    for widget in pairs(roots) do
+      if widget.GetParent and widget:GetParent() == UIParent then widget:SetScale(scale) end
+    end
   end
 end
 

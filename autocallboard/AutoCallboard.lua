@@ -192,6 +192,8 @@ local function HandleSlash(input)
     RT.ShowSettings()
   elseif parsed.kind == "tools" then
     RT.ShowSettings()
+  elseif parsed.kind == "routes" then
+    RT.ToggleRouteWindow()
   elseif parsed.kind == "help" then
     RT.ShowAddonHelp()
   elseif parsed.kind == "show" then
@@ -240,7 +242,7 @@ local IDLE_INTERVAL = 0.25
 
 local RunPendingInteract = RT.RunPendingInteract
 local UpdateQuestPanelAnimation = RT.UpdateQuestPanelAnimation
-local UpdateListsAnimation = RT.UpdateListsAnimation
+local UpdateBrowserAnimations = RT.UpdateBrowserAnimations
 local ProcessRolling = RT.ProcessRolling
 local RefreshQuestWindowIfNeeded = RT.RefreshQuestWindowIfNeeded
 local ProcessPendingAcceptedQuestShare = RT.ProcessPendingAcceptedQuestShare
@@ -258,6 +260,28 @@ local travelTask = {
     end
 
     return RT.WatchTravelSuggestion()
+  end,
+  every = 1,
+}
+
+local routeTask = {
+  fn = function()
+    if not RT.ProcessRoutePlayback then
+      return 5
+    end
+
+    return RT.ProcessRoutePlayback()
+  end,
+  every = 0.35,
+}
+
+local routeShareTask = {
+  fn = function(now)
+    if not RT.ProcessRouteShare then
+      return 5
+    end
+
+    return RT.ProcessRouteShare(now)
   end,
   every = 1,
 }
@@ -280,6 +304,8 @@ local TASKS = {
   indoorTask,
   eternalsTask,
   travelTask,
+  routeTask,
+  routeShareTask,
 }
 
 local function WakeIndoorCheck()
@@ -289,7 +315,7 @@ end
 local function Busy()
   return RT.rolling
       or RT.questPanelAnimation
-      or RT.listsAnimating
+      or RT.IsAnyBrowserAnimating()
       or RT.pendingSummonVerifyUntil
       or RT.pendingCooldownSyncUntil
 end
@@ -315,7 +341,7 @@ frame:SetScript("OnUpdate", function()
 
   RunPendingInteract(now)
   UpdateQuestPanelAnimation()
-  UpdateListsAnimation()
+  UpdateBrowserAnimations()
   ProcessRolling()
   RefreshQuestWindowIfNeeded(now)
   ProcessPendingAcceptedQuestShare("poll")
@@ -352,7 +378,7 @@ frame:SetScript("OnUpdate", function()
   if RT.DebugTick then
     RT.DebugTick(now)
   end
-  end)
+end)
 
 local EVENTS = {}
 
@@ -376,9 +402,13 @@ EVENTS.ADDON_LOADED = function(arg1)
 
   if RegisterAddonMessagePrefix then
     pcall(RegisterAddonMessagePrefix, RT.questSharePrefix)
+    pcall(RegisterAddonMessagePrefix, RT.routeSharePrefix)
   end
   RT.InstallSharedQuestAutoAcceptHook()
   RT.InstallAbandonQuestHook()
+  RT.InstallRouteRecorderHooks()
+  RT.ResumeRouteRecording()
+  RT.ResumeRoutePlayback()
   RT.InitAppearance()
   RT.CreateCallboardButton()
   RT.CreateMinimapButton()
@@ -410,7 +440,22 @@ EVENTS.CHAT_MSG_ADDON = function(arg1, arg2, arg3, arg4)
     RT.RecordSharedQuestAnnouncement(arg2, arg3, arg4)
   elseif arg1 == RT.echoPrefix then
     RT.HandleEchoAddonMessage(arg2)
+  elseif arg1 == RT.routeSharePrefix then
+    RT.HandleRouteShareWhisper(arg2, arg3, arg4)
   end
+end
+
+EVENTS.CHAT_MSG_CHANNEL = function(arg1, arg2, _, arg4)
+  RT.HandleRouteShareChannel(arg1, arg2, arg4)
+end
+
+EVENTS.CHAT_MSG_SYSTEM = function(arg1)
+  RT.HandleRouteShareSystem(arg1)
+end
+
+local function RouteDialogue(source)
+  RT.RecordNpcStep(source)
+  RT.OnRouteDialogueOpened(source)
 end
 
 EVENTS.GOSSIP_SHOW = function()
@@ -420,14 +465,32 @@ EVENTS.GOSSIP_SHOW = function()
   if RT.IsObjectiveBoardName(npcName) or npcBoard then
     RT.MarkObjectiveBoardOpened("GOSSIP_SHOW:" .. tostring(npcName)
         .. ":" .. tostring(npcBoard and npcBoard.objectId or "no-id"))
+    return
   end
+
+  RouteDialogue("GOSSIP_SHOW")
+end
+
+EVENTS.QUEST_GREETING = function()
+  RouteDialogue("QUEST_GREETING")
+end
+
+EVENTS.QUEST_PROGRESS = function()
+  RouteDialogue("QUEST_PROGRESS")
+end
+
+EVENTS.QUEST_COMPLETE = function()
+  RouteDialogue("QUEST_COMPLETE")
 end
 
 EVENTS.GOSSIP_CLOSED = function()
   RT.MarkObjectiveBoardClosed("GOSSIP_CLOSED")
+  RT.EndRouteNpcStep()
 end
 
 EVENTS.QUEST_DETAIL = function()
+  RouteDialogue("QUEST_DETAIL")
+
   local acceptUntil = RT.GetPendingAcceptUntil()
 
   if state and state.autoAccept and acceptUntil and GetTime() <= acceptUntil then
@@ -438,7 +501,9 @@ EVENTS.QUEST_DETAIL = function()
   end
 end
 
-EVENTS.QUEST_ACCEPT_CONFIRM = function()
+EVENTS.QUEST_ACCEPT_CONFIRM = function(_, title)
+  RT.routeConfirmTitle = title
+  RT.OnRouteDialogueOpened("QUEST_ACCEPT_CONFIRM", title)
   RT.ConfirmSharedQuestAccept("QUEST_ACCEPT_CONFIRM")
 end
 
@@ -473,6 +538,7 @@ EVENTS.QUEST_ACCEPTED = function(arg1, arg2)
 end
 
 EVENTS.QUEST_LOG_UPDATE = function()
+  RT.WatchRouteQuestLog()
   RT.ProcessPendingAcceptedQuestShare("QUEST_LOG_UPDATE")
   if RT.RefreshLastAcceptedQuest then
     RT.RefreshLastAcceptedQuest()
@@ -483,6 +549,7 @@ EVENTS.QUEST_LOG_UPDATE = function()
 end
 
 EVENTS.QUEST_FINISHED = function()
+  RT.EndRouteNpcStep()
   RT.ResetSelectedQuestCheck()
   RT.CheckSelectedQuestProgress("QUEST_FINISHED")
   CheckEternalQuest("QUEST_FINISHED")
@@ -511,12 +578,16 @@ end
 
 EVENTS.ZONE_CHANGED_NEW_AREA = function()
   RT.InvalidateInstanceTarget()
+  RT.InvalidatePlayerMap()
   WakeIndoorCheck()
+  RT.HookRouteCheckpointService()
+  RT.RefreshRouteArrowScale()
 end
 
 EVENTS.PLAYER_ENTERING_WORLD = EVENTS.ZONE_CHANGED_NEW_AREA
 
 EVENTS.ZONE_CHANGED = function()
+  RT.InvalidatePlayerMap()
   WakeIndoorCheck()
 end
 
@@ -531,17 +602,22 @@ frame:SetScript("OnEvent", function(_, event, arg1, arg2, arg3, arg4, arg5)
   if handler then
     handler(arg1, arg2, arg3, arg4, arg5)
   end
-  end)
+end)
 
 frame:RegisterEvent("ADDON_LOADED")
 frame:RegisterEvent("PLAYER_LOGOUT")
 frame:RegisterEvent("CHAT_MSG_ADDON")
+frame:RegisterEvent("CHAT_MSG_CHANNEL")
+frame:RegisterEvent("CHAT_MSG_SYSTEM")
 frame:RegisterEvent("QUEST_DETAIL")
+frame:RegisterEvent("QUEST_PROGRESS")
+frame:RegisterEvent("QUEST_COMPLETE")
 frame:RegisterEvent("QUEST_ACCEPT_CONFIRM")
 frame:RegisterEvent("QUEST_ACCEPTED")
 frame:RegisterEvent("QUEST_LOG_UPDATE")
 frame:RegisterEvent("QUEST_FINISHED")
 frame:RegisterEvent("GOSSIP_SHOW")
+pcall(frame.RegisterEvent, frame, "QUEST_GREETING")
 frame:RegisterEvent("GOSSIP_CLOSED")
 frame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 frame:RegisterEvent("PLAYER_ENTERING_WORLD")

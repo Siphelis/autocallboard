@@ -76,14 +76,6 @@ local function GetCallboardCooldownRemaining()
     end
   end
 
-  if GetItemCooldown and state.summonSpellID then
-    local start, duration = GetItemCooldown(state.summonSpellID)
-
-    if start and start > 0 and duration and duration > 1.5 then
-      return math.max(0, start + duration - GetTime()), true
-    end
-  end
-
   return 0, false
 end
 
@@ -229,23 +221,21 @@ local function IsSummonSpellUsable()
 
   local spellName = RT.GetSummonSpellName()
 
-  if IsUsableSpell and spellName ~= "" then
-    local usable = IsUsableSpell(spellName)
-
-    if usable ~= nil then
-      return usable ~= false and usable ~= 0
-    end
+  if not IsUsableSpell or spellName == "" then
+    return true
   end
 
-  if IsUsableSpell and state.summonSpellID then
-    local usable = IsUsableSpell(state.summonSpellID)
+  local ok, usable = pcall(IsUsableSpell, spellName)
 
-    if usable ~= nil then
-      return usable ~= false and usable ~= 0
-    end
+  if not ok then
+    return true
   end
 
-  return true
+  if usable and usable ~= 0 then
+    return true
+  end
+
+  return false
 end
 
 local function MarkCallboardSummoned(source)
@@ -765,10 +755,6 @@ QueueCallboardFollowup = function(source)
   RT.pendingInteractSource = source
 end
 
-RT.QueueCallboardFollowup = function(...)
-  return QueueCallboardFollowup(...)
-end
-
 StartCallboardFlow = function()
   if IsCallboardActive() then
     RT.ResumeRollingAfterCallboardActive("slash active")
@@ -835,7 +821,6 @@ RT.GetObjectivesService = GetObjectivesService
 RT.GetCurrentObjectives = GetCurrentObjectives
 RT.GetActiveObjective = GetActiveObjective
 RT.SyncCallboardActiveFromCooldown = SyncCallboardActiveFromCooldown
-RT.UpdateSummonStatus = UpdateSummonStatus
 RT.TargetCallboard = TargetCallboard
 RT.StartCallboardFlow = StartCallboardFlow
 RT.QueueCallboardFollowup = QueueCallboardFollowup

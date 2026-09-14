@@ -28,6 +28,7 @@ local DEFAULTS = {
   desiredQuests = {},
   characterProfiles = {},
   accountProfile = {},
+  routeLibrary = {},
   characterState = {},
   migratedCharacters = {},
   accountListSeeded = false,
@@ -64,6 +65,39 @@ local function trim(value)
 
   return (value:match("^%s*(.-)%s*$"))
 end
+
+local function truncateLetters(value, limit)
+  if type(value) ~= "string" then
+    return ""
+  end
+
+  local length = string.len(value)
+  local index, letters = 1, 0
+
+  while index <= length do
+    if letters >= limit then
+      return string.sub(value, 1, index - 1)
+    end
+
+    index = index + 1
+
+    while index <= length do
+      local byte = string.byte(value, index)
+
+      if byte < 128 or byte > 191 then
+        break
+      end
+
+      index = index + 1
+    end
+
+    letters = letters + 1
+  end
+
+  return value
+end
+
+Core.truncateLetters = truncateLetters
 
 local function objectiveTextParts(value)
   local text = trim(value)
@@ -345,6 +379,7 @@ local MERGE_COLLECTION = {
   desiredQuests = "copyDesiredMap",
   characterProfiles = "copyCharacterProfiles",
   accountProfile = "copyAccountProfile",
+  routeLibrary = "copyRouteLibrary",
   characterState = "copyCharacterStateMap",
   migratedCharacters = "copyDesiredMap",
 }

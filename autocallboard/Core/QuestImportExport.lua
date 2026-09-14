@@ -4,12 +4,7 @@ AutoCallboardCore = Core
 local type, tonumber, tostring, pairs = type, tonumber, tostring, pairs
 local string, table, math = string, table, math
 
-local trim = Core.trim or function(value)
-  if type(value) ~= "string" then
-    return ""
-  end
-  return (value:match("^%s*(.-)%s*$"))
-end
+local trim = Core.trim
 
 local byTitle = Core.byTitle
 
@@ -365,6 +360,7 @@ function Core.resetSettingsPreservingQuestState(currentState)
   reset.desiredQuests = Core.copyDesiredMap(current.desiredQuests)
   reset.characterProfiles = Core.copyCharacterProfiles(current.characterProfiles)
   reset.accountProfile = Core.copyAccountProfile(current.accountProfile)
+  reset.routeLibrary = Core.copyRouteLibrary(current.routeLibrary)
   reset.characterState = Core.copyCharacterStateMap(current.characterState)
   reset.migratedCharacters = Core.copyDesiredMap(current.migratedCharacters)
   reset.accountListSeeded = current.accountListSeeded == true

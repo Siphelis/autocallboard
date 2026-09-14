@@ -5,24 +5,8 @@ local L = AutoCallboardLocale
 local type, tonumber, tostring, pairs = type, tonumber, tostring, pairs
 local string, table, math = string, table, math
 
-local trim = Core.trim or function(value)
-  if type(value) ~= "string" then
-    return ""
-  end
-  return (value:match("^%s*(.-)%s*$"))
-end
-
-local mergeNested = Core.mergeNested or function(saved, state, spec)
-  for key, kind in pairs(spec) do
-    if kind == "nonEmptyString" then
-      if trim(saved[key]) ~= "" then state[key] = trim(saved[key]) end
-    elseif kind == "number" then
-      if type(saved[key]) == "number" then state[key] = saved[key] end
-    elseif kind == "boolean" then
-      if type(saved[key]) == "boolean" then state[key] = saved[key] end
-    end
-  end
-end
+local trim = Core.trim
+local mergeNested = Core.mergeNested
 
 function Core.copyCharacterProfile(profile)
   local source = type(profile) == "table" and profile or {}
@@ -59,6 +43,28 @@ end
 Core.MIN_DIFFICULTY = 1
 Core.MAX_DIFFICULTY = 6
 
+function Core.maxDifficulty()
+  local service = ProjectEbonhold and ProjectEbonhold.HardmodeService
+  local tiers = service and service.HARDMODE_REWARDS
+  local highest = 0
+
+  if type(tiers) == "table" then
+    for tier in pairs(tiers) do
+      tier = tonumber(tier)
+
+      if tier and tier > highest then
+        highest = math.floor(tier)
+      end
+    end
+  end
+
+  if highest < Core.MAX_DIFFICULTY then
+    return Core.MAX_DIFFICULTY
+  end
+
+  return highest
+end
+
 function Core.sanitizeDifficulty(value)
   value = tonumber(value)
 
@@ -68,7 +74,7 @@ function Core.sanitizeDifficulty(value)
 
   value = math.floor(value)
 
-  if value < Core.MIN_DIFFICULTY or value > Core.MAX_DIFFICULTY then
+  if value < Core.MIN_DIFFICULTY or value > Core.maxDifficulty() then
     return nil
   end
 
@@ -82,7 +88,7 @@ function Core.difficultyLabel(tier)
     return L.DIFFICULTY_NONE
   end
 
-  return L.DIFFICULTY_LABELS[tier]
+  return L.DIFFICULTY_LABELS[tier] or string.format(L.DIFFICULTY_NUMBERED, tostring(tier))
 end
 
 Core.MAX_SAVED_SELECTIONS = 50
@@ -126,11 +132,7 @@ function Core.sanitizeSelectionName(name, fallback)
     cleaned = fallback or L.SELECTION_DEFAULT_NAME
   end
 
-  if string.len(cleaned) > Core.MAX_SELECTION_NAME_LENGTH then
-    cleaned = string.sub(cleaned, 1, Core.MAX_SELECTION_NAME_LENGTH)
-  end
-
-  return cleaned
+  return trim(Core.truncateLetters(cleaned, Core.MAX_SELECTION_NAME_LENGTH))
 end
 
 function Core.copyGroup(group)
@@ -165,24 +167,205 @@ function Core.copyGroupList(list)
   return copy
 end
 
+local function positiveNumber(value)
+  local number = tonumber(value) or 1
+
+  if number < 1 then
+    number = 1
+  end
+
+  return math.floor(number)
+end
+
+local ROUTE_ACTION_KINDS = {
+  gossip = true, available = true, active = true,
+  accept = true, confirm = true, complete = true, turnin = true,
+}
+
+local ROUTE_QUEST_CHANGES = { ["in"] = true, done = true, out = true }
+
+Core.MAX_ROUTE_STEPS = 400
+
+local function copyRouteLabel(value)
+  return trim(Core.truncateLetters(trim(value), Core.MAX_SELECTION_NAME_LENGTH * 4))
+end
+
+local function copyUnitCoord(value)
+  local number = tonumber(value)
+
+  if not number or number < 0 or number > 1 then
+    return nil
+  end
+
+  return number
+end
+
+local function copyPositiveId(value)
+  local number = tonumber(value)
+
+  if not number or number <= 0 then
+    return nil
+  end
+
+  return math.floor(number)
+end
+
+function Core.copyRouteAction(action)
+  if type(action) ~= "table" or not ROUTE_ACTION_KINDS[action.kind] then
+    return nil
+  end
+
+  return {
+    kind = action.kind,
+    index = copyPositiveId(action.index),
+    text = copyRouteLabel(action.text),
+    title = copyRouteLabel(action.title),
+    questId = copyPositiveId(action.questId),
+    reward = tonumber(action.reward) and math.floor(tonumber(action.reward)) or nil,
+  }
+end
+
+function Core.copyRouteQuestRef(entry)
+  if type(entry) ~= "table" then
+    return nil
+  end
+
+  return {
+    title = copyRouteLabel(entry.title),
+    questId = copyPositiveId(entry.questId),
+    complete = entry.complete and true or false,
+  }
+end
+
+local function copyRouteQuestRefs(list)
+  local copy = {}
+
+  if type(list) == "table" then
+    for i = 1, #(list) do
+      local entry = Core.copyRouteQuestRef(list[i])
+
+      if entry then
+        table.insert(copy, entry)
+      end
+    end
+  end
+
+  return copy
+end
+
+function Core.copyRouteStep(step)
+  if type(step) ~= "table" then
+    return nil
+  end
+
+  local copy = {
+    kind = step.kind,
+    resting = step.resting and true or false,
+    zone = copyRouteLabel(step.zone),
+    map = copyRouteLabel(step.map),
+    x = copyUnitCoord(step.x),
+    y = copyUnitCoord(step.y),
+    difficulty = Core.sanitizeDifficulty(step.difficulty),
+  }
+
+  if step.kind == "travel" then
+    copy.checkpoint = copyPositiveId(step.checkpoint)
+    copy.checkpointName = copyRouteLabel(step.checkpointName)
+
+    return copy.checkpoint and copy or nil
+  end
+
+  if step.kind == "npc" then
+    copy.npcId = copyPositiveId(step.npcId)
+    copy.npcName = copyRouteLabel(step.npcName)
+    copy.available = copyRouteQuestRefs(step.available)
+    copy.active = copyRouteQuestRefs(step.active)
+  elseif step.kind == "quest" then
+    copy.questId = copyPositiveId(step.questId)
+    copy.title = copyRouteLabel(step.title)
+    copy.item = copyRouteLabel(step.item)
+    copy.on = ROUTE_QUEST_CHANGES[step.on] and step.on or nil
+  else
+    return nil
+  end
+
+  copy.actions = {}
+
+  if type(step.actions) == "table" then
+    for i = 1, #(step.actions) do
+      local action = Core.copyRouteAction(step.actions[i])
+
+      if action then
+        table.insert(copy.actions, action)
+      end
+    end
+  end
+
+  return copy
+end
+
+function Core.copyRouteSteps(steps)
+  local copy = {}
+
+  if type(steps) == "table" then
+    for i = 1, #(steps) do
+      if #(copy) >= Core.MAX_ROUTE_STEPS then
+        break
+      end
+
+      local step = Core.copyRouteStep(steps[i])
+
+      if step then
+        table.insert(copy, step)
+      end
+    end
+  end
+
+  return copy
+end
+
+function Core.copyRoute(route)
+  if type(route) ~= "table" or not Core.isRouteCategory(route.category) then
+    return nil
+  end
+
+  return {
+    id = route.id,
+    name = route.name or L.ROUTE_DEFAULT_NAME,
+    category = tonumber(route.category),
+    difficulty = Core.sanitizeDifficulty(route.difficulty),
+    shared = (route.shared == true or Core.sanitizeRouteHash(route.sharedHash) ~= nil) or nil,
+    sharedHash = Core.sanitizeRouteHash(route.sharedHash),
+    steps = Core.copyRouteSteps(route.steps),
+  }
+end
+
+function Core.copyRouteList(list)
+  local copy = {}
+
+  if type(list) == "table" then
+    for i = 1, #(list) do
+      local entry = Core.copyRoute(list[i])
+
+      if entry then
+        table.insert(copy, entry)
+      end
+    end
+  end
+
+  return copy
+end
+
 function Core.copyAccountProfile(profile)
   local source = type(profile) == "table" and profile or {}
-  local nextSelection = tonumber(source.nextSelectionNumber) or 1
-  local nextGroup = tonumber(source.nextGroupNumber) or 1
-
-  if nextSelection < 1 then
-    nextSelection = 1
-  end
-
-  if nextGroup < 1 then
-    nextGroup = 1
-  end
 
   return {
     savedSelections = Core.copySelectionList(source.savedSelections),
     groups = Core.copyGroupList(source.groups),
-    nextSelectionNumber = math.floor(nextSelection),
-    nextGroupNumber = math.floor(nextGroup),
+    nextSelectionNumber = positiveNumber(source.nextSelectionNumber),
+    nextGroupNumber = positiveNumber(source.nextGroupNumber),
+    savedRoutes = Core.copyRouteList(source.savedRoutes),
+    nextRouteNumber = positiveNumber(source.nextRouteNumber),
   }
 end
 
@@ -248,8 +431,17 @@ function Core.copyCharacterState(entry)
     desiredQuests = Core.copyDesiredMap(source.desiredQuests),
     activeSelectionId = tonumber(source.activeSelectionId),
     openGroupId = tonumber(source.openGroupId),
+    openRouteCategory = tonumber(source.openRouteCategory),
+    openLibraryCategory = tonumber(source.openLibraryCategory),
     echoBar = Core.copyEchoBar(source.echoBar),
     toolbar = Core.copyToolbar and Core.copyToolbar(source.toolbar) or nil,
+    routeDraft = Core.copyRouteSteps(source.routeDraft),
+    activeRouteId = tonumber(source.activeRouteId),
+    routeCompact = source.routeCompact and true or false,
+    routeRecording = source.routeRecording and true or false,
+    routePlaying = source.routePlaying and true or false,
+    routeCursor = tonumber(source.routeCursor),
+    routeStart = tonumber(source.routeStart),
   }
 end
 
@@ -267,362 +459,53 @@ function Core.copyCharacterStateMap(states)
   return copy
 end
 
-local function sameContainer(selectionGroupId, groupId)
-  return (tonumber(selectionGroupId) or 0) == (tonumber(groupId) or 0)
-end
+local sameContainer = Core.sameContainer
 
-Core.sameContainer = sameContainer
+local Selections = Core.buildContainer({
+  items = "savedSelections",
+  groups = "groups",
+  nextItem = "nextSelectionNumber",
+  nextGroup = "nextGroupNumber",
+  itemNameKey = "SELECTION_NUMBERED_NAME",
+  groupNameKey = "GROUP_NUMBERED_NAME",
+  copyProfile = function(profile) return Core.copyAccountProfile(profile) end,
+  maxItems = function() return Core.MAX_SAVED_SELECTIONS end,
+  maxGroups = function() return Core.MAX_GROUPS end,
+})
 
-function Core.selectionsInContainer(profile, groupId)
-  local entries = {}
+Core.selectionContainer = Selections
 
-  if type(profile) ~= "table" or type(profile.savedSelections) ~= "table" then
-    return entries
-  end
-
-  for i = 1, #(profile.savedSelections) do
-    local entry = profile.savedSelections[i]
-    if sameContainer(entry.groupId, groupId) then
-      table.insert(entries, entry)
-    end
-  end
-
-  return entries
-end
-
-function Core.selectionCount(profile, groupId)
-  if type(profile) ~= "table" or type(profile.savedSelections) ~= "table" then
-    return 0
-  end
-
-  local count = 0
-
-  for i = 1, #(profile.savedSelections) do
-    if sameContainer(profile.savedSelections[i].groupId, groupId) then
-      count = count + 1
-    end
-  end
-
-  return count
-end
-
-function Core.selectionsFull(profile, groupId)
-  return Core.selectionCount(profile, groupId) >= Core.MAX_SAVED_SELECTIONS
-end
-
-function Core.peekNextSelectionName(profile)
-  local nextNumber = type(profile) == "table" and tonumber(profile.nextSelectionNumber) or 1
-  return string.format(L.SELECTION_NUMBERED_NAME, tostring(nextNumber or 1))
-end
-
-function Core.findSelectionIndex(profile, id)
-  if type(profile) ~= "table" or type(profile.savedSelections) ~= "table" or id == nil then
-    return nil
-  end
-
-  for i = 1, #(profile.savedSelections) do
-    if profile.savedSelections[i].id == id then
-      return i
-    end
-  end
-
-  return nil
-end
-
-function Core.findSelection(profile, id)
-  local index = Core.findSelectionIndex(profile, id)
-
-  if not index then
-    return nil
-  end
-
-  return profile.savedSelections[index]
-end
+Core.selectionsInContainer = Selections.itemsIn
+Core.selectionCount = Selections.count
+Core.selectionsFull = Selections.full
+Core.peekNextSelectionName = Selections.peekNextName
+Core.findSelectionIndex = Selections.findIndex
+Core.findSelection = Selections.find
+Core.renameSelection = Selections.rename
+Core.deleteSelection = Selections.delete
+Core.setSelectionGroup = Selections.setGroup
+Core.moveSelectionTo = Selections.moveTo
+Core.findGroupIndex = Selections.findGroupIndex
+Core.findGroup = Selections.findGroup
+Core.groupCount = Selections.groupCount
+Core.groupsFull = Selections.groupsFull
+Core.peekNextGroupName = Selections.peekNextGroupName
+Core.createGroup = Selections.createGroup
+Core.moveGroupToIndex = Selections.moveGroupToIndex
+Core.renameGroup = Selections.renameGroup
+Core.groupSelectionNames = Selections.groupItemNames
+Core.deleteGroup = Selections.deleteGroup
 
 function Core.createSelection(profile, desiredQuests, name, groupId)
-  local nextProfile = Core.copyAccountProfile(profile)
-
-  if Core.selectionsFull(nextProfile, groupId) then
-    return nextProfile, nil, "full"
-  end
-
-  local number = nextProfile.nextSelectionNumber
-  nextProfile.nextSelectionNumber = number + 1
-
-  local entry = {
-    id = number,
-    name = Core.sanitizeSelectionName(name, string.format(L.SELECTION_NUMBERED_NAME, tostring(number))),
-    groupId = tonumber(groupId),
-    desiredQuests = Core.copyDesiredMap(desiredQuests),
-  }
-
-  table.insert(nextProfile.savedSelections, entry)
-
-  return nextProfile, entry, nil
-end
-
-function Core.renameSelection(profile, id, newName)
-  local nextProfile = Core.copyAccountProfile(profile)
-  local index = Core.findSelectionIndex(nextProfile, id)
-
-  if not index then
-    return nextProfile, false
-  end
-
-  nextProfile.savedSelections[index].name = Core.sanitizeSelectionName(newName, nextProfile.savedSelections[index].name)
-
-  return nextProfile, true
+  return Selections.create(profile, name, groupId, { desiredQuests = Core.copyDesiredMap(desiredQuests) })
 end
 
 function Core.setSelectionDifficulty(profile, id, tier)
-  local nextProfile = Core.copyAccountProfile(profile)
-  local index = Core.findSelectionIndex(nextProfile, id)
-
-  if not index then
-    return nextProfile, false
-  end
-
-  nextProfile.savedSelections[index].difficulty = Core.sanitizeDifficulty(tier)
-
-  return nextProfile, true
+  return Selections.update(profile, id, { difficulty = Core.sanitizeDifficulty(tier) or Core.CLEARED })
 end
 
 function Core.updateSelectionContent(profile, id, desiredQuests)
-  local nextProfile = Core.copyAccountProfile(profile)
-  local index = Core.findSelectionIndex(nextProfile, id)
-
-  if not index then
-    return nextProfile, false
-  end
-
-  nextProfile.savedSelections[index].desiredQuests = Core.copyDesiredMap(desiredQuests)
-
-  return nextProfile, true
-end
-
-function Core.deleteSelection(profile, id)
-  local nextProfile = Core.copyAccountProfile(profile)
-  local index = Core.findSelectionIndex(nextProfile, id)
-
-  if not index then
-    return nextProfile, false
-  end
-
-  table.remove(nextProfile.savedSelections, index)
-
-  return nextProfile, true
-end
-
-function Core.setSelectionGroup(profile, id, groupId)
-  local nextProfile = Core.copyAccountProfile(profile)
-  local index = Core.findSelectionIndex(nextProfile, id)
-
-  if not index then
-    return nextProfile, false
-  end
-
-  groupId = tonumber(groupId)
-
-  if groupId and not Core.findGroupIndex(nextProfile, groupId) then
-    return nextProfile, false
-  end
-
-  if sameContainer(nextProfile.savedSelections[index].groupId, groupId) then
-    return nextProfile, true
-  end
-
-  if Core.selectionsFull(nextProfile, groupId) then
-    return nextProfile, false, "full"
-  end
-
-  nextProfile.savedSelections[index].groupId = groupId
-
-  return nextProfile, true
-end
-
-function Core.moveSelectionTo(profile, id, groupId, beforeId)
-  local nextProfile = Core.copyAccountProfile(profile)
-  local index = Core.findSelectionIndex(nextProfile, id)
-
-  if not index then
-    return nextProfile, false
-  end
-
-  if beforeId == id then
-    return nextProfile, true
-  end
-
-  groupId = tonumber(groupId)
-
-  local entry = nextProfile.savedSelections[index]
-  local movingIn = not sameContainer(entry.groupId, groupId)
-
-  if movingIn and Core.selectionsFull(nextProfile, groupId) then
-    return nextProfile, false, "full"
-  end
-
-  table.remove(nextProfile.savedSelections, index)
-  entry.groupId = groupId
-
-  local target
-
-  if beforeId ~= nil then
-    target = Core.findSelectionIndex(nextProfile, beforeId)
-  end
-
-  if not target then
-    target = #(nextProfile.savedSelections) + 1
-
-    for i = #(nextProfile.savedSelections), 1, -1 do
-      if sameContainer(nextProfile.savedSelections[i].groupId, groupId) then
-        target = i + 1
-        break
-      end
-    end
-  end
-
-  table.insert(nextProfile.savedSelections, target, entry)
-
-  return nextProfile, true
-end
-
-function Core.findGroupIndex(profile, id)
-  if type(profile) ~= "table" or type(profile.groups) ~= "table" or id == nil then
-    return nil
-  end
-
-  for i = 1, #(profile.groups) do
-    if profile.groups[i].id == id then
-      return i
-    end
-  end
-
-  return nil
-end
-
-function Core.findGroup(profile, id)
-  local index = Core.findGroupIndex(profile, id)
-
-  if not index then
-    return nil
-  end
-
-  return profile.groups[index]
-end
-
-function Core.groupCount(profile)
-  if type(profile) ~= "table" or type(profile.groups) ~= "table" then
-    return 0
-  end
-
-  return #(profile.groups)
-end
-
-function Core.groupsFull(profile)
-  return Core.groupCount(profile) >= Core.MAX_GROUPS
-end
-
-function Core.peekNextGroupName(profile)
-  local nextNumber = type(profile) == "table" and tonumber(profile.nextGroupNumber) or 1
-  return string.format(L.GROUP_NUMBERED_NAME, tostring(nextNumber or 1))
-end
-
-function Core.createGroup(profile, name)
-  local nextProfile = Core.copyAccountProfile(profile)
-
-  if Core.groupsFull(nextProfile) then
-    return nextProfile, nil, "full"
-  end
-
-  local number = nextProfile.nextGroupNumber
-  nextProfile.nextGroupNumber = number + 1
-
-  local entry = {
-    id = number,
-    name = Core.sanitizeSelectionName(name, string.format(L.GROUP_NUMBERED_NAME, tostring(number))),
-  }
-
-  table.insert(nextProfile.groups, entry)
-
-  return nextProfile, entry, nil
-end
-
-function Core.moveGroupToIndex(profile, id, index)
-  local nextProfile = Core.copyAccountProfile(profile)
-  local from = Core.findGroupIndex(nextProfile, id)
-
-  if not from then
-    return nextProfile, false
-  end
-
-  local count = #(nextProfile.groups)
-  index = math.floor(tonumber(index) or from)
-
-  if index < 1 then
-    index = 1
-  end
-
-  if index > count then
-    index = count
-  end
-
-  if index == from then
-    return nextProfile, true
-  end
-
-  table.insert(nextProfile.groups, index, table.remove(nextProfile.groups, from))
-
-  return nextProfile, true
-end
-
-function Core.renameGroup(profile, id, newName)
-  local nextProfile = Core.copyAccountProfile(profile)
-  local index = Core.findGroupIndex(nextProfile, id)
-
-  if not index then
-    return nextProfile, false
-  end
-
-  nextProfile.groups[index].name = Core.sanitizeSelectionName(newName, nextProfile.groups[index].name)
-
-  return nextProfile, true
-end
-
-function Core.groupSelectionNames(profile, groupId, limit)
-  local entries = Core.selectionsInContainer(profile, groupId)
-  local names = {}
-
-  limit = tonumber(limit) or 3
-
-  for i = 1, #(entries) do
-    if i > limit then
-      break
-    end
-
-    table.insert(names, tostring(entries[i].name or ""))
-  end
-
-  return names, math.max(0, #(entries) - #(names))
-end
-
-function Core.deleteGroup(profile, id)
-  local nextProfile = Core.copyAccountProfile(profile)
-  local index = Core.findGroupIndex(nextProfile, id)
-
-  if not index then
-    return nextProfile, false
-  end
-
-  local groupId = nextProfile.groups[index].id
-  table.remove(nextProfile.groups, index)
-
-  for i = #(nextProfile.savedSelections), 1, -1 do
-    if sameContainer(nextProfile.savedSelections[i].groupId, groupId) then
-      table.remove(nextProfile.savedSelections, i)
-    end
-  end
-
-  return nextProfile, true
+  return Selections.update(profile, id, { desiredQuests = Core.copyDesiredMap(desiredQuests) })
 end
 
 function Core.characterSelectionCount(characterProfile)

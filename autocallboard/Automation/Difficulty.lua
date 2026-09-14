@@ -36,17 +36,21 @@ function RT.GetCurrentDifficulty()
   return nil
 end
 
-function RT.CanApplyDifficulty()
-  if UnitAffectingCombat and UnitAffectingCombat("player") then
-    return false
-  end
-
+function RT.IsDifficultyChangeAllowedHere()
   local level = UnitLevel and tonumber(UnitLevel("player")) or 0
   if level <= 10 then
     return true
   end
 
   return (IsResting and IsResting()) and true or false
+end
+
+function RT.CanApplyDifficulty()
+  if UnitAffectingCombat and UnitAffectingCombat("player") then
+    return false
+  end
+
+  return RT.IsDifficultyChangeAllowedHere()
 end
 
 function RT.GetActiveSelectionDifficulty()
@@ -154,4 +158,40 @@ function RT.RequestSetSelectionDifficulty(entry, tier)
   RT.RefreshListsWindow()
 
   RT.RefreshQuestWindow()
+end
+
+function RT.DifficultySliderValue(tier)
+  tier = Core.sanitizeDifficulty(tier)
+
+  if not tier then
+    return Core.MIN_DIFFICULTY - 1
+  end
+
+  return tier
+end
+
+function RT.AddDifficultySlider(menu, tier, onCommit)
+  local floor = Core.MIN_DIFFICULTY - 1
+
+  menu:AddSlider({
+    width = 150,
+    min = floor,
+    max = Core.maxDifficulty(),
+    step = 1,
+    value = RT.DifficultySliderValue(tier),
+    title = L.LISTS_MENU_DIFFICULTY,
+    format = function(value)
+      return Core.difficultyLabel(value)
+    end,
+    onCommit = function(value)
+      value = math.floor(value + 0.5)
+
+      if value <= floor then
+        onCommit(nil)
+        return
+      end
+
+      onCommit(value)
+      end,
+  })
 end
