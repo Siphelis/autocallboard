@@ -7,3 +7,7 @@
 *.xml  text eol=lf
 *.toc  text eol=lf
 *.md   text eol=lf
+
+# Les assets sont binaires : jamais de conversion de fins de ligne.
+*.tga  binary
+*.blp  binary
