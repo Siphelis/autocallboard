@@ -1,8 +1,5 @@
 name: Package addon
 
-# Declenche par le push d'un tag (fait par gprod).
-# workflow_dispatch permet aussi un build manuel a la demande,
-# qui produit un artefact telechargeable sans creer de Release.
 on:
   push:
     tags:
@@ -24,7 +21,6 @@ jobs:
         run: |
           set -euo pipefail
 
-          # La version vient du .toc : elle fait foi cote addon.
           VERSION=$(sed -n 's/^##[[:space:]]*Version:[[:space:]]*//p' autocallboard/*.toc \
                     | head -n 1 | tr -d '\r' | sed 's/[[:space:]]*$//')
 
@@ -33,8 +29,6 @@ jobs:
             exit 1
           fi
 
-          # Le dossier est renomme AutoCallboard (majuscules du .toc) pour
-          # pouvoir etre glisse tel quel dans Interface/AddOns/.
           mkdir -p dist/AutoCallboard
           cp -r autocallboard/. dist/AutoCallboard/
 
@@ -52,8 +46,6 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Un tag contenant un '-' (ex: v2.3.2-4) est une pre-release :
-          # il ne prendra pas le badge "Latest".
           PRERELEASE=""
           case "$GITHUB_REF_NAME" in
             *-*) PRERELEASE="--prerelease" ;;
