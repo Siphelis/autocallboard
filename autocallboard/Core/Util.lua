@@ -102,20 +102,6 @@ local function RegisterSpecialFrame(frameName)
   registeredSpecialFrames[frameName] = true
 end
 
-local function UnregisterSpecialFrame(frameName)
-  if type(frameName) ~= "string" or type(UISpecialFrames) ~= "table" then
-    return
-  end
-
-  for i = #(UISpecialFrames), 1, -1 do
-    if UISpecialFrames[i] == frameName then
-      table.remove(UISpecialFrames, i)
-    end
-  end
-
-  registeredSpecialFrames[frameName] = nil
-end
-
 local function ResolveFramePath(path)
   if type(path) ~= "string" or path == "" then
     return nil
@@ -442,7 +428,6 @@ RT.FormatMoney = FormatMoney
 RT.SecondsRemaining = SecondsRemaining
 RT.FormatSeconds = FormatSeconds
 RT.RegisterSpecialFrame = RegisterSpecialFrame
-RT.UnregisterSpecialFrame = UnregisterSpecialFrame
 RT.ResolveFramePath = ResolveFramePath
 RT.CompactText = CompactText
 RT.FrameName = FrameName

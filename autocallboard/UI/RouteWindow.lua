@@ -637,7 +637,6 @@ local function RefreshCompact()
   routeWindow:SetWidth(COMPACT_WIDTH)
   routeWindow:SetHeight(COMPACT_HEIGHT)
   routeWindow:SetFrameStrata(COMPACT_STRATA)
-  RT.UnregisterSpecialFrame(WINDOW_NAME)
 end
 
 function RT.RefreshRouteWindow()
@@ -661,7 +660,6 @@ function RT.RefreshRouteWindow()
   routeWindow:SetWidth(WINDOW_WIDTH)
   routeWindow:SetHeight(WINDOW_HEIGHT)
   routeWindow:SetFrameStrata(FULL_STRATA)
-  RT.RegisterSpecialFrame(WINDOW_NAME)
   Toggle(routeWindow.playButton, true)
   Toggle(routeWindow.skipButton, true)
   Toggle(routeWindow.routesButton, true)
@@ -736,10 +734,15 @@ function RT.CreateRouteWindow()
     titleX = 12,
     titleY = -9,
     close = true,
+    noEsc = true,
     movable = true,
   })
 
   RT.routeWindow = routeWindow
+
+  routeWindow.closeButton:HookScript("OnClick", function()
+    RT.SetRouteWindowOpen(false)
+    end)
 
   routeWindow.compactButton = Skin.MakeButton(routeWindow, {
     width = 22,
@@ -838,17 +841,13 @@ function RT.CreateRouteWindow()
 end
 
 function RT.ToggleRouteWindow()
-  if not routeWindow then
-    RT.CreateRouteWindow()
-  end
-
-  if routeWindow:IsShown() then
+  if routeWindow and routeWindow:IsShown() then
+    RT.SetRouteWindowOpen(false)
     routeWindow:Hide()
     return
   end
 
-  routeWindow:Show()
-  RT.RefreshRouteWindow()
+  RT.ShowRouteWindow()
 
   if routeWindow.Raise then
     routeWindow:Raise()
@@ -860,6 +859,13 @@ function RT.ShowRouteWindow()
     RT.CreateRouteWindow()
   end
 
+  RT.SetRouteWindowOpen(true)
   routeWindow:Show()
   RT.RefreshRouteWindow()
+end
+
+function RT.RestoreRouteWindow()
+  if RT.IsRouteWindowOpen() then
+    RT.ShowRouteWindow()
+  end
 end

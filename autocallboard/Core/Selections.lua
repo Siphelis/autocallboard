@@ -437,6 +437,7 @@ function Core.copyCharacterState(entry)
     toolbar = Core.copyToolbar and Core.copyToolbar(source.toolbar) or nil,
     routeDraft = Core.copyRouteSteps(source.routeDraft),
     activeRouteId = tonumber(source.activeRouteId),
+    routeWindowOpen = source.routeWindowOpen and true or false,
     routeCompact = source.routeCompact and true or false,
     routeRecording = source.routeRecording and true or false,
     routePlaying = source.routePlaying and true or false,

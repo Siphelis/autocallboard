@@ -415,6 +415,7 @@ EVENTS.ADDON_LOADED = function(arg1)
   RT.RefreshBindingNames()
   RT.ApplyEchoBar()
   RT.InitSettingsAccess()
+  RT.RestoreRouteWindow()
 
   RT.buildsRefreshAt = GetTime() + RT.buildsRefreshDelay
 

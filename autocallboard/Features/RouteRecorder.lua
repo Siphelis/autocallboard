@@ -929,6 +929,14 @@ function RT.LastRecordedRouteLine()
   return Core.routeStepLine(step)
 end
 
+function RT.IsRouteWindowOpen()
+  return CharacterFlag("routeWindowOpen")
+end
+
+function RT.SetRouteWindowOpen(open)
+  SetCharacterFlag("routeWindowOpen", open)
+end
+
 function RT.IsRouteWindowCompact()
   local entry = CharacterState()
 
