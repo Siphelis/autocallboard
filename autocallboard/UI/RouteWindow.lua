@@ -2,7 +2,7 @@ local Core = AutoCallboardCore
 local Skin = AutoCallboardSkin
 local L = AutoCallboardLocale
 local RT = AutoCallboardRuntime
-local Print = RT.Print
+local Error = RT.Error
 
 local WINDOW_WIDTH = 320
 local ROW_HEIGHT = 20
@@ -188,7 +188,7 @@ end
 
 RequestSaveDraft = function(onCancel, name)
   if #(RT.GetRouteDraft()) == 0 then
-    Print(L.ROUTE_DRAFT_EMPTY)
+    Error(L.ROUTE_DRAFT_EMPTY)
     return
   end
 
@@ -341,7 +341,7 @@ local function BuildCategoryMenu(menu, route)
         local nextProfile, ok, err = Core.setRouteCategory(AccountProfile(), route.id, category)
 
         if err == "full" then
-          Print(string.format(L.ROUTE_MAX_REACHED, tostring(Core.MAX_SAVED_ROUTES)))
+          Error(string.format(L.ROUTE_MAX_REACHED, tostring(Core.MAX_SAVED_ROUTES)))
         end
 
         if ok then

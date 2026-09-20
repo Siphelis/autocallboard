@@ -89,7 +89,7 @@ local function PushStep(step)
   local draft = RT.GetRouteDraft()
 
   if #(draft) >= Core.MAX_ROUTE_STEPS then
-    RT.Print(L.ROUTE_DRAFT_FULL)
+    RT.Error(L.ROUTE_DRAFT_FULL)
     return nil
   end
 
@@ -150,7 +150,6 @@ function RT.StartRouteRecording(source)
   expected = {}
   RT.WatchRouteQuestLog(true)
   Log("route", "recording started source=", tostring(source))
-  RT.Print(L.ROUTE_RECORDING_STARTED)
   Refresh()
 
   return true
@@ -166,7 +165,6 @@ function RT.StopRouteRecording(source)
   currentStep = nil
   stepClosedAt = nil
   Log("route", "recording stopped source=", tostring(source), " steps=", #(RT.GetRouteDraft()))
-  RT.Print(string.format(L.ROUTE_RECORDING_STOPPED, tostring(#(RT.GetRouteDraft()))))
   Refresh()
 
   return true
@@ -179,7 +177,7 @@ function RT.ResumeRouteRecording()
 
   currentStep = nil
   stepClosedAt = nil
-  RT.Print(L.ROUTE_RECORDING_RESUMED)
+  Log("route", "recording resumed steps=", #(RT.GetRouteDraft()))
 
   return true
 end
@@ -683,14 +681,14 @@ function RT.SaveRouteDraftAs(name, category)
   local draft = RT.GetRouteDraft()
 
   if #(draft) == 0 then
-    RT.Print(L.ROUTE_DRAFT_EMPTY)
+    RT.Error(L.ROUTE_DRAFT_EMPTY)
     return nil
   end
 
   local nextProfile, entry, err = Core.createRoute(RT.GetAccountProfile(), draft, name, category)
 
   if err == "full" then
-    RT.Print(string.format(L.ROUTE_MAX_REACHED, tostring(Core.MAX_SAVED_ROUTES)))
+    RT.Error(string.format(L.ROUTE_MAX_REACHED, tostring(Core.MAX_SAVED_ROUTES)))
     return nil
   end
 
@@ -720,7 +718,7 @@ function RT.OverwriteRouteFromDraft(id)
   local draft = RT.GetRouteDraft()
 
   if #(draft) == 0 then
-    RT.Print(L.ROUTE_DRAFT_EMPTY)
+    RT.Error(L.ROUTE_DRAFT_EMPTY)
     return false
   end
 
@@ -744,7 +742,7 @@ function RT.AppendRouteFromDraft(id)
   local draft = RT.GetRouteDraft()
 
   if #(draft) == 0 then
-    RT.Print(L.ROUTE_DRAFT_EMPTY)
+    RT.Error(L.ROUTE_DRAFT_EMPTY)
     return false
   end
 
@@ -811,7 +809,7 @@ function RT.ResumeRoutePlayback()
   RT.ResetRoutePlayback()
   RT.SetRouteCursor(RT.StoredRouteCursor())
   RT.PointRouteArrowAtNextStep(route, RT.RouteCursor())
-  RT.Print(string.format(L.ROUTE_PLAYBACK_RESUMED, tostring(route.name)))
+  Log("route", "playback resumed route=", tostring(route.name))
 
   return true
 end
@@ -846,14 +844,14 @@ function RT.StartRoutePlayback(source, routeId, from)
   local route = RT.GetActiveRoute()
 
   if not route then
-    RT.Print(L.ROUTE_NONE_ACTIVE)
+    RT.Error(L.ROUTE_NONE_ACTIVE)
     return false
   end
 
   local playable, faction = Core.canPlayRoute(route, RT.PlayerFaction())
 
   if not playable then
-    RT.Print(string.format(L.ROUTE_WRONG_FACTION, Core.factionLabel(faction)))
+    RT.Error(string.format(L.ROUTE_WRONG_FACTION, Core.factionLabel(faction)))
     return false
   end
 
@@ -865,7 +863,6 @@ function RT.StartRoutePlayback(source, routeId, from)
   Log("route", "playback from ", tostring(from or 1), " source=", tostring(source), " route=", tostring(route.name))
 
   if not alreadyPlaying then
-    RT.Print(string.format(L.ROUTE_PLAYBACK_ARMED, tostring(route.name)))
   end
 
   Refresh()
@@ -882,7 +879,6 @@ function RT.StopRoutePlayback(source)
   RT.ResetRoutePlayback()
   RT.ClearRouteArrowTarget()
   Log("route", "playback stopped source=", tostring(source))
-  RT.Print(L.ROUTE_PLAYBACK_STOPPED)
   Refresh()
 
   return true

@@ -138,6 +138,18 @@ function Core.routeFaction(route)
   return faction
 end
 
+function Core.inheritRouteFaction(source, copy)
+  local cached = factionCache[source]
+
+  if not cached or cached.steps ~= source.steps then
+    return false
+  end
+
+  factionCache[copy] = { steps = copy.steps, faction = cached.faction }
+
+  return true
+end
+
 Core.FACTION_ICONS = {
   Horde = [[Interface\PVPFrame\PVP-Currency-Horde]],
   Alliance = [[Interface\PVPFrame\PVP-Currency-Alliance]],

@@ -2,7 +2,7 @@ local Core = AutoCallboardCore
 local Skin = AutoCallboardSkin
 local L = AutoCallboardLocale
 local RT = AutoCallboardRuntime
-local Print = RT.Print
+local Error = RT.Error
 local state = RT.state
 
 RT.noneSelectionEntry = { id = nil, name = "", desiredQuests = {} }
@@ -56,7 +56,7 @@ function RT.RequestLoadSelection(entry)
   end
 
   if RT.IsRolling() then
-    Print(L.LISTS_CANNOT_SWITCH_ROLLING)
+    Error(L.LISTS_CANNOT_SWITCH_ROLLING)
     return
   end
 
@@ -147,44 +147,87 @@ function RT.RequestDeleteSelection(entry)
   })
 end
 
-function RT.RequestCreateSelection(groupId)
+local function AskForNewSelection(groupId, titleKey, getDesired, activate)
   local profile = AccountProfile()
 
   if Core.selectionsFull(profile, groupId) then
-    Print(string.format(L.LISTS_MAX_SAVED_REACHED, Core.MAX_SAVED_SELECTIONS))
+    Error(string.format(L.LISTS_MAX_SAVED_REACHED, Core.MAX_SAVED_SELECTIONS))
     return
   end
 
   Skin.Dialog({
-    title = L.LISTS_NEW_DIALOG_TITLE,
+    title = L[titleKey],
     body = "",
     editBox = { default = Core.peekNextSelectionName(profile), maxLetters = Core.MAX_SELECTION_NAME_LENGTH },
     acceptText = L.BUTTON_ACCEPT,
     cancelText = L.BUTTON_CANCEL,
     onAccept = function(text)
-      local nextProfile, entry, err = Core.createSelection(AccountProfile(), state.desiredQuests, text, groupId)
+      local nextProfile, entry, err = Core.createSelection(AccountProfile(), getDesired(), text, groupId)
 
       if err == "full" then
-        Print(string.format(L.LISTS_MAX_SAVED_REACHED, Core.MAX_SAVED_SELECTIONS))
+        Error(string.format(L.LISTS_MAX_SAVED_REACHED, Core.MAX_SAVED_SELECTIONS))
         return
       end
 
       RT.SaveAccountProfile(nextProfile)
 
-      if entry then
+      if entry and activate then
         RT.SetActiveSelectionId(entry.id)
       end
 
       RT.RefreshListsWindow()
+      RT.RefreshQuestWindow()
       end,
   })
+end
+
+function RT.RequestCreateSelection(groupId)
+  AskForNewSelection(groupId, "LISTS_NEW_DIALOG_TITLE", function()
+    return state.desiredQuests
+    end, true)
+end
+
+function RT.RequestCreateSelectionWithQuest(key, groupId)
+  if type(key) ~= "string" or key == "" then
+    return
+  end
+
+  AskForNewSelection(groupId, "QUEST_MENU_NEW_TITLE", function()
+    return { [key] = true }
+    end, false)
+end
+
+function RT.RequestSetQuestInSelection(entry, key, wanted)
+  if not entry or entry.id == nil or type(key) ~= "string" or key == "" then
+    return false
+  end
+
+  local nextProfile, ok = Core.setQuestInSelection(AccountProfile(), entry.id, key, wanted)
+
+  if not ok then
+    return false
+  end
+
+  RT.SaveAccountProfile(nextProfile)
+
+  wanted = wanted and true or false
+
+  if RT.GetActiveSelectionId() == entry.id
+      and (state.desiredQuests[key] == true) ~= wanted then
+    RT.ToggleDesiredQuest(key)
+  end
+
+  RT.RefreshListsWindow()
+  RT.RefreshQuestWindow()
+
+  return true
 end
 
 function RT.RequestCreateGroup()
   local profile = AccountProfile()
 
   if Core.groupsFull(profile) then
-    Print(string.format(L.LISTS_MAX_GROUPS_REACHED, Core.MAX_GROUPS))
+    Error(string.format(L.LISTS_MAX_GROUPS_REACHED, Core.MAX_GROUPS))
     return
   end
 
@@ -198,7 +241,7 @@ function RT.RequestCreateGroup()
       local nextProfile, group, err = Core.createGroup(AccountProfile(), text)
 
       if err == "full" then
-        Print(string.format(L.LISTS_MAX_GROUPS_REACHED, Core.MAX_GROUPS))
+        Error(string.format(L.LISTS_MAX_GROUPS_REACHED, Core.MAX_GROUPS))
         return
       end
 
@@ -288,7 +331,7 @@ function RT.RequestMoveSelection(entry, groupId)
   local nextProfile, ok, err = Core.setSelectionGroup(AccountProfile(), entry.id, groupId)
 
   if err == "full" then
-    Print(string.format(L.LISTS_MAX_SAVED_REACHED, Core.MAX_SAVED_SELECTIONS))
+    Error(string.format(L.LISTS_MAX_SAVED_REACHED, Core.MAX_SAVED_SELECTIONS))
     return
   end
 

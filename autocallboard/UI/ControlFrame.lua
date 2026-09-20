@@ -60,6 +60,23 @@ function RT.UpdateShareButtonState()
 end
 
 
+function RT.RefreshUpdateNotice()
+  if not controlFrame or not controlFrame.updateButton then
+    return false
+  end
+
+  if RT.GetAvailableUpdate and RT.GetAvailableUpdate() then
+    Skin.FitButtonWidth(controlFrame.updateButton, { min = 90, max = 200 })
+    controlFrame.updateButton:Show()
+
+    return true
+  end
+
+  controlFrame.updateButton:Hide()
+
+  return false
+end
+
 function RT.RefreshCallboardButtonEnabled()
   if not button then
     return
@@ -681,6 +698,24 @@ local function CreateCallboardButton()
   controlFrame.settingsButton:SetScript("OnClick", function()
     RT.ShowSettings()
     end)
+
+  controlFrame.updateButton = Skin.MakeButton(controlFrame, {
+    name = "AutoCallboardUpdateButton",
+    height = 20,
+    textKey = "UPDATE_BUTTON",
+    points = { { "TOPLEFT", controlFrame, "TOPLEFT", 10, -6 } },
+    onClick = function() RT.ShowUpdateLink() end,
+    tipTitle = "UPDATE_BUTTON",
+    tipBody = "UPDATE_TOOLTIP",
+    tipExtra = function()
+      local version, installed = RT.GetAvailableUpdate()
+
+      if version then
+        GameTooltip:AddLine(string.format(L.UPDATE_VERSIONS, version, installed), 1, 1, 1)
+      end
+      end,
+  })
+  controlFrame.updateButton:Hide()
 
   local title = controlFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
   title:SetPoint("TOPLEFT", controlFrame, "TOPLEFT", 10, -8)

@@ -324,12 +324,18 @@ function Core.copyRouteSteps(steps)
   return copy
 end
 
+local minted = setmetatable({}, { __mode = "k" })
+
+function Core.isMintedRoute(route)
+  return minted[route] == true
+end
+
 function Core.copyRoute(route)
   if type(route) ~= "table" or not Core.isRouteCategory(route.category) then
     return nil
   end
 
-  return {
+  local copy = {
     id = route.id,
     name = route.name or L.ROUTE_DEFAULT_NAME,
     category = tonumber(route.category),
@@ -338,6 +344,20 @@ function Core.copyRoute(route)
     sharedHash = Core.sanitizeRouteHash(route.sharedHash),
     steps = Core.copyRouteSteps(route.steps),
   }
+
+  minted[copy] = true
+
+  if minted[route] and #(copy.steps) == #(route.steps) then
+    if Core.inheritRouteHash then
+      Core.inheritRouteHash(route, copy)
+    end
+
+    if Core.inheritRouteFaction then
+      Core.inheritRouteFaction(route, copy)
+    end
+  end
+
+  return copy
 end
 
 function Core.copyRouteList(list)
@@ -507,6 +527,36 @@ end
 
 function Core.updateSelectionContent(profile, id, desiredQuests)
   return Selections.update(profile, id, { desiredQuests = Core.copyDesiredMap(desiredQuests) })
+end
+
+function Core.selectionHasQuest(selection, key)
+  if type(selection) ~= "table" or type(key) ~= "string" or key == "" then
+    return false
+  end
+
+  return type(selection.desiredQuests) == "table" and selection.desiredQuests[key] == true
+end
+
+function Core.setQuestInSelection(profile, id, key, wanted)
+  if type(key) ~= "string" or key == "" then
+    return profile, false
+  end
+
+  local selection = Core.findSelection(profile, id)
+
+  if not selection then
+    return profile, false
+  end
+
+  local desired = Core.copyDesiredMap(selection.desiredQuests)
+
+  if wanted then
+    desired[key] = true
+  else
+    desired[key] = nil
+  end
+
+  return Selections.update(profile, id, { desiredQuests = desired })
 end
 
 function Core.characterSelectionCount(characterProfile)

@@ -12,6 +12,36 @@ local FACTIONS = { Horde = "H", Alliance = "A" }
 local FACTION_CODES = { H = "Horde", A = "Alliance" }
 local DIGEST_MOD = 281474976710656
 
+local shelf = setmetatable({}, { __mode = "k" })
+
+local function Shelf(entries)
+  if type(entries) ~= "table" then
+    return nil
+  end
+
+  local slot = shelf[entries]
+
+  if not slot then
+    slot = {}
+    shelf[entries] = slot
+  end
+
+  return slot
+end
+
+local function Disturb(entries, total)
+  local slot = Shelf(entries)
+
+  if not slot then
+    return
+  end
+
+  slot.total = total
+  slot.counts = nil
+  slot.digests = nil
+  slot.buckets = nil
+end
+
 function Core.dayNumber(year, month, day)
   year, month, day = tonumber(year), tonumber(month), tonumber(day)
 
@@ -66,6 +96,8 @@ function Core.copyRouteLibrary(library)
     end
   end
 
+  Shelf(copy.entries).total = count
+
   return copy
 end
 
@@ -84,10 +116,20 @@ local function Expired(entry, today)
 end
 
 local function CountEntries(entries)
+  local slot = Shelf(entries)
+
+  if slot and slot.total then
+    return slot.total
+  end
+
   local count = 0
 
   for _ in pairs(entries) do
     count = count + 1
+  end
+
+  if slot then
+    slot.total = count
   end
 
   return count
@@ -125,6 +167,7 @@ local function MergeInto(library, hash, entry, today, count)
   end
 
   library.entries[hash] = entry
+  Disturb(library.entries, count + 1)
 
   return "added", count + 1
 end
@@ -156,14 +199,21 @@ function Core.purgeRouteLibrary(library, today, held)
     return removed
   end
 
+  local kept = 0
+
   for hash, entry in pairs(library.entries) do
     if (held and held[hash]) or entry.day > today then
       entry.day = today
+      kept = kept + 1
     elseif Expired(entry, today) then
       library.entries[hash] = nil
       removed = removed + 1
+    else
+      kept = kept + 1
     end
   end
+
+  Disturb(library.entries, kept)
 
   return removed
 end
@@ -222,17 +272,45 @@ function Core.libraryDigest(library, category, bucket)
 end
 
 function Core.libraryDigests(library)
-  return SumDigests(library, function(_, entry)
+  local slot = Shelf(type(library) == "table" and library.entries)
+
+  if slot and slot.digests then
+    return slot.digests
+  end
+
+  local digests = SumDigests(library, function(_, entry)
     return entry.category
   end, Core.routeCategoryCount())
+
+  if slot then
+    slot.digests = digests
+  end
+
+  return digests
 end
 
 function Core.libraryBucketDigests(library, category)
-  return SumDigests(library, function(hash, entry)
+  local slot = Shelf(type(library) == "table" and library.entries)
+
+  if slot then
+    slot.buckets = slot.buckets or {}
+
+    if slot.buckets[category] then
+      return slot.buckets[category]
+    end
+  end
+
+  local digests = SumDigests(library, function(hash, entry)
     if entry.category == category then
       return Core.libraryBucket(hash) + 1
     end
   end, Core.ROUTE_LIBRARY_BUCKETS)
+
+  if slot then
+    slot.buckets[category] = digests
+  end
+
+  return digests
 end
 
 function Core.libraryEntriesIn(library, category, buckets)
@@ -256,6 +334,12 @@ function Core.libraryEntriesIn(library, category, buckets)
 end
 
 function Core.libraryCounts(library)
+  local slot = Shelf(type(library) == "table" and library.entries)
+
+  if slot and slot.counts then
+    return slot.counts
+  end
+
   local counts = {}
 
   for category = 1, Core.routeCategoryCount() do
@@ -268,14 +352,28 @@ function Core.libraryCounts(library)
     end
   end
 
+  if slot then
+    slot.counts = counts
+  end
+
   return counts
 end
 
 function Core.libraryCount(library, category)
+  local entries = type(library) == "table" and library.entries
+
+  if category == nil then
+    return entries and CountEntries(entries) or 0
+  end
+
+  if Core.isRouteCategory(category) then
+    return Core.libraryCounts(library)[category] or 0
+  end
+
   local count = 0
 
-  for _, entry in pairs(type(library) == "table" and library.entries or {}) do
-    if category == nil or entry.category == category then
+  for _, entry in pairs(entries or {}) do
+    if entry.category == category then
       count = count + 1
     end
   end

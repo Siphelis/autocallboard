@@ -63,6 +63,10 @@ function RT.RefreshLocalizedText()
   if RT.RefreshSettingsLanguage then RT.RefreshSettingsLanguage() end
   RT.RefreshRouteWindow()
   RT.RefreshRouteArrowLabel()
+
+  if RT.RefreshUpdateNotice then
+    RT.RefreshUpdateNotice()
+  end
 end
 
 function RT.LanguageInitials(code)

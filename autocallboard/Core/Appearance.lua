@@ -4,7 +4,7 @@ local DEFAULT = { background = 0x050505, accent = 0xB048F8, scale = 1, opacity =
   locked = false, goldTotal = true, goldLast = true, goldCurrent = true, goldSession = false, goldMain = false,
   arrowScale = 1, arrowSkin = "sheet" }
 local LIMIT = { background = {0, 0xFFFFFF}, accent = {0, 0xFFFFFF}, scale = {0.2, 1.4}, opacity = {0.25, 1},
-  arrowScale = {0.5, 2} }
+  arrowScale = {0.25, 2} }
 
 function Core.copyAppearance(source)
   local result = {}

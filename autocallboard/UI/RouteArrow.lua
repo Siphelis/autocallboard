@@ -83,8 +83,24 @@ function RT.RouteArrowScale(pixelHeight)
   return factor
 end
 
+function RT.ArrowScaleFactor(appearance)
+  appearance = appearance or (RT.state and RT.state.appearance)
+
+  if type(appearance) ~= "table" then
+    return 1
+  end
+
+  return (tonumber(appearance.scale) or 1) * (tonumber(appearance.arrowScale) or 1)
+end
+
 function RT.RefreshRouteArrowScale()
-  return false
+  if not arrowFrame then
+    return false
+  end
+
+  arrowFrame:SetScale(RT.ArrowScaleFactor())
+
+  return true
 end
 
 function RT.IsRouteArrowOverhead(yards, flying)
@@ -266,7 +282,7 @@ end
 function RT.SetRouteArrowTarget(step, action)
   if type(step) ~= "table" or not step.map or step.map == "" or not step.x or not step.y then
     RT.ClearRouteArrowTarget()
-    RT.Print(L.ROUTE_ARROW_NO_SPOT)
+    RT.Error(L.ROUTE_ARROW_NO_SPOT)
     return false
   end
 
@@ -274,7 +290,7 @@ function RT.SetRouteArrowTarget(step, action)
 
   if not point then
     RT.ClearRouteArrowTarget()
-    RT.Print(L.ROUTE_ARROW_UNKNOWN_ZONE)
+    RT.Error(L.ROUTE_ARROW_UNKNOWN_ZONE)
     return false
   end
 

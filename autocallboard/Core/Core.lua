@@ -34,6 +34,10 @@ local DEFAULTS = {
   accountListSeeded = false,
   presetsMigrated = false,
   questPanelExpanded = false,
+  update = {
+    latest = "",
+    sessionAt = 0,
+  },
   debug = {
     enabled = false,
     mouseWatch = false,
@@ -366,6 +370,42 @@ function Core.autoCurrentInstanceWarningText()
   return L.AUTO_CURRENT_INSTANCE_WARNING
 end
 
+function Core.parseVersion(text)
+  if type(text) ~= "string" or #(text) > 20 then
+    return nil
+  end
+
+  local major, minor, patch, build = string.match(text, "^(%d+)%.(%d+)%.(%d+)(.*)$")
+
+  if not major or (build ~= "" and not string.match(build, "^%-%d+$")) then
+    return nil
+  end
+
+  return { tonumber(major), tonumber(minor), tonumber(patch) }, build == ""
+end
+
+function Core.compareVersions(left, right)
+  for i = 1, 3 do
+    if left[i] ~= right[i] then
+      return left[i] < right[i] and -1 or 1
+    end
+  end
+
+  return 0
+end
+
+function Core.isNewerVersion(candidate, reference)
+  local parsed, release = Core.parseVersion(candidate)
+
+  if not parsed or not release then
+    return false
+  end
+
+  local mine = Core.parseVersion(reference)
+
+  return mine ~= nil and Core.compareVersions(parsed, mine) > 0
+end
+
 local MERGE_NONEMPTY_STRING = { "targetName", "rerollFrame", "objectivePrefix", "objectiveButtonField" }
 local MERGE_STRING = { "summonSpell", "language" }
 local MERGE_BOOLEAN = {
@@ -485,6 +525,18 @@ function Core.mergeState(saved, adopt)
 
   if type(saved.minimap) == "table" then
     mergeNested(saved.minimap, state.minimap, { shown = "boolean", angle = "number" })
+  end
+
+  if type(saved.update) == "table" then
+    local latest = trim(saved.update.latest)
+
+    if Core.parseVersion(latest) then
+      state.update.latest = latest
+    end
+
+    if type(saved.update.sessionAt) == "number" and saved.update.sessionAt > 0 then
+      state.update.sessionAt = saved.update.sessionAt
+    end
   end
 
   if type(state.accountProfile) ~= "table" or type(state.accountProfile.savedSelections) ~= "table"

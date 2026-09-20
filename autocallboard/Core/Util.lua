@@ -16,6 +16,17 @@ local function Print(message)
   DEFAULT_CHAT_FRAME:AddMessage(ADDON_PREFIX .. message)
 end
 
+local function Error(message)
+  local frame = UIErrorsFrame
+
+  if frame and frame.AddMessage then
+    frame:AddMessage(message, 1, 0.1, 0.1, 1)
+    return
+  end
+
+  Print(message)
+end
+
 local function Localized(widget, key)
   if not widget or not widget.SetText then
     return widget
@@ -331,13 +342,11 @@ local function ClickNamedFrame(frameName, label)
 
   if not target then
     Log("click", label, " missing ", frameName)
-    Print(string.format(L.FRAME_NOT_FOUND, label, frameName))
     return false
   end
 
   if target.IsShown and not target:IsShown() then
     Log("click", label, " hidden ", FrameSummary(target))
-    Print(string.format(L.FRAME_NOT_SHOWN, label, frameName))
     return false
   end
 
@@ -369,13 +378,11 @@ local function ClickNamedFrame(frameName, label)
 
   if not ok then
     Log("click", label, " error ", frameName)
-    Print(string.format(L.FRAME_CLICK_FAILED, label, frameName))
     return false
   end
 
   if not clicked then
     Log("click", label, " no script ", FrameSummary(target))
-    Print(string.format(L.FRAME_NO_CLICK_SCRIPT, label, frameName))
     return false
   end
 
@@ -420,6 +427,7 @@ function RT.IsUnder(frame, x, y)
 end
 
 RT.Print = Print
+RT.Error = Error
 RT.Localized = Localized
 RT.GetQuestTypeName = GetQuestTypeName
 RT.GetAddonVersion = GetAddonVersion

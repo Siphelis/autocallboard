@@ -640,6 +640,30 @@ function Core.routeHash(route)
   return hash
 end
 
+function Core.inheritRouteHash(source, copy)
+  local cached = hashCache[source]
+
+  if not cached or cached.name ~= source.name or cached.category ~= source.category
+      or cached.difficulty ~= source.difficulty or cached.steps ~= source.steps then
+    return false
+  end
+
+  if copy.name ~= source.name or copy.category ~= source.category
+      or copy.difficulty ~= source.difficulty then
+    return false
+  end
+
+  hashCache[copy] = {
+    hash = cached.hash,
+    name = copy.name,
+    category = copy.category,
+    difficulty = copy.difficulty,
+    steps = copy.steps,
+  }
+
+  return true
+end
+
 function Core.isRouteShared(route)
   return type(route) == "table" and route.shared == true
 end

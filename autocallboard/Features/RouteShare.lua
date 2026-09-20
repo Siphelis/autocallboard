@@ -204,6 +204,8 @@ local function SendChannel(text)
   return pcall(SendChatMessage, TEXT_TAG .. text, "CHANNEL", nil, index)
 end
 
+RT.SendShareChannel = SendChannel
+
 local function Whisper(target, payload)
   if not target or target == "" or #(share.queue) >= MAX_QUEUE then
     return false
@@ -549,7 +551,7 @@ function RT.FetchLibraryRoute(hash)
   end
 
   if Core.findRouteByHash(RT.GetAccountProfile(), hash, RT.GetRouteLibrary().entries[hash]) then
-    RT.Print(string.format(L.LIBRARY_ALREADY_OWNED, EntryName(hash)))
+    RT.Error(string.format(L.LIBRARY_ALREADY_OWNED, EntryName(hash)))
     return false
   end
 
@@ -569,7 +571,7 @@ function RT.FetchLibraryRoute(hash)
 
   if not holder then
     share.fetching[hash] = nil
-    RT.Print(string.format(L.LIBRARY_FETCH_FAILED, EntryName(hash)))
+    RT.Error(string.format(L.LIBRARY_FETCH_FAILED, EntryName(hash)))
     return false
   end
 
@@ -580,7 +582,7 @@ function RT.FetchLibraryRoute(hash)
   Whisper(holder, "G:" .. hash)
 
   if first then
-    RT.Print(string.format(L.LIBRARY_FETCH_STARTED, EntryName(hash)))
+    Log("share", "fetch started ", hash)
   end
 
   return true
@@ -593,12 +595,12 @@ function RT.ImportLibraryRoute(code, hash)
   local profile = RT.GetAccountProfile()
 
   if not route or Core.codeHash(code) ~= hash then
-    RT.Print(string.format(L.LIBRARY_FETCH_FAILED, EntryName(hash)))
+    RT.Error(string.format(L.LIBRARY_FETCH_FAILED, EntryName(hash)))
     return nil
   end
 
   if Core.findRouteByHash(profile, hash, { category = route.category, steps = #(route.steps) }) then
-    RT.Print(string.format(L.LIBRARY_ALREADY_OWNED, route.name))
+    RT.Error(string.format(L.LIBRARY_ALREADY_OWNED, route.name))
     return nil
   end
 
@@ -606,12 +608,12 @@ function RT.ImportLibraryRoute(code, hash)
     { difficulty = route.difficulty, shared = true, sharedHash = hash })
 
   if err == "full" then
-    RT.Print(string.format(L.ROUTE_MAX_REACHED, tostring(Core.MAX_SAVED_ROUTES)))
+    RT.Error(string.format(L.ROUTE_MAX_REACHED, tostring(Core.MAX_SAVED_ROUTES)))
     return nil
   end
 
   if not entry then
-    RT.Print(string.format(L.LIBRARY_FETCH_FAILED, route.name))
+    RT.Error(string.format(L.LIBRARY_FETCH_FAILED, route.name))
     return nil
   end
 
@@ -622,7 +624,6 @@ function RT.ImportLibraryRoute(code, hash)
 
   Core.mergeLibraryEntry(RT.GetRouteLibrary(), hash, Core.libraryEntryFromRoute(saved, today), today)
   RT.TouchState()
-  RT.Print(string.format(L.LIBRARY_FETCH_DONE, saved.name, Core.routeCategoryName(saved.category)))
   Log("share", "imported ", hash, " from the library")
 
   if RT.RefreshRouteWindow then
@@ -804,6 +805,8 @@ function RT.HandleRouteShareChannel(message, sender, channelString)
     MergeEntries({ rest })
   elseif op == "W" then
     OnWho(sender, rest, now)
+  elseif op == "V" then
+    RT.NoteHeardVersion(sender, rest)
   else
     return false
   end
@@ -889,7 +892,7 @@ local function Expire(now)
   for hash, fetch in pairs(share.fetching) do
     if now - fetch.at > FETCH_TIMEOUT then
       share.fetching[hash] = nil
-      RT.Print(string.format(L.LIBRARY_FETCH_FAILED, EntryName(hash)))
+      RT.Error(string.format(L.LIBRARY_FETCH_FAILED, EntryName(hash)))
     end
   end
 end

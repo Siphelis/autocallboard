@@ -2,6 +2,7 @@ local Core = AutoCallboardCore
 local L = AutoCallboardLocale
 local RT = AutoCallboardRuntime
 local Print = RT.Print
+local Error = RT.Error
 
 local BUTTON_NAME = "AutoCallboardEternalButton"
 local DEFAULT_BINDING = "CTRL-W"
@@ -229,7 +230,7 @@ local function ConfigureButton(entry, step)
     pendingConfig = { entry = entry, step = step }
     WatchCombatEnd(true)
     Log("config reportee (combat) element=" .. EntryLabel(entry) .. " step=" .. tostring(step))
-    Print(string.format(L.ETERNALS_CONVERSION_WAITING_COMBAT, EntryItemName(entry)))
+    Error(string.format(L.ETERNALS_CONVERSION_WAITING_COMBAT, EntryItemName(entry)))
     return false
   end
 
@@ -283,7 +284,7 @@ local function AdvanceToStepTwo(entry)
   end
 
   if ItemCount(entry.eternalItem) < 1 then
-    Print(string.format(L.ETERNALS_NONE_IN_INVENTORY, EntryItemName(entry)))
+    Error(string.format(L.ETERNALS_NONE_IN_INVENTORY, EntryItemName(entry)))
     StopPending("eternel absent")
     return
   end
@@ -375,13 +376,13 @@ function RT.CheckEternalQuestStillActive(source, force)
   local gone, reason = SequenceQuestGone()
 
   if gone then
-    Print(string.format(L.ETERNALS_QUEST_GONE, itemName))
+    Error(string.format(L.ETERNALS_QUEST_GONE, itemName))
     StopPending(tostring(reason) .. " source=" .. tostring(source))
     return
   end
 
   if pending.expiresAt and now >= pending.expiresAt then
-    Print(string.format(L.ETERNALS_SEQUENCE_TIMEOUT, itemName))
+    Error(string.format(L.ETERNALS_SEQUENCE_TIMEOUT, itemName))
     StopPending("expiration source=" .. tostring(source))
   end
 end
@@ -424,7 +425,7 @@ function RT.HandleEternalQuest()
 
   local crystals = ItemCount(entry.crystalItem)
   if crystals < CRYSTAL_STACK_SIZE then
-    Print(string.format(L.ETERNALS_QUEST_NO_CRYSTAL, EntryItemName(entry), CRYSTAL_STACK_SIZE))
+    Error(string.format(L.ETERNALS_QUEST_NO_CRYSTAL, EntryItemName(entry), CRYSTAL_STACK_SIZE))
     Log("quete detectee sans cristaux suffisants element=" .. EntryLabel(entry) .. " count=" .. tostring(crystals))
     return
   end
@@ -443,7 +444,7 @@ function RT.HandleEternalQuest()
 
   WatchSequenceEvents(true)
   ConfigureButton(entry, 1)
-  Print(L.ETERNALS_CLOSE_HINT)
+  Log("eternals: close hint shown")
 end
 
 eventFrame = CreateFrame("Frame")

@@ -182,6 +182,14 @@ local function HandleSlash(input)
 
   if parsed.kind == "version" then
     Print(string.format(L.SLASH_VERSION, RT.GetAddonVersion()))
+
+    if RT.GetAvailableUpdate then
+      local available, installed = RT.GetAvailableUpdate()
+
+      if available then
+        Print(string.format(L.UPDATE_CHAT, available, installed) .. " " .. RT.updateUrl)
+      end
+    end
   elseif parsed.kind == "run" then
     if not RT.IsControlFrameShown() then
       RT.ShowControlFrame(true)
@@ -286,6 +294,17 @@ local routeShareTask = {
   every = 1,
 }
 
+local updateTask = {
+  fn = function(now)
+    if not RT.ProcessVersionAnnounce then
+      return 60
+    end
+
+    return RT.ProcessVersionAnnounce(now)
+  end,
+  every = 1,
+}
+
 local eternalsTask = {
   fn = function()
     if not RT.WatchEternalSequence then
@@ -306,6 +325,7 @@ local TASKS = {
   travelTask,
   routeTask,
   routeShareTask,
+  updateTask,
 }
 
 local function WakeIndoorCheck()
@@ -416,6 +436,7 @@ EVENTS.ADDON_LOADED = function(arg1)
   RT.ApplyEchoBar()
   RT.InitSettingsAccess()
   RT.RestoreRouteWindow()
+  RT.InitVersionWatch()
 
   RT.buildsRefreshAt = GetTime() + RT.buildsRefreshDelay
 

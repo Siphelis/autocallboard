@@ -114,7 +114,7 @@ local function ApplyTier(tier)
   end
 
   if not RT.CanApplyDifficulty() then
-    RT.Print(L.ROUTE_DIFFICULTY_REFUSED)
+    RT.Error(L.ROUTE_DIFFICULTY_REFUSED)
     return
   end
 
@@ -141,7 +141,7 @@ local function CheckPendingDifficulty()
   end
 
   if GetTime() > (pendingDifficultyUntil or 0) then
-    RT.Print(L.ROUTE_DIFFICULTY_REFUSED)
+    RT.Error(L.ROUTE_DIFFICULTY_REFUSED)
     pendingDifficulty = nil
     pendingDifficultyUntil = nil
   end
@@ -368,7 +368,7 @@ function RT.ProcessRoutePlayback()
 
   if blockDeadline and now > blockDeadline then
     Log("route", "block timed out with ", tostring(#(queue)), " actions left")
-    RT.Print(L.ROUTE_BLOCK_TIMEOUT)
+    RT.Error(L.ROUTE_BLOCK_TIMEOUT)
     Reset()
     RT.StopRoutePlayback("timeout")
     return 1
@@ -422,7 +422,7 @@ function RT.UseRouteCheckpoint(checkpointId)
   if known and type(checkpoint) == "table" and Core.countUnlockedCheckpoints(checkpoint) > 0 then
     for i = 1, #(checkpoint) do
       if tonumber(checkpoint[i].id) == checkpointId and not Core.travelCheckpointUsable(checkpoint[i]) then
-        RT.Print(string.format(L.ROUTE_CHECKPOINT_LOCKED, Core.routeCheckpointName(checkpointId)))
+        RT.Error(string.format(L.ROUTE_CHECKPOINT_LOCKED, Core.routeCheckpointName(checkpointId)))
         RT.StopRoutePlayback("checkpoint")
         return false
       end
@@ -431,7 +431,6 @@ function RT.UseRouteCheckpoint(checkpointId)
 
   local ok = pcall(service.UseCheckpoint, checkpointId)
 
-  RT.Print(string.format(L.TRAVEL_TRAVELLING, Core.routeCheckpointName(checkpointId)))
   Log("route", "checkpoint ", tostring(checkpointId), " ok=", tostring(ok))
 
   return ok

@@ -784,7 +784,7 @@ StartCallboardFlow = function()
   end
 
   Log("summon", "summon needs the secure button (tainted slash path)")
-  RT.Print(L.SUMMON_NEEDS_BUTTON)
+  RT.Error(L.SUMMON_NEEDS_BUTTON)
   UpdateSummonStatus()
 end
 

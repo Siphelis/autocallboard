@@ -1,7 +1,7 @@
 local Core = AutoCallboardCore
 local L = AutoCallboardLocale
 local RT = AutoCallboardRuntime
-local Print = RT.Print
+local Error = RT.Error
 local SyncGoldTracker = RT.SyncGoldTracker
 local FinalizeTrackedQuestSpend = RT.FinalizeTrackedQuestSpend
 local state = RT.state
@@ -229,7 +229,7 @@ end
 function RT.ShareAcceptedQuest(source, silent)
   if not RT.lastAcceptedQuest then
     if not silent then
-      Print(L.SHARE_NO_ACCEPTED_QUEST)
+      Error(L.SHARE_NO_ACCEPTED_QUEST)
     end
     Log("quest", "share skipped source=", source, " reason=no accepted quest")
     return false
@@ -243,7 +243,7 @@ function RT.ShareAcceptedQuest(source, silent)
 
   if not index then
     if not silent then
-      Print(string.format(L.SHARE_NOT_IN_LOG_YET, RT.QuestShareLabel(lastAcceptedQuest)))
+      Error(string.format(L.SHARE_NOT_IN_LOG_YET, RT.QuestShareLabel(lastAcceptedQuest)))
     end
     Log("quest", "share pending source=", source, " quest=", RT.QuestShareLabel(lastAcceptedQuest))
     return false, "pending"
@@ -257,7 +257,7 @@ function RT.ShareAcceptedQuest(source, silent)
   if shared then
     RT.SetQuestStatus(string.format(L.SHARE_ACCEPTED_QUEST, RT.QuestShareLabel(lastAcceptedQuest)))
   elseif message and not silent then
-    Print(message)
+    Error(message)
   end
 
   return shared, message

@@ -3,7 +3,7 @@ local Skin = AutoCallboardSkin
 local THEME = Skin.THEME
 local L = AutoCallboardLocale
 local RT = AutoCallboardRuntime
-local Print = RT.Print
+local Error = RT.Error
 local Localized = RT.Localized
 
 local Log = RT.Log
@@ -252,13 +252,13 @@ function RT.SwitchToBuild(slot, source)
 
   local allowed, reason = RT.CanSwitchBuild()
   if not allowed then
-    Print(reason)
+    Error(reason)
     Log("builds", "bascule refusee slot=", slot, " raison=", reason)
     return false
   end
 
   if not RT.SendEchoMessage(RT.echoOpBuildSelect, tostring(slot)) then
-    Print(L.BUILD_SWITCH_SEND_FAILED)
+    Error(L.BUILD_SWITCH_SEND_FAILED)
     Log("builds", "bascule echouee slot=", slot)
     return false
   end

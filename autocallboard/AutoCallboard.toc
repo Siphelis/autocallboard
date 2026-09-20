@@ -2,7 +2,7 @@
 ## Title: |cffb048f8AutoCallboard|r
 ## Notes: Automates Callboard rolling and selection for wanted quests. Save and switch between multiple quest selections.
 ## Author: Disarray (fork maintained by Siphelis)
-## Version: 2.5.1
+## Version: 2.5.3-0
 ## SavedVariables: AutoCallboardDB, AutoCallboardQuestDB, AutoCallboardEternalsDB
 ## OptionalDeps: AutoCallboardPresets
 
@@ -52,3 +52,4 @@ UI\RouteArrow.lua
 UI\ArrowGallery.lua
 UI\RouteWindow.lua
 UI\RouteBrowsers.lua
+Features\Update.lua

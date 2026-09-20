@@ -1117,6 +1117,26 @@ local function BuildWindow(name, opts)
   return frame
 end
 
+local function FitButtonWidth(button, opts)
+  if not button or not button.SetWidth then
+    return nil
+  end
+
+  opts = opts or {}
+
+  local label = button.GetFontString and button:GetFontString()
+  local text = label and label.GetStringWidth and label:GetStringWidth()
+  local width = math.max(opts.min or 54, (text or opts.blank or 50) + (opts.pad or 18))
+
+  if opts.max then
+    width = math.min(opts.max, width)
+  end
+
+  button:SetWidth(width)
+
+  return width
+end
+
 local function BuildButton(parent, opts)
   local button = CreateFrame("Button", opts.name, parent, opts.template or "UIPanelButtonTemplate")
   if opts.width then button:SetWidth(opts.width) end
@@ -1457,6 +1477,7 @@ AutoCallboardSkin.HoverTip = AttachHoverTip
 AutoCallboardSkin.OpenTip = OpenTip
 AutoCallboardSkin.Window = BuildWindow
 AutoCallboardSkin.MakeButton = BuildButton
+AutoCallboardSkin.FitButtonWidth = FitButtonWidth
 AutoCallboardSkin.SettingCheckbox = BuildSettingCheckbox
 AutoCallboardSkin.Row = BuildRow
 AutoCallboardSkin.PaintRow = PaintRow

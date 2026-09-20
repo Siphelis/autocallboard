@@ -3,7 +3,7 @@ local Skin = AutoCallboardSkin
 local THEME = Skin.THEME
 local L = AutoCallboardLocale
 local RT = AutoCallboardRuntime
-local Print = RT.Print
+local Error = RT.Error
 local Localized = RT.Localized
 local CompactText = RT.CompactText
 local state = RT.state
@@ -83,7 +83,7 @@ local function ImportQuestDataFromText(text)
     local firstLine = tostring(text or ""):match("([^\r\n]+)") or "empty"
     local preview = CompactText(firstLine)
 
-    Print(string.format(L.IMPORT_NO_DATA, preview))
+    Error(string.format(L.IMPORT_NO_DATA, preview))
     Log("import", "failed imported=0 skipped=", skipped, " first=\"", preview, "\"")
     ShowDebugWindow()
     return

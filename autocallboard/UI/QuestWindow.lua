@@ -43,6 +43,8 @@ local QUEST_ROW_HEIGHT = 28
 local QUEST_WINDOW_WIDTH = 620
 local KNOWN_QUEST_ROW_WIDTH = 556
 
+local MENU_ENTRIES_PER_LEVEL = 20
+
 local questWindow
 local knownQuestRows = {}
 local questStatusText
@@ -51,6 +53,8 @@ local questSearchBox
 local questSearchText = ""
 local knownScrollOffset = 0
 local updatingKnownScrollBar = false
+local knownShowAllCheckbox
+local knownShowAll = false
 
 local QuestLabel
 local ConfigureKnownQuestRow
@@ -245,7 +249,29 @@ function RT.SetKnownQuestTypeFilter(questType)
   SetKnownScrollOffset(0, true)
 end
 
+function RT.IsKnownShowAll()
+  return knownShowAll
+end
+
+function RT.SetKnownShowAll(value)
+  value = value and true or false
+
+  if knownShowAll == value then
+    SyncCheckbox(knownShowAllCheckbox, value)
+    return
+  end
+
+  knownShowAll = value
+  RT.knownFilterRevision = (RT.knownFilterRevision or 0) + 1
+  SyncCheckbox(knownShowAllCheckbox, value)
+  SetKnownScrollOffset(0, true)
+end
+
 local function ActiveSelectionFilter()
+  if knownShowAll then
+    return nil
+  end
+
   local selection = Core.findSelection(RT.GetAccountProfile(), RT.GetActiveSelectionId())
 
   if not selection then
@@ -528,6 +554,9 @@ local function ShowQuestTooltip(owner, quest, sourceLabel)
     GameTooltip:AddDoubleLine(L.QUEST_TOOLTIP_SEEN, tostring(quest.seen), 0.8, 0.8, 0.8, 1, 1, 1)
   end
 
+  GameTooltip:AddLine(" ")
+  GameTooltip:AddLine(L.QUEST_TOOLTIP_RIGHT_CLICK, 0.8, 0.8, 0.8)
+
   GameTooltip:Show()
   PositionTooltipNearCursor(owner)
 end
@@ -722,6 +751,7 @@ UpdateQuestWindow = function()
   end
 
   RT.SyncKnownQuestTypeButtons()
+  SyncCheckbox(knownShowAllCheckbox, knownShowAll)
 
   RT.RefreshGoldDisplay()
 
@@ -758,6 +788,125 @@ UpdateQuestWindow = function()
   end
 end
 
+local questContextMenu
+local BuildQuestCollectionMenu
+
+local function QuestContextKey(quest)
+  if type(quest) ~= "table" then
+    return nil
+  end
+
+  if type(quest.key) == "string" and quest.key ~= "" then
+    return quest.key
+  end
+
+  return Core.questKey(quest)
+end
+
+local function EnsureQuestContextMenu()
+  if not questContextMenu then
+    questContextMenu = Skin.Menu("AutoCallboardQuestContextMenu")
+    questContextMenu:SetAutoClose(true)
+    questContextMenu:CloseWhenHidden(questWindow)
+    questContextMenu:SetClampedToScreen(true)
+    RT.questContextMenu = questContextMenu
+  end
+
+  return questContextMenu
+end
+
+local function AddCollectionItems(menu, quest, key, groupId)
+  local entries = Core.selectionsInContainer(RT.GetAccountProfile(), groupId)
+  local shown = 0
+
+  for i = 1, #(entries) do
+    if shown >= MENU_ENTRIES_PER_LEVEL then
+      menu:AddItem(string.format(L.QUEST_MENU_MORE, #(entries) - shown), { disabled = true })
+      break
+    end
+
+    local entry = entries[i]
+    local inside = Core.selectionHasQuest(entry, key)
+    shown = shown + 1
+
+    menu:AddItem(entry.name, {
+      checked = inside,
+      keepOpen = true,
+      onClick = function()
+        RT.RequestSetQuestInSelection(entry, key, not inside)
+        BuildQuestCollectionMenu(menu, quest, groupId)
+        end,
+    })
+  end
+
+  return #(entries)
+end
+
+BuildQuestCollectionMenu = function(menu, quest, groupId)
+  local key = QuestContextKey(quest)
+  local profile = RT.GetAccountProfile()
+  local group = nil
+
+  if groupId then
+    group = Core.findGroup(profile, groupId)
+  end
+
+  menu:Reset()
+  menu:AddItem(QuestLabel(quest), { header = true })
+
+  if group then
+    menu:AddItem("< " .. group.name, {
+      keepOpen = true,
+      onClick = function()
+        BuildQuestCollectionMenu(menu, quest, nil)
+        end,
+    })
+  end
+
+  local count = AddCollectionItems(menu, quest, key, groupId)
+
+  if not group then
+    local groups = profile.groups
+
+    for i = 1, #(groups) do
+      local entry = groups[i]
+      count = count + Core.selectionCount(profile, entry.id)
+
+      menu:AddItem(entry.name, {
+        arrow = true,
+        keepOpen = true,
+        onClick = function()
+          BuildQuestCollectionMenu(menu, quest, entry.id)
+          end,
+      })
+    end
+  end
+
+  if count == 0 then
+    menu:AddItem(L.QUEST_MENU_NO_COLLECTION, { disabled = true })
+  end
+
+  menu:AddItem(L.QUEST_MENU_NEW, {
+    onClick = function()
+      RT.RequestCreateSelectionWithQuest(key, groupId)
+      end,
+  })
+
+  menu:Layout()
+end
+
+local function ShowQuestContextMenu(row, quest)
+  if not QuestContextKey(quest) then
+    return
+  end
+
+  local menu = EnsureQuestContextMenu()
+  BuildQuestCollectionMenu(menu, quest, nil)
+  menu:OpenAt(row, "TOPLEFT", "BOTTOMLEFT", 8, -2)
+end
+
+RT.ShowQuestContextMenu = ShowQuestContextMenu
+
 local function MakeQuestRow(parent, width)
   local row = CreateFrame("Frame", nil, parent)
   row:SetWidth(width)
@@ -781,12 +930,24 @@ local function MakeQuestRow(parent, width)
   row:SetScript("OnMouseWheel", function(_, delta)
     SetKnownScrollOffset(knownScrollOffset - delta)
     end)
+  row:SetScript("OnMouseUp", function(self, mouseButton)
+    if mouseButton == "RightButton" then
+      ShowQuestContextMenu(self, self.quest)
+    end
+    end)
 
   do
     row.checkbox = CreateFrame("CheckButton", nil, row)
     row.checkbox:SetPoint("RIGHT", row, "RIGHT", -6, 0)
     Skin.Checkbox(row.checkbox)
-    row.checkbox:SetScript("OnClick", function(self)
+    row.checkbox:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    row.checkbox:SetScript("OnClick", function(self, mouseButton)
+      if mouseButton == "RightButton" then
+        SyncCheckbox(self, row.key ~= nil and state.desiredQuests[row.key] == true)
+        ShowQuestContextMenu(row, row.quest)
+        return
+      end
+
       if row.key then
         RT.ToggleDesiredQuest(row.key)
       end
@@ -967,7 +1128,7 @@ function RT.CreateQuestWindow()
     self:ClearFocus()
     end)
 
-  Skin.MakeButton(questWindow, {
+  local clearSearchButton = Skin.MakeButton(questWindow, {
     width = 54,
     height = 22,
     textKey = "BUTTON_CLEAR",
@@ -977,6 +1138,22 @@ function RT.CreateQuestWindow()
       questSearchBox:ClearFocus()
       end,
   })
+
+  knownShowAllCheckbox = CreateFrame("CheckButton", nil, questWindow)
+  knownShowAllCheckbox:SetPoint("LEFT", clearSearchButton, "RIGHT", 16, 0)
+
+  local showAllLabel = questWindow:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  showAllLabel:SetPoint("LEFT", knownShowAllCheckbox, "RIGHT", 6, 0)
+  Localized(showAllLabel, "KNOWN_SHOW_ALL_LABEL")
+  Skin.MutedText(showAllLabel)
+
+  Skin.Checkbox(knownShowAllCheckbox)
+  Skin.HoverTip(knownShowAllCheckbox, "KNOWN_SHOW_ALL_LABEL", "KNOWN_SHOW_ALL_TOOLTIP", "checkbox")
+  knownShowAllCheckbox:SetScript("OnClick", function(self)
+    RT.SetKnownShowAll(self:GetChecked() and true or false)
+    end)
+  RT.knownShowAllCheckbox = knownShowAllCheckbox
+  SyncCheckbox(knownShowAllCheckbox, knownShowAll)
 
   RT.autoAcceptSharedCheckbox = Skin.SettingCheckbox(questWindow, {
     point = { "TOPRIGHT", questWindow, "TOPRIGHT", -24, -84 },

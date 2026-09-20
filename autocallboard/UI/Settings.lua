@@ -19,7 +19,7 @@ local function Character()
   return entry
 end
 local function Allowed()
-  if InCombatLockdown() or RT.questPanelChanging then RT.Print(L.UI_BUSY); return false end
+  if InCombatLockdown() or RT.questPanelChanging then RT.Error(L.UI_BUSY); return false end
   return true
 end
 local function Label(id) return id == 3 and "Callboard" or L[ACTIONS[id][1]] end
@@ -109,10 +109,8 @@ function RT.LayoutMainToolbar()
   local order = Character().toolbar
   local width, x, row = CollapsedFloor(frame), 10, 0
   local function PlaceButton(button)
-    local label = button:GetFontString()
-    local size = math.min(240, math.max(54, (label and label:GetStringWidth() or 50) + 18))
+    local size = Skin.FitButtonWidth(button, { min = 54, max = 240 })
     if x + size > 630 then row, x = row + 1, 10 end
-    button:SetWidth(size)
     button:ClearAllPoints()
     button:SetPoint("TOPLEFT", frame, "TOPLEFT", x, -30 - row * 29)
     button:Show()
@@ -212,7 +210,8 @@ local function CreateSettings()
     local field = key
     colorButtons[key] = Button(pages[2], i == 1 and "UI_BACKGROUND" or "UI_ACCENT", 0, -(i - 1) * 42, 260, function() PickColor(field) end)
   end
-  for i, spec in ipairs({{"scale", "UI_SCALE", 0.2, 1.4}, {"opacity", "UI_OPACITY", 0.25, 1}}) do
+  for i, spec in ipairs({{"scale", "UI_SCALE", 0.2, 1.4}, {"opacity", "UI_OPACITY", 0.25, 1},
+    {"arrowScale", "UI_ARROW_SCALE", 0.25, 2}}) do
     local key = spec[1]
     sliders[key] = Skin.Slider(pages[2], {width = 250, min = spec[3], max = spec[4], step = 0.05,
       title = L[spec[2]], format = function(value) return string.format("%d%%", value * 100 + 0.5) end,
@@ -220,9 +219,9 @@ local function CreateSettings()
     RT.Localized(sliders[key].titleText, spec[2])
     sliders[key]:SetPoint("TOPLEFT", pages[2], "TOPLEFT", 0, -125 - (i - 1) * 75)
   end
-  Button(pages[2], "ARROW_GALLERY_OPEN", 0, -270, 250, function() RT.ToggleArrowGallery() end)
+  Button(pages[2], "ARROW_GALLERY_OPEN", 0, -330, 250, function() RT.ToggleArrowGallery() end)
 
-  checks.locked = Check(pages[2], "UI_LOCK", 0, -320, function(self) draft.locked = self:GetChecked() and true or false end)
+  checks.locked = Check(pages[2], "UI_LOCK", 0, -375, function(self) draft.locked = self:GetChecked() and true or false end)
   for index = 1, #ACTIONS do
     local row = {}
     orderRows[index] = row

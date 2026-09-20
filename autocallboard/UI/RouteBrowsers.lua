@@ -2,7 +2,7 @@ local Core = AutoCallboardCore
 local Skin = AutoCallboardSkin
 local L = AutoCallboardLocale
 local RT = AutoCallboardRuntime
-local Print = RT.Print
+local Error = RT.Error
 
 local categoryGroups = {}
 
@@ -120,7 +120,7 @@ local routesBrowser = RT.BuildBrowser({
     local nextProfile, ok, err = Core.moveRouteTo(AccountProfile(), id, category, beforeId)
 
     if err == "full" then
-      Print(string.format(L.ROUTE_MAX_REACHED, tostring(Core.MAX_SAVED_ROUTES)))
+      Error(string.format(L.ROUTE_MAX_REACHED, tostring(Core.MAX_SAVED_ROUTES)))
     end
 
     if ok then

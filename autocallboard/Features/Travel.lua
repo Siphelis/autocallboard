@@ -501,10 +501,6 @@ local function AutoTravelBlocked()
     return "dead"
   end
 
-  if UnitOnTaxi and UnitOnTaxi("player") then
-    return "taxi"
-  end
-
   return nil
 end
 
@@ -641,24 +637,24 @@ function RT.TravelToSuggestion(source)
   local target = RT.RefreshTravelSuggestion("send", true)
 
   if not target or target.id ~= previousId or suggestionQuestKey ~= previousQuestKey then
-    RT.Print(L.TRAVEL_NO_DESTINATION)
+    RT.Error(L.TRAVEL_NO_DESTINATION)
     return false
   end
 
   if AutoTravelBlocked() then
-    RT.Print(L.TRAVEL_BLOCKED)
+    RT.Error(L.TRAVEL_BLOCKED)
     return false
   end
 
   local service = GetService()
 
   if not service or not service.UseCheckpoint then
-    RT.Print(L.TRAVEL_UNAVAILABLE)
+    RT.Error(L.TRAVEL_UNAVAILABLE)
     return false
   end
 
   if not Core.travelCheckpointUsable(target) then
-    RT.Print(L.TRAVEL_NO_DESTINATION)
+    RT.Error(L.TRAVEL_NO_DESTINATION)
     return false
   end
 
@@ -668,12 +664,12 @@ function RT.TravelToSuggestion(source)
   local ok, result = pcall(service.UseCheckpoint, tonumber(target.id))
 
   if not ok or result == false then
-    RT.Print(L.TRAVEL_UNAVAILABLE)
+    RT.Error(L.TRAVEL_UNAVAILABLE)
     return false
   end
 
-  local message = (source == "auto") and L.TRAVEL_AUTO_TRAVELLING or L.TRAVEL_TRAVELLING
-  RT.Print(string.format(message, Core.travelCheckpointLabel(target)))
+  Log("travel", "teleport requested source=", tostring(source),
+    " target=", Core.travelCheckpointLabel(target))
 
   return true
 end
