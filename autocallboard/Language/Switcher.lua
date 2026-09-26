@@ -1,7 +1,6 @@
 local L = AutoCallboardLocale
 local Skin = AutoCallboardSkin
 local RT = AutoCallboardRuntime
-local state = RT.state
 
 function RT.RefreshLocalizedText()
   for widget, key in pairs(RT.localizedWidgets) do
@@ -73,16 +72,38 @@ function RT.LanguageInitials(code)
   return string.upper(string.sub(tostring(code or "enUS"), 1, 2))
 end
 
+local applied
+
 function RT.ApplyLanguage(code)
+  local previous = applied
+
+  applied = code
+
   if not RT.SetLanguage(code) then
+    applied = previous
     return false
   end
 
-  if state then
-    state.language = code
+  RT.RefreshLocalizedText()
+
+  return true
+end
+
+function RT.InitLanguage()
+  if not RT.api then
+    return false
   end
 
-  RT.RefreshLocalizedText()
+  applied = RT.GetLanguage()
+
+  RT.api:On("LANGUAGE_CHANGED", function(_, code)
+    if code == applied then
+      return
+    end
+
+    applied = code
+    RT.RefreshLocalizedText()
+  end)
 
   return true
 end

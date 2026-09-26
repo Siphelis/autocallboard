@@ -109,7 +109,10 @@ local function SetButtonVisual(target, mode)
     text = THEME.buttonStopText
   end
 
-  if not disabled and visualMode == "hover" then
+  if target._acbSelected then
+    border = THEME.buttonHoverBorder
+    text = THEME.heading
+  elseif not disabled and visualMode == "hover" then
     border = THEME.buttonHoverBorder
   elseif not disabled and visualMode == "down" then
     border = THEME.buttonHoverBorder
@@ -476,9 +479,121 @@ local function SkinScrollBar(scrollFrame)
   return scrollBar
 end
 
+local TOGGLE_WIDTH, TOGGLE_HEIGHT = 34, 16
+local KNOB_SIZE, KNOB_INSET = 12, 2
+local KNOB_TRAVEL = TOGGLE_WIDTH - KNOB_SIZE - KNOB_INSET
+local SLIDE_TIME = 0.12
+local slides = {}
+local slideDriver
+
+local function KnobOffset(on)
+  return on and KNOB_TRAVEL or KNOB_INSET
+end
+
+local function Blend(from, to, k)
+  return from[1] + (to[1] - from[1]) * k, from[2] + (to[2] - from[2]) * k,
+      from[3] + (to[3] - from[3]) * k, (from[4] or 1) + ((to[4] or 1) - (from[4] or 1)) * k
+end
+
+local function PlaceKnob(target, x)
+  target._acbKnobX = x
+  target._acbKnob:ClearAllPoints()
+  target._acbKnob:SetPoint("LEFT", target, "LEFT", x, 0)
+end
+
+local function SetToggleVisual(target, mode)
+  local on = target:GetChecked() and true or false
+  local visualMode = mode or (IsMouseOverFrame(target) and "hover" or nil)
+
+  ApplyColor(target, "SetBackdropBorderColor", visualMode == "hover" and THEME.buttonHoverBorder or THEME.checkboxBorder)
+  ApplyColor(target, "SetBackdropColor", on and THEME.checkboxChecked or THEME.checkbox)
+  ApplyColor(target._acbKnob, "SetVertexColor", on and THEME.text or THEME.muted)
+
+  if target._acbOn ~= nil and target._acbOn ~= on and target:IsVisible() then
+    slides[target] = { from = target._acbKnobX or KnobOffset(not on), to = KnobOffset(on), elapsed = 0 }
+    slideDriver:Show()
+  elseif not slides[target] then
+    PlaceKnob(target, KnobOffset(on))
+  end
+
+  target._acbOn = on
+end
+
+local function SlideKnobs(self, elapsed)
+  local landed
+
+  for target, slide in pairs(slides) do
+    slide.elapsed = slide.elapsed + elapsed
+    local p = math.min(1, slide.elapsed / SLIDE_TIME)
+    local x = slide.from + (slide.to - slide.from) * p * p * (3 - 2 * p)
+    local k = (x - KNOB_INSET) / (KNOB_TRAVEL - KNOB_INSET)
+
+    PlaceKnob(target, x)
+    target:SetBackdropColor(Blend(THEME.checkbox, THEME.checkboxChecked, k))
+    target._acbKnob:SetVertexColor(Blend(THEME.muted, THEME.text, k))
+
+    if p >= 1 then
+      landed = landed or {}
+      landed[#landed + 1] = target
+    end
+  end
+
+  for i = 1, #(landed or {}) do
+    slides[landed[i]] = nil
+    SetToggleVisual(landed[i])
+  end
+
+  if not next(slides) then
+    self:Hide()
+  end
+end
+
+local function RepaintToggle(self)
+  SetToggleVisual(self)
+end
+
+local function SkinToggle(target)
+  StripButtonChrome(target)
+  target:SetWidth(TOGGLE_WIDTH)
+  target:SetHeight(TOGGLE_HEIGHT)
+  target:SetBackdrop(BACKDROP)
+
+  local knob = target:CreateTexture(nil, "OVERLAY")
+  knob:SetTexture(WHITE8X8)
+  knob:SetWidth(KNOB_SIZE)
+  knob:SetHeight(KNOB_SIZE)
+  target._acbKnob = knob
+
+  target._acbSetChecked = target.SetChecked
+  target.SetChecked = function(self, value)
+    self._acbSetChecked(self, value)
+    SetToggleVisual(self)
+  end
+
+  if not slideDriver then
+    slideDriver = CreateFrame("Frame")
+    slideDriver:Hide()
+    slideDriver:SetScript("OnUpdate", SlideKnobs)
+  end
+
+  SetToggleVisual(target)
+end
+
+local function CheckboxPainted(target)
+  if target._acbKnob then
+    return target._acbOn == true
+  end
+
+  return target._acbCheck ~= nil and target._acbCheck:IsShown() and true or false
+end
+
 local function SetCheckboxVisual(target, mode)
   if not target then
     return
+  end
+
+  if target._acbKnob then
+    return SetToggleVisual(target, mode)
   end
 
   local visualMode = mode or (IsMouseOverFrame(target) and "hover" or nil)
@@ -690,6 +805,186 @@ local function ClaimMenuRow(menu, kind, index, create)
   return row
 end
 
+local Menu = {}
+
+function Menu:Reset()
+  self._acbCount = 0
+  for _, pool in pairs(self._acbPools) do
+    for _, row in pairs(pool) do
+      row:Hide()
+    end
+  end
+end
+
+function Menu:AddSlider(options)
+  options = options or {}
+
+  local index = self._acbCount + 1
+  self._acbCount = index
+
+  local holder = ClaimMenuRow(self, "slider", index, function()
+    return CreateMenuSlider(self, options)
+  end)
+
+  holder._acbHeader = false
+  holder._acbDisabled = false
+  holder._acbHasArrow = false
+  holder.slider:SetSliderRange(options.min, options.max)
+  holder.slider:SetLabel(options.title)
+  holder.slider:SetCommit(options.onCommit)
+  holder.slider:SetFormatter(options.format)
+  holder.slider:SetDisplayValue(options.value)
+  holder:Show()
+
+  return holder
+end
+
+function Menu:AddItem(text, options)
+  options = options or {}
+
+  local index = self._acbCount + 1
+  self._acbCount = index
+
+  local item = ClaimMenuRow(self, "item", index, function()
+    return CreateMenuItem(self)
+  end)
+
+  item._acbHeader = options.header and true or false
+  item._acbDisabled = options.disabled and true or false
+  item._acbChecked = options.checked and true or false
+  item._acbKeepOpen = options.keepOpen and true or false
+  item._acbHasArrow = options.arrow and true or false
+  item._acbOnClick = options.onClick
+
+  item.label:SetText(text or "")
+  item:EnableMouse(not item._acbHeader)
+
+  if item._acbChecked then
+    item.marker:Show()
+  else
+    item.marker:Hide()
+  end
+
+  if item._acbHasArrow then
+    item.arrow:Show()
+  else
+    item.arrow:Hide()
+  end
+
+  MenuItemVisual(item, false)
+
+  return item
+end
+
+function Menu:SetAutoClose(enabled)
+  self._acbAutoClose = enabled and true or false
+
+  if self._acbAutoClose and not self._acbCloser then
+    self._acbCloser = CreateFrame("Frame", nil, UIParent)
+    self._acbCloser:SetFrameStrata("DIALOG")
+    self._acbCloser:SetAllPoints(UIParent)
+    self._acbCloser:EnableMouse(true)
+    self._acbCloser:Hide()
+    self._acbCloser:SetScript("OnMouseUp", function()
+      self:Hide()
+      end)
+  end
+end
+
+local function MenuWidth(menu)
+  local widest = 0
+
+  for i = 1, menu._acbCount do
+    local item = menu._acbItems[i]
+    local textWidth
+
+    if item._acbKind == "slider" then
+      textWidth = item.slider:GetWidth() or 0
+    else
+      textWidth = item.label:GetStringWidth() or 0
+
+      if item._acbHasArrow then
+        textWidth = textWidth + 12
+      end
+    end
+
+    if textWidth > widest then
+      widest = textWidth
+    end
+  end
+
+  local width = widest + 27 + MENU_EDGE * 2 + 6
+  if width < MENU_MIN_WIDTH then
+    width = MENU_MIN_WIDTH
+  end
+
+  return width
+end
+
+function Menu:Layout()
+  local count = self._acbCount
+  local y = -MENU_PAD_TOP
+  local stack = 0
+  for i = 1, count do
+    local item = self._acbItems[i]
+    local rowHeight = item._acbHeight or MENU_ITEM_HEIGHT
+    item:ClearAllPoints()
+    item:SetPoint("TOPLEFT", self, "TOPLEFT", MENU_EDGE, y)
+    item:SetPoint("TOPRIGHT", self, "TOPRIGHT", -MENU_EDGE, y)
+    item:Show()
+    y = y - rowHeight - MENU_ITEM_GAP
+    stack = stack + rowHeight
+  end
+
+  local height = MENU_PAD_TOP + MENU_PAD_BOTTOM + stack
+  if count > 1 then
+    height = height + (count - 1) * MENU_ITEM_GAP
+  end
+
+  self:SetWidth(MenuWidth(self))
+  self:SetHeight(height)
+end
+
+function Menu:OpenAt(anchor, point, relativePoint, x, y)
+  self:Layout()
+  self:ClearAllPoints()
+
+  if anchor then
+    self:SetPoint(point or "TOPLEFT", anchor, relativePoint or "BOTTOMLEFT", x or 0, y or -2)
+  else
+    self:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
+  end
+
+  if self._acbAutoClose and self._acbCloser then
+    self._acbCloser:Show()
+  end
+
+  self:Show()
+
+  if self.Raise then
+    self:Raise()
+  end
+end
+
+function Menu:CloseWhenHidden(frame)
+  if not frame or not frame.HookScript then
+    return
+  end
+
+  self._acbHideHooked = self._acbHideHooked or {}
+  if self._acbHideHooked[frame] then
+    return
+  end
+
+  local menu = self
+  self._acbHideHooked[frame] = true
+  frame:HookScript("OnHide", function()
+    if menu:IsShown() then
+      menu:Hide()
+    end
+    end)
+end
+
 local function SkinMenu(frameName)
   local menu = CreateFrame("Frame", frameName, UIParent)
   menu:SetFrameStrata("FULLSCREEN_DIALOG")
@@ -715,177 +1010,8 @@ local function SkinMenu(frameName)
   menu._acbPools = { item = {}, slider = {} }
   menu._acbCount = 0
 
-  function menu:Reset()
-    self._acbCount = 0
-    for _, pool in pairs(self._acbPools) do
-      for _, row in pairs(pool) do
-        row:Hide()
-      end
-    end
-  end
-
-  function menu:AddSlider(options)
-    options = options or {}
-
-    local index = self._acbCount + 1
-    self._acbCount = index
-
-    local holder = ClaimMenuRow(self, "slider", index, function()
-      return CreateMenuSlider(self, options)
-    end)
-
-    holder._acbHeader = false
-    holder._acbDisabled = false
-    holder._acbHasArrow = false
-    holder.slider:SetSliderRange(options.min, options.max)
-    holder.slider:SetLabel(options.title)
-    holder.slider:SetCommit(options.onCommit)
-    holder.slider:SetFormatter(options.format)
-    holder.slider:SetDisplayValue(options.value)
-    holder:Show()
-
-    return holder
-  end
-
-  function menu:AddItem(text, options)
-    options = options or {}
-
-    local index = self._acbCount + 1
-    self._acbCount = index
-
-    local item = ClaimMenuRow(self, "item", index, function()
-      return CreateMenuItem(self)
-    end)
-
-    item._acbHeader = options.header and true or false
-    item._acbDisabled = options.disabled and true or false
-    item._acbChecked = options.checked and true or false
-    item._acbKeepOpen = options.keepOpen and true or false
-    item._acbHasArrow = options.arrow and true or false
-    item._acbOnClick = options.onClick
-
-    item.label:SetText(text or "")
-    item:EnableMouse(not item._acbHeader)
-
-    if item._acbChecked then
-      item.marker:Show()
-    else
-      item.marker:Hide()
-    end
-
-    if item._acbHasArrow then
-      item.arrow:Show()
-    else
-      item.arrow:Hide()
-    end
-
-    MenuItemVisual(item, false)
-
-    return item
-  end
-
-  function menu:SetAutoClose(enabled)
-    self._acbAutoClose = enabled and true or false
-
-    if self._acbAutoClose and not self._acbCloser then
-      self._acbCloser = CreateFrame("Frame", nil, UIParent)
-      self._acbCloser:SetFrameStrata("DIALOG")
-      self._acbCloser:SetAllPoints(UIParent)
-      self._acbCloser:EnableMouse(true)
-      self._acbCloser:Hide()
-      self._acbCloser:SetScript("OnMouseUp", function()
-        self:Hide()
-        end)
-    end
-  end
-
-  function menu:Layout()
-    local count = self._acbCount
-    local widest = 0
-
-    for i = 1, count do
-      local item = self._acbItems[i]
-      local textWidth
-
-      if item._acbKind == "slider" then
-        textWidth = item.slider:GetWidth() or 0
-      else
-        textWidth = item.label:GetStringWidth() or 0
-
-        if item._acbHasArrow then
-          textWidth = textWidth + 12
-        end
-      end
-
-      if textWidth > widest then
-        widest = textWidth
-      end
-    end
-
-    local width = widest + 27 + MENU_EDGE * 2 + 6
-    if width < MENU_MIN_WIDTH then
-      width = MENU_MIN_WIDTH
-    end
-
-    local y = -MENU_PAD_TOP
-    local stack = 0
-    for i = 1, count do
-      local item = self._acbItems[i]
-      local rowHeight = item._acbHeight or MENU_ITEM_HEIGHT
-      item:ClearAllPoints()
-      item:SetPoint("TOPLEFT", self, "TOPLEFT", MENU_EDGE, y)
-      item:SetPoint("TOPRIGHT", self, "TOPRIGHT", -MENU_EDGE, y)
-      item:Show()
-      y = y - rowHeight - MENU_ITEM_GAP
-      stack = stack + rowHeight
-    end
-
-    local height = MENU_PAD_TOP + MENU_PAD_BOTTOM + stack
-    if count > 1 then
-      height = height + (count - 1) * MENU_ITEM_GAP
-    end
-
-    self:SetWidth(width)
-    self:SetHeight(height)
-  end
-
-  function menu:OpenAt(anchor, point, relativePoint, x, y)
-    self:Layout()
-    self:ClearAllPoints()
-
-    if anchor then
-      self:SetPoint(point or "TOPLEFT", anchor, relativePoint or "BOTTOMLEFT", x or 0, y or -2)
-    else
-      self:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
-    end
-
-    if self._acbAutoClose and self._acbCloser then
-      self._acbCloser:Show()
-    end
-
-    self:Show()
-
-    if self.Raise then
-      self:Raise()
-    end
-  end
-
-  function menu:CloseWhenHidden(frame)
-    if not frame or not frame.HookScript then
-      return
-    end
-
-    self._acbHideHooked = self._acbHideHooked or {}
-    if self._acbHideHooked[frame] then
-      return
-    end
-
-    self._acbHideHooked[frame] = true
-    frame:HookScript("OnHide", function()
-      if menu:IsShown() then
-        menu:Hide()
-      end
-      end)
+  for name, method in pairs(Menu) do
+    menu[name] = method
   end
 
   return menu
@@ -1454,23 +1580,267 @@ local function PaintRow(row, selected, hovered, disabled)
 end
 
 local function BuildSettingCheckbox(parent, opts)
-  local checkbox = CreateFrame("CheckButton", nil, parent)
-  applyPoints(checkbox, opts.point)
-  SkinCheckbox(checkbox)
+  local toggle = CreateFrame("CheckButton", nil, parent)
+  applyPoints(toggle, opts.point)
+  SkinToggle(toggle)
   if opts.onClick then
-    checkbox:SetScript("OnClick", opts.onClick)
-    checkbox:HookScript("OnClick", function(self)
-      SetCheckboxVisual(self)
-      end)
+    toggle:SetScript("OnClick", opts.onClick)
+    toggle:HookScript("OnClick", RepaintToggle)
   end
-  AttachHoverTip(checkbox, opts.labelKey, opts.tipKey, "checkbox")
+  AttachHoverTip(toggle, opts.labelKey, opts.tipKey, "checkbox")
 
   local label = parent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-  label:SetPoint("RIGHT", checkbox, "LEFT", -8, 0)
+  label:SetPoint("RIGHT", toggle, "LEFT", -8, 0)
   localize(label, opts.labelKey)
   SkinMutedText(label)
-  checkbox._acbLabel = label
-  return checkbox
+  toggle._acbLabel = label
+  return toggle
+end
+
+local function SetButtonSelected(target, selected)
+  if not target then
+    return target
+  end
+
+  target._acbSelected = selected and true or nil
+  SetButtonVisual(target)
+
+  return target
+end
+
+local SCROLL_STYLES = {
+  heading = { font = "GameFontNormalLarge", color = "heading", after = 6 },
+  body = { font = "GameFontNormal", color = "text", after = 5 },
+  note = { font = "GameFontNormal", color = "text", after = 4, indent = 16, bullet = true },
+  link = { font = "GameFontNormal", color = "heading", after = 5, hit = true },
+  button = { after = 8, button = true },
+}
+local SCROLL_GAP = 10
+local SCROLL_BUTTON_HEIGHT = 24
+
+local function ScrollClick(self)
+  if self._acbOnClick then
+    self._acbOnClick()
+  end
+end
+
+local function ScrollTip(self)
+  if self._acbTip then
+    GameTooltip:AddLine(self._acbTip, 1, 1, 1, true)
+  end
+end
+
+local function ScrollHit(scroll, line, style)
+  local hit = CreateFrame("Button", nil, scroll.child)
+  hit:RegisterForClicks("LeftButtonUp")
+  hit:SetScript("OnClick", ScrollClick)
+  hit:SetScript("OnEnter", function(self)
+    local hover = THEME.buttonHoverBorder
+    line:SetTextColor(hover[1], hover[2], hover[3], 1)
+    if self._acbTip then
+      OpenTip(self, "ANCHOR_RIGHT")
+      ScrollTip(self)
+      GameTooltip:Show()
+    end
+    end)
+  hit:SetScript("OnLeave", function(self)
+    ApplyColor(line, "SetTextColor", THEME[style.color])
+    if self._acbTip then
+      GameTooltip:Hide()
+    end
+    end)
+  hit:Hide()
+
+  return hit
+end
+
+local function ScrollLine(scroll, styleName)
+  local style = SCROLL_STYLES[styleName]
+  local pool = scroll._acbPool[styleName]
+  local used = (scroll._acbUsed[styleName] or 0) + 1
+  scroll._acbUsed[styleName] = used
+
+  local line = pool[used]
+  if line then
+    return line, style
+  end
+
+  if style.button then
+    line = BuildButton(scroll.child, { height = SCROLL_BUTTON_HEIGHT, onClick = ScrollClick })
+    AttachHoverTip(line, nil, nil, "button", ScrollTip)
+    line._acbStyle = styleName
+    pool[used] = line
+
+    return line, style
+  end
+
+  local width = scroll._acbWidth - (style.indent or 0)
+  line = scroll.child:CreateFontString(nil, "OVERLAY", style.font)
+  line:SetWidth(width)
+  line:SetJustifyH("LEFT")
+  line:SetJustifyV("TOP")
+  ApplyColor(line, "SetTextColor", THEME[style.color])
+  line._acbStyle = styleName
+
+  if style.bullet then
+    local bullet = scroll.child:CreateTexture(nil, "ARTWORK")
+    bullet:SetTexture(WHITE8X8)
+    bullet:SetWidth(4)
+    bullet:SetHeight(4)
+    bullet:SetPoint("TOPRIGHT", line, "TOPLEFT", -7, -5)
+    ApplyColor(bullet, "SetVertexColor", THEME.heading)
+    line._acbBullet = bullet
+  end
+
+  if style.hit then
+    line._acbHit = ScrollHit(scroll, line, style)
+  end
+
+  pool[used] = line
+
+  return line, style
+end
+
+local function BuildScrollText(parent, opts)
+  opts = opts or {}
+
+  local scroll = CreateFrame("ScrollFrame", opts.name, parent, "UIPanelScrollFrameTemplate")
+  applyPoints(scroll, opts.point, opts.points)
+  SkinScrollPanel(scroll)
+  SkinScrollBar(scroll)
+  scroll:EnableMouseWheel(true)
+
+  local width = opts.textWidth or 1
+  local child = CreateFrame("Frame", nil, scroll)
+  child:SetWidth(width)
+  child:SetHeight(1)
+  scroll:SetScrollChild(child)
+
+  scroll.child = child
+  scroll.lines = {}
+  scroll._acbWidth = width
+  scroll._acbPool = { heading = {}, body = {}, note = {}, link = {}, button = {} }
+  scroll._acbUsed = {}
+
+  scroll:SetScript("OnMouseWheel", function(self, delta)
+    local range = self.GetVerticalScrollRange and self:GetVerticalScrollRange() or 0
+    local value = (self.GetVerticalScroll and self:GetVerticalScroll() or 0) - (delta or 0) * 28
+
+    if value < 0 then value = 0 end
+    if value > range then value = range end
+
+    self:SetVerticalScroll(value)
+    end)
+
+  function scroll:SetBlocks(blocks)
+    for _, pool in pairs(self._acbPool) do
+      for i = 1, #pool do
+        pool[i]:Hide()
+        if pool[i]._acbBullet then pool[i]._acbBullet:Hide() end
+        if pool[i]._acbHit then pool[i]._acbHit:Hide() end
+      end
+    end
+
+    self._acbUsed = {}
+    self.lines = {}
+
+    local y = 0
+
+    for i = 1, #(blocks or {}) do
+      local block = blocks[i]
+
+      if block.style == "gap" then
+        if #self.lines > 0 then y = y + SCROLL_GAP end
+      else
+        local line, style = ScrollLine(self, SCROLL_STYLES[block.style] and block.style or "body")
+        line:ClearAllPoints()
+        line:SetPoint("TOPLEFT", self.child, "TOPLEFT", style.indent or 0, -y)
+        line:SetText(block.text or "")
+        line:Show()
+        line._acbTop = y
+        line._acbOnClick = block.onClick
+        line._acbTip = block.tip
+
+        local height
+
+        if style.button then
+          FitButtonWidth(line, { min = 80 })
+          height = SCROLL_BUTTON_HEIGHT
+        else
+          height = line:GetStringHeight() or 0
+        end
+
+        if line._acbBullet then line._acbBullet:Show() end
+
+        if line._acbHit then
+          local hit = line._acbHit
+          hit._acbOnClick = block.onClick
+          hit._acbTip = block.tip
+          hit:ClearAllPoints()
+          hit:SetPoint("TOPLEFT", line, "TOPLEFT", 0, 0)
+          hit:SetWidth(math.min(line:GetStringWidth() or 0, self._acbWidth - (style.indent or 0)))
+          hit:SetHeight(height)
+          hit:Show()
+        end
+
+        y = y + height + style.after
+        self.lines[#self.lines + 1] = line
+      end
+    end
+
+    self.child:SetHeight(y + 8)
+    self:SetVerticalScroll(0)
+
+    return y
+  end
+
+  return scroll
+end
+
+local function BuildTabs(parent, opts)
+  local keys = opts.keys
+  local inset = opts.pageInset or { 18, -85, -18, 52 }
+  local tabs = { buttons = {}, pages = {}, index = 0 }
+
+  function tabs.Select(index)
+    index = tonumber(index) or 1
+    if index < 1 or index > #keys then index = 1 end
+    tabs.index = index
+
+    for i = 1, #keys do
+      SetButtonSelected(tabs.buttons[i], i == index)
+
+      if i == index then
+        tabs.pages[i]:Show()
+      else
+        tabs.pages[i]:Hide()
+      end
+    end
+
+    if opts.onSelect then opts.onSelect(index) end
+
+    return index
+  end
+
+  for i = 1, #keys do
+    local index = i
+
+    tabs.buttons[i] = BuildButton(parent, {
+      textKey = keys[i],
+      width = opts.width or 130,
+      height = opts.height or 24,
+      point = { "TOPLEFT", parent, "TOPLEFT", (opts.x or 18) + (i - 1) * (opts.step or 137), opts.y or -40 },
+      onClick = function() tabs.Select(index) end,
+    })
+
+    local page = CreateFrame("Frame", nil, parent)
+    page:SetPoint("TOPLEFT", parent, "TOPLEFT", inset[1], inset[2])
+    page:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", inset[3], inset[4])
+    page:Hide()
+    tabs.pages[i] = page
+  end
+
+  return tabs
 end
 
 AutoCallboardSkin.HoverTip = AttachHoverTip
@@ -1489,8 +1859,12 @@ AutoCallboardSkin.BACKDROP = BACKDROP
 AutoCallboardSkin.BUTTON_FONT = BUTTON_FONT
 AutoCallboardSkin.ApplyColor = ApplyColor
 AutoCallboardSkin.SetButtonVisual = SetButtonVisual
+AutoCallboardSkin.SetButtonSelected = SetButtonSelected
+AutoCallboardSkin.Tabs = BuildTabs
+AutoCallboardSkin.ScrollText = BuildScrollText
 AutoCallboardSkin.SetButtonIcon = SetButtonIcon
 AutoCallboardSkin.SetCheckboxVisual = SetCheckboxVisual
+AutoCallboardSkin.CheckboxPainted = CheckboxPainted
 AutoCallboardSkin.CloseButton = SkinCloseButton
 AutoCallboardSkin.Frame = SkinFrame
 AutoCallboardSkin.StripButtonChrome = StripButtonChrome
@@ -1577,7 +1951,11 @@ function AutoCallboardSkin.ScaleRoots(scale)
   end
 end
 
-function AutoCallboardSkin.AccentCode()
-  local c = THEME.heading
+function AutoCallboardSkin.ColorCode(name)
+  local c = THEME[name] or THEME.heading
   return string.format("|cff%02x%02x%02x", c[1] * 255, c[2] * 255, c[3] * 255)
+end
+
+function AutoCallboardSkin.AccentCode()
+  return AutoCallboardSkin.ColorCode("heading")
 end

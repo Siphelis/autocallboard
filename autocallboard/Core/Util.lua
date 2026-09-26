@@ -51,6 +51,46 @@ local function GetAddonVersion()
   return "unknown"
 end
 
+local function LinkMethod()
+  if type(EbonholdOpenURL) == "function" then
+    return "open"
+  end
+
+  if type(CopyToClipboard) == "function" then
+    return "copy"
+  end
+
+  return nil
+end
+
+local function OpenLink(url)
+  if type(url) ~= "string" or url == "" then
+    return nil
+  end
+
+  local method = LinkMethod()
+
+  if method == "open" then
+    EbonholdOpenURL(url)
+  elseif method == "copy" then
+    CopyToClipboard(url)
+  end
+
+  return method
+end
+
+local function LinkTip()
+  local method = LinkMethod()
+
+  if method == "open" then
+    return L.LINK_TIP_OPEN
+  elseif method == "copy" then
+    return L.LINK_TIP_COPY
+  end
+
+  return nil
+end
+
 local function NormalizeCopper(value)
   value = tonumber(value) or 0
   if value < 0 then
@@ -431,6 +471,9 @@ RT.Error = Error
 RT.Localized = Localized
 RT.GetQuestTypeName = GetQuestTypeName
 RT.GetAddonVersion = GetAddonVersion
+RT.LinkMethod = LinkMethod
+RT.OpenLink = OpenLink
+RT.LinkTip = LinkTip
 RT.NormalizeCopper = NormalizeCopper
 RT.FormatMoney = FormatMoney
 RT.SecondsRemaining = SecondsRemaining

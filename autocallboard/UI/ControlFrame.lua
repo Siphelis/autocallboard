@@ -65,16 +65,11 @@ function RT.RefreshUpdateNotice()
     return false
   end
 
-  if RT.GetAvailableUpdate and RT.GetAvailableUpdate() then
-    Skin.FitButtonWidth(controlFrame.updateButton, { min = 90, max = 200 })
-    controlFrame.updateButton:Show()
-
-    return true
+  if RT.LayoutMainToolbar then
+    RT.LayoutMainToolbar()
   end
 
-  controlFrame.updateButton:Hide()
-
-  return false
+  return controlFrame.updateButton:IsShown() and true or false
 end
 
 function RT.RefreshCallboardButtonEnabled()
@@ -632,7 +627,7 @@ ApplySummonButtonAttributes = function()
   button:SetText(state.targetName)
 end
 
-local function CreateCallboardButton()
+local function CreateControlFrame()
   controlFrame = CreateFrame("Frame", "AutoCallboardFrame", UIParent)
   RT.controlFrame = controlFrame
   controlFrame:SetWidth(RT.controlCollapsedWidth)
@@ -673,7 +668,9 @@ local function CreateCallboardButton()
       RT.listsWindow:Hide()
     end
     end)
+end
 
+local function CreateHeaderButtons()
   controlFrame.closeButton = CreateFrame("Button", nil, controlFrame)
   controlFrame.closeButton:SetPoint("TOPRIGHT", controlFrame, "TOPRIGHT", -4, -4)
   Skin.CloseButton(controlFrame.closeButton)
@@ -689,7 +686,7 @@ local function CreateCallboardButton()
   controlFrame.helpButton:SetPoint("RIGHT", controlFrame.closeButton, "LEFT", -4, 0)
   Skin.HelpButton(controlFrame.helpButton)
   controlFrame.helpButton:SetScript("OnClick", function()
-    RT.ShowAddonHelp()
+    RT.ShowAddonHelp("about")
     end)
 
   controlFrame.settingsButton = CreateFrame("Button", nil, controlFrame)
@@ -701,17 +698,20 @@ local function CreateCallboardButton()
 
   controlFrame.updateButton = Skin.MakeButton(controlFrame, {
     name = "AutoCallboardUpdateButton",
-    height = 20,
+    height = 24,
     textKey = "UPDATE_BUTTON",
-    points = { { "TOPLEFT", controlFrame, "TOPLEFT", 10, -6 } },
-    onClick = function() RT.ShowUpdateLink() end,
+    onClick = function() RT.OpenUpdatePage() end,
     tipTitle = "UPDATE_BUTTON",
-    tipBody = "UPDATE_TOOLTIP",
     tipExtra = function()
       local version, installed = RT.GetAvailableUpdate()
+      local tip = RT.LinkTip()
 
       if version then
         GameTooltip:AddLine(string.format(L.UPDATE_VERSIONS, version, installed), 1, 1, 1)
+      end
+
+      if tip then
+        GameTooltip:AddLine(tip, 1, 1, 1, true)
       end
       end,
   })
@@ -722,42 +722,14 @@ local function CreateCallboardButton()
   title:SetText(ADDON_TITLE)
   Skin.TitleText(title)
   controlFrame.title = title
+end
 
-  local listsButton = Skin.MakeButton(controlFrame, {
-    name = "AutoCallboardListsButton",
-    width = 50,
-    height = 24,
-    textKey = "BUTTON_LISTS",
-    points = { { "TOPLEFT", controlFrame, "TOPLEFT", 10, -30 } },
-    onClick = RT.ToggleListsWindow,
-    tipTitle = "BUTTON_LISTS",
-    tipBody = "LISTS_BUTTON_TOOLTIP",
-  })
-  controlFrame.listsButton = listsButton
-
-  local buildsButton = Skin.MakeButton(controlFrame, {
-    name = "AutoCallboardBuildsButton",
-    width = 56,
-    height = 24,
-    textKey = "BUTTON_BUILDS",
-    points = { { "LEFT", listsButton, "RIGHT", 5, 0 } },
-    onClick = function() RT.ToggleBuildsWindow() end,
-    tipTitle = "BUTTON_BUILDS",
-    tipBody = "BUILDS_BUTTON_TOOLTIP",
-    tipExtra = function()
-      local activeBuild = RT.GetActiveBuild()
-      if activeBuild then
-        GameTooltip:AddLine(string.format(L.BUILDS_BUTTON_ACTIVE, RT.BuildLabel(activeBuild)), 1, 1, 1)
-      end
-      end,
-  })
-  controlFrame.buildsButton = buildsButton
-
+local function CreateSummonButton(anchor)
   button = CreateFrame("Button", "AutoCallboardButton", controlFrame, "SecureActionButtonTemplate,UIPanelButtonTemplate")
   button:SetWidth(88)
   button:SetHeight(24)
   button:SetText(state.targetName)
-  button:SetPoint("LEFT", controlFrame.buildsButton or listsButton, "RIGHT", 5, 0)
+  button:SetPoint("LEFT", anchor, "RIGHT", 5, 0)
   button:RegisterForClicks("AnyUp")
   button:RegisterForDrag("LeftButton")
   Skin.Button(button)
@@ -805,6 +777,40 @@ local function CreateCallboardButton()
     end)
 
   PositionButton()
+end
+
+local function CreateToolbar()
+  local listsButton = Skin.MakeButton(controlFrame, {
+    name = "AutoCallboardListsButton",
+    width = 50,
+    height = 24,
+    textKey = "BUTTON_LISTS",
+    points = { { "TOPLEFT", controlFrame, "TOPLEFT", 10, -30 } },
+    onClick = RT.ToggleListsWindow,
+    tipTitle = "BUTTON_LISTS",
+    tipBody = "LISTS_BUTTON_TOOLTIP",
+  })
+  controlFrame.listsButton = listsButton
+
+  local buildsButton = Skin.MakeButton(controlFrame, {
+    name = "AutoCallboardBuildsButton",
+    width = 56,
+    height = 24,
+    textKey = "BUTTON_BUILDS",
+    points = { { "LEFT", listsButton, "RIGHT", 5, 0 } },
+    onClick = function() RT.ToggleBuildsWindow() end,
+    tipTitle = "BUTTON_BUILDS",
+    tipBody = "BUILDS_BUTTON_TOOLTIP",
+    tipExtra = function()
+      local activeBuild = EbonAPI.State.activeBuild()
+      if activeBuild then
+        GameTooltip:AddLine(string.format(L.BUILDS_BUTTON_ACTIVE, RT.BuildLabel(activeBuild)), 1, 1, 1)
+      end
+      end,
+  })
+  controlFrame.buildsButton = buildsButton
+
+  CreateSummonButton(controlFrame.buildsButton or listsButton)
 
   local mainStartButton = MakeActionButton("AutoCallboardStartButton", L.BUTTON_START, 72, 24, "LEFT", button, "RIGHT", 5, 0, nil, "SecureActionButtonTemplate,UIPanelButtonTemplate")
   controlFrame.startButton = mainStartButton
@@ -839,6 +845,12 @@ local function CreateCallboardButton()
       RT.ToggleQuestPanel
     )
   RT.UpdateShareButtonState()
+end
+
+local function CreateCallboardButton()
+  CreateControlFrame()
+  CreateHeaderButtons()
+  CreateToolbar()
 
   summonStatusText = controlFrame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
   RT.summonStatusText = summonStatusText

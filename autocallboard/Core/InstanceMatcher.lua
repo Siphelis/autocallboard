@@ -173,8 +173,16 @@ local function questMatchesBuiltTarget(quest, target)
     return false
   end
 
-  local _, questType = Core.objectiveMetadata(quest)
+  local zoneOrSort, questType = Core.objectiveMetadata(quest)
   if questType ~= target.questType then
+    return false
+  end
+
+  if target.areaId then
+    if zoneOrSort == target.areaId then
+      return true, target.name
+    end
+
     return false
   end
 
@@ -215,7 +223,7 @@ local function findObjectiveForBuiltTarget(objectives, target, excluded)
           key = key,
           quest = objectives[i],
           source = "currentInstance",
-          label = L.MATCH_LABEL_CURRENT_INSTANCE,
+          label = target.areaId and L.MATCH_LABEL_REQUESTED_INSTANCE or L.MATCH_LABEL_CURRENT_INSTANCE,
           matchedAlias = alias,
           questType = target.questType,
           target = target,

@@ -20,7 +20,9 @@ local MODEL_W = 142
 local MODEL_H = 134
 
 local WIDGET_W = 176
-local TEXT_BLOCK = 32
+local BASE_FONT = 10
+local LINE_PAD = 6
+local TEXT_GAP = 2
 local BASELINE_HEIGHT = 768
 local MIN_SCALE = 1
 local MAX_SCALE = 2.2
@@ -83,22 +85,32 @@ function RT.RouteArrowScale(pixelHeight)
   return factor
 end
 
-function RT.ArrowScaleFactor(appearance)
-  appearance = appearance or (RT.state and RT.state.appearance)
-
-  if type(appearance) ~= "table" then
-    return 1
-  end
-
-  return (tonumber(appearance.scale) or 1) * (tonumber(appearance.arrowScale) or 1)
-end
-
-function RT.RefreshRouteArrowScale()
+function RT.LayoutRouteArrow()
   if not arrowFrame then
     return false
   end
 
-  arrowFrame:SetScale(RT.ArrowScaleFactor())
+  local appearance = RT.state and RT.state.appearance
+
+  if type(appearance) ~= "table" then
+    appearance = {}
+  end
+
+  local arrowScale = tonumber(appearance.arrowScale) or 1
+  local font = tonumber(appearance.arrowFont) or BASE_FONT
+  local line = font + LINE_PAD
+  local width = math.max(MODEL_W * arrowScale, WIDGET_W * font / BASE_FONT)
+
+  arrowFrame.shape:SetScale(arrowScale)
+
+  for _, text in ipairs({ arrowFrame.status, arrowFrame.label }) do
+    text:SetFont(Skin.BUTTON_FONT, font, "OUTLINE")
+    text:SetWidth(width)
+    text:SetHeight(line)
+  end
+
+  arrowFrame:SetWidth(width)
+  arrowFrame:SetHeight(MODEL_H * arrowScale + TEXT_GAP + 2 * line)
 
   return true
 end
@@ -238,8 +250,8 @@ function RT.ShowRouteArrowTile(skin)
   local tile = arrowFrame.tiles[skin.id]
 
   if not tile then
-    tile = RT.BuildArrowTile(arrowFrame, skin, { bare = true, boxWidth = MODEL_W, boxHeight = MODEL_H })
-    tile:SetPoint("TOP", arrowFrame, "TOP", 0, 0)
+    tile = RT.BuildArrowTile(arrowFrame.shape, skin, { bare = true, boxWidth = MODEL_W, boxHeight = MODEL_H })
+    tile:SetPoint("TOP", arrowFrame.shape, "TOP", 0, 0)
     arrowFrame.tiles[skin.id] = tile
   end
 
@@ -375,8 +387,6 @@ function RT.CreateRouteArrow()
   end
 
   arrowFrame = Skin.Window(WINDOW_NAME, {
-    width = WIDGET_W,
-    height = MODEL_H + TEXT_BLOCK,
     movable = true,
     noEsc = true,
     strata = "HIGH",
@@ -385,19 +395,22 @@ function RT.CreateRouteArrow()
 
   RT.routeArrow = arrowFrame
 
-  local function Line(offset, paint)
+  arrowFrame.shape = CreateFrame("Frame", nil, arrowFrame)
+  arrowFrame.shape:SetWidth(MODEL_W)
+  arrowFrame.shape:SetHeight(MODEL_H)
+  arrowFrame.shape:SetPoint("TOP", arrowFrame, "TOP", 0, 0)
+
+  local function Line(anchor, gap, paint)
     local line = arrowFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    line:SetPoint("TOPLEFT", arrowFrame, "TOPLEFT", 0, -offset)
-    line:SetPoint("RIGHT", arrowFrame, "RIGHT", 0, 0)
+    line:SetPoint("TOP", anchor, "BOTTOM", 0, -gap)
     line:SetJustifyH("CENTER")
-    line:SetFont(Skin.BUTTON_FONT, 10, "OUTLINE")
     paint(line)
 
     return line
   end
 
-  arrowFrame.status = Line(MODEL_H + 2, Skin.HeadingText)
-  arrowFrame.label = Line(MODEL_H + 18, Skin.MutedText)
+  arrowFrame.status = Line(arrowFrame.shape, TEXT_GAP, Skin.HeadingText)
+  arrowFrame.label = Line(arrowFrame.status, 0, Skin.MutedText)
 
   arrowFrame:SetScript("OnUpdate", function(_, delta)
     elapsedSince = elapsedSince + (delta or 0)
@@ -411,7 +424,7 @@ function RT.CreateRouteArrow()
     end)
 
   arrowFrame:SetPoint("CENTER", UIParent, "CENTER", 0, -160)
-  RT.RefreshRouteArrowScale()
+  RT.LayoutRouteArrow()
   RT.RefreshRouteArrowLock()
   arrowFrame:Hide()
 

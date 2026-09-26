@@ -25,10 +25,9 @@ local function SyncCheckbox(checkbox, value)
 
   value = value and true or false
 
-  local mark = checkbox._acbCheck
   local checked = checkbox.GetChecked and (checkbox:GetChecked() and true or false)
 
-  if checked == value and mark and (mark:IsShown() and true or false) == value then
+  if checked == value and Skin.CheckboxPainted(checkbox) == value then
     return
   end
 
@@ -1041,35 +1040,7 @@ ConfigureKnownQuestRow = function(row, entry)
   row:Show()
 end
 
-function RT.CreateQuestWindow()
-  questWindow = CreateFrame("Frame", "AutoCallboardQuestWindow", RT.controlFrame or UIParent)
-  RT.questWindow = questWindow
-  RegisterSpecialFrame("AutoCallboardQuestWindow")
-  questWindow:SetWidth(QUEST_WINDOW_WIDTH)
-  questWindow:SetHeight(526)
-  questWindow:SetPoint("TOPLEFT", RT.controlFrame or UIParent, "TOPLEFT", RT.controlFrame and 10 or 0, RT.controlFrame and -82 or 0)
-  if RT.controlFrame and questWindow.SetFrameLevel then
-    questWindow:SetFrameLevel(RT.controlFrame:GetFrameLevel() + 1)
-  end
-  RT.SyncOverlayFrameLevels()
-  questWindow:EnableMouse(true)
-  questWindow:SetClampedToScreen(true)
-  Skin.Frame(questWindow)
-  questWindow:SetScript("OnHide", function()
-    if questSearchBox and questSearchBox.ClearFocus then
-      questSearchBox:ClearFocus()
-    end
-
-    if RT.controlFrame and not RT.questPanelChanging and not RT.questWindowCreating then
-      RT.SetQuestPanelExpanded(false)
-    end
-    end)
-
-  local title = questWindow:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-  title:SetPoint("TOP", questWindow, "TOP", 0, -18)
-  Localized(title, "QUEST_WINDOW_TITLE")
-  Skin.HeadingText(title)
-
+local function CreateQuestSettings(questWindow)
   RT.autoCurrentInstanceCheckbox = Skin.SettingCheckbox(questWindow, {
     point = { "TOPRIGHT", questWindow, "TOPRIGHT", -24, -52 },
     labelKey = "AUTO_CURRENT_INSTANCE_LABEL",
@@ -1105,55 +1076,6 @@ function RT.CreateQuestWindow()
       end,
   })
   RT.UpdateEchoBarControls()
-
-  local searchLabel = questWindow:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-  searchLabel:SetPoint("TOPLEFT", questWindow, "TOPLEFT", 24, -52)
-  Localized(searchLabel, "SEARCH_LABEL")
-  Skin.MutedText(searchLabel)
-
-  questSearchBox = CreateFrame("EditBox", "AutoCallboardQuestSearchBox", questWindow, "InputBoxTemplate")
-  questSearchBox:SetWidth(250)
-  questSearchBox:SetHeight(24)
-  questSearchBox:SetAutoFocus(false)
-  questSearchBox:SetPoint("LEFT", searchLabel, "RIGHT", 12, 0)
-  Skin.EditBox(questSearchBox)
-  questSearchBox:SetScript("OnTextChanged", function(self)
-    questSearchText = self:GetText() or ""
-    SetKnownScrollOffset(0, true)
-    end)
-  questSearchBox:SetScript("OnEscapePressed", function(self)
-    self:ClearFocus()
-    end)
-  questSearchBox:SetScript("OnEnterPressed", function(self)
-    self:ClearFocus()
-    end)
-
-  local clearSearchButton = Skin.MakeButton(questWindow, {
-    width = 54,
-    height = 22,
-    textKey = "BUTTON_CLEAR",
-    points = { { "LEFT", questSearchBox, "RIGHT", 10, 0 } },
-    onClick = function()
-      questSearchBox:SetText("")
-      questSearchBox:ClearFocus()
-      end,
-  })
-
-  knownShowAllCheckbox = CreateFrame("CheckButton", nil, questWindow)
-  knownShowAllCheckbox:SetPoint("LEFT", clearSearchButton, "RIGHT", 16, 0)
-
-  local showAllLabel = questWindow:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-  showAllLabel:SetPoint("LEFT", knownShowAllCheckbox, "RIGHT", 6, 0)
-  Localized(showAllLabel, "KNOWN_SHOW_ALL_LABEL")
-  Skin.MutedText(showAllLabel)
-
-  Skin.Checkbox(knownShowAllCheckbox)
-  Skin.HoverTip(knownShowAllCheckbox, "KNOWN_SHOW_ALL_LABEL", "KNOWN_SHOW_ALL_TOOLTIP", "checkbox")
-  knownShowAllCheckbox:SetScript("OnClick", function(self)
-    RT.SetKnownShowAll(self:GetChecked() and true or false)
-    end)
-  RT.knownShowAllCheckbox = knownShowAllCheckbox
-  SyncCheckbox(knownShowAllCheckbox, knownShowAll)
 
   RT.autoAcceptSharedCheckbox = Skin.SettingCheckbox(questWindow, {
     point = { "TOPRIGHT", questWindow, "TOPRIGHT", -24, -84 },
@@ -1203,7 +1125,9 @@ function RT.CreateQuestWindow()
       end,
   })
   RT.UpdateRemoteRollControl()
+end
 
+local function CreateRollSpeedSlider(questWindow)
   local rollSpeedPresets = Core.rollSpeedPresetList()
 
   local function RollSpeedPresetAt(value)
@@ -1240,7 +1164,60 @@ function RT.CreateQuestWindow()
   RT.rollSpeedSlider:SetPoint("BOTTOMLEFT", questWindow, "BOTTOMLEFT", 24, 106)
   Localized(RT.rollSpeedSlider.titleText, "ROLL_SPEED_LABEL")
   RT.SyncRollSpeedControl()
+end
 
+local function CreateQuestSearch(questWindow)
+  local searchLabel = questWindow:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  searchLabel:SetPoint("TOPLEFT", questWindow, "TOPLEFT", 24, -52)
+  Localized(searchLabel, "SEARCH_LABEL")
+  Skin.MutedText(searchLabel)
+
+  questSearchBox = CreateFrame("EditBox", "AutoCallboardQuestSearchBox", questWindow, "InputBoxTemplate")
+  questSearchBox:SetWidth(250)
+  questSearchBox:SetHeight(24)
+  questSearchBox:SetAutoFocus(false)
+  questSearchBox:SetPoint("LEFT", searchLabel, "RIGHT", 12, 0)
+  Skin.EditBox(questSearchBox)
+  questSearchBox:SetScript("OnTextChanged", function(self)
+    questSearchText = self:GetText() or ""
+    SetKnownScrollOffset(0, true)
+    end)
+  questSearchBox:SetScript("OnEscapePressed", function(self)
+    self:ClearFocus()
+    end)
+  questSearchBox:SetScript("OnEnterPressed", function(self)
+    self:ClearFocus()
+    end)
+
+  local clearSearchButton = Skin.MakeButton(questWindow, {
+    width = 54,
+    height = 22,
+    textKey = "BUTTON_CLEAR",
+    points = { { "LEFT", questSearchBox, "RIGHT", 10, 0 } },
+    onClick = function()
+      questSearchBox:SetText("")
+      questSearchBox:ClearFocus()
+      end,
+  })
+
+  knownShowAllCheckbox = CreateFrame("CheckButton", nil, questWindow)
+  knownShowAllCheckbox:SetPoint("LEFT", clearSearchButton, "RIGHT", 16, 0)
+
+  local showAllLabel = questWindow:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  showAllLabel:SetPoint("LEFT", knownShowAllCheckbox, "RIGHT", 6, 0)
+  Localized(showAllLabel, "KNOWN_SHOW_ALL_LABEL")
+  Skin.MutedText(showAllLabel)
+
+  Skin.Checkbox(knownShowAllCheckbox)
+  Skin.HoverTip(knownShowAllCheckbox, "KNOWN_SHOW_ALL_LABEL", "KNOWN_SHOW_ALL_TOOLTIP", "checkbox")
+  knownShowAllCheckbox:SetScript("OnClick", function(self)
+    RT.SetKnownShowAll(self:GetChecked() and true or false)
+    end)
+  RT.knownShowAllCheckbox = knownShowAllCheckbox
+  SyncCheckbox(knownShowAllCheckbox, knownShowAll)
+end
+
+local function CreateQuestFilters(questWindow)
   local categoryLabel = questWindow:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
   categoryLabel:SetPoint("TOPLEFT", questWindow, "TOPLEFT", 24, -84)
   Localized(categoryLabel, "SHOW_LABEL")
@@ -1281,7 +1258,9 @@ function RT.CreateQuestWindow()
     previousCategoryLabel = checkboxLabel
   end
   RT.SyncKnownQuestTypeButtons()
+end
 
+local function CreateKnownQuestList(questWindow)
   RT.knownPageText = questWindow:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   RT.knownPageText:SetPoint("TOPLEFT", questWindow, "TOPLEFT", 24, -116)
   RT.knownPageText:SetWidth(QUEST_WINDOW_WIDTH - 62)
@@ -1328,7 +1307,9 @@ function RT.CreateQuestWindow()
   end
 
   RT.knownQuestRows = knownQuestRows
+end
 
+local function CreateQuestToolbar(questWindow)
   local questToolbarWidth = 72 + 8 + 54 + 8 + 66 + 8 + 66
 
   RT.startRollButton = CreateFrame("Button", nil, questWindow, "SecureActionButtonTemplate,UIPanelButtonTemplate")
@@ -1391,6 +1372,43 @@ function RT.CreateQuestWindow()
   questStatusText:SetWidth(540)
   questStatusText:SetJustifyH("LEFT")
   Skin.MutedText(questStatusText)
+end
+
+function RT.CreateQuestWindow()
+  questWindow = CreateFrame("Frame", "AutoCallboardQuestWindow", RT.controlFrame or UIParent)
+  RT.questWindow = questWindow
+  RegisterSpecialFrame("AutoCallboardQuestWindow")
+  questWindow:SetWidth(QUEST_WINDOW_WIDTH)
+  questWindow:SetHeight(526)
+  questWindow:SetPoint("TOPLEFT", RT.controlFrame or UIParent, "TOPLEFT", RT.controlFrame and 10 or 0, RT.controlFrame and -82 or 0)
+  if RT.controlFrame and questWindow.SetFrameLevel then
+    questWindow:SetFrameLevel(RT.controlFrame:GetFrameLevel() + 1)
+  end
+  RT.SyncOverlayFrameLevels()
+  questWindow:EnableMouse(true)
+  questWindow:SetClampedToScreen(true)
+  Skin.Frame(questWindow)
+  questWindow:SetScript("OnHide", function()
+    if questSearchBox and questSearchBox.ClearFocus then
+      questSearchBox:ClearFocus()
+    end
+
+    if RT.controlFrame and not RT.questPanelChanging and not RT.questWindowCreating then
+      RT.SetQuestPanelExpanded(false)
+    end
+    end)
+
+  local title = questWindow:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+  title:SetPoint("TOP", questWindow, "TOP", 0, -18)
+  Localized(title, "QUEST_WINDOW_TITLE")
+  Skin.HeadingText(title)
+
+  CreateQuestSettings(questWindow)
+  CreateRollSpeedSlider(questWindow)
+  CreateQuestSearch(questWindow)
+  CreateQuestFilters(questWindow)
+  CreateKnownQuestList(questWindow)
+  CreateQuestToolbar(questWindow)
 
   RT.questWindowCreating = true
   RT.AttachSettingsControls()

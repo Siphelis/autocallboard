@@ -574,3 +574,17 @@ end
 
 RT.NormalizeQuestTitle = NormalizeQuestTitle
 RT.FindSelectedQuestInLog = FindSelectedQuestInLog
+
+local function OnQuestWhisper(sender, text, distribution)
+  RT.RecordSharedQuestAnnouncement(text, distribution, sender)
+end
+
+function RT.InitQuestShare()
+  if not RT.api then
+    return false
+  end
+
+  RT.api:OnWhisper(RT.questSharePrefix, OnQuestWhisper)
+
+  return true
+end

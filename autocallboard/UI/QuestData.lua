@@ -183,137 +183,148 @@ function RT.SyncQuestDataControls()
   end
 end
 
+local function CreateQuestDataEditBox(scrollFrame)
+  dataEditBox = CreateFrame("EditBox", "AutoCallboardQuestDataEditBox", scrollFrame)
+  dataEditBox:SetMultiLine(true)
+  dataEditBox:SetAutoFocus(false)
+  dataEditBox:SetFontObject(ChatFontNormal)
+  dataEditBox:SetWidth(650)
+  dataEditBox:SetHeight(330)
+  if dataEditBox.SetTextInsets then
+    dataEditBox:SetTextInsets(3, 3, 3, 3)
+  end
+  Skin.StripFrameTextures(dataEditBox)
+  if dataEditBox.SetTextColor then
+    Skin.ApplyColor(dataEditBox, "SetTextColor", THEME.text)
+  end
+  if dataEditBox.SetBackdrop then
+    dataEditBox:SetBackdrop(nil)
+  end
+  dataEditBox:SetScript("OnTextChanged", function(self)
+    if RT.questDataEditBoxUpdating then
+      return
+    end
+
+    if RT.questDataMode == "export" then
+      RT.questDataEditBoxUpdating = true
+      self:SetText(RT.questDataReadOnlyText or "")
+      self:HighlightText()
+      RT.questDataEditBoxUpdating = false
+      RT.SetQuestDataSelectionVisible(true)
+    else
+      RT.SetQuestDataSelectionVisible(false)
+    end
+    end)
+  dataEditBox:SetScript("OnEditFocusGained", function()
+    if RT.questDataMode == "export" then
+      RT.SelectQuestDataText(true)
+    end
+    end)
+  dataEditBox:SetScript("OnMouseUp", function()
+    if RT.questDataMode == "export" then
+      RT.SelectQuestDataText()
+    end
+    end)
+  dataEditBox:SetScript("OnEscapePressed", function(self)
+    self:ClearFocus()
+    dataWindow:Hide()
+    end)
+  scrollFrame:SetScrollChild(dataEditBox)
+end
+
+local function CreateQuestDataButtons()
+  local exportButton = Skin.MakeButton(dataWindow, {
+    width = 76,
+    height = 24,
+    textKey = "BUTTON_EXPORT",
+    points = { { "BOTTOMLEFT", dataWindow, "BOTTOMLEFT", 24, 22 } },
+    onClick = function()
+      RT.questDataMode = "export"
+      RT.SyncQuestDataControls()
+      SetQuestDataText(RT.ExportQuestDataText("button"))
+      RT.SelectQuestDataText()
+      end,
+  })
+  RT.questDataExportButton = exportButton
+
+  local importButton = Skin.MakeButton(dataWindow, {
+    width = 76,
+    height = 24,
+    textKey = "BUTTON_IMPORT",
+    points = { { "LEFT", exportButton, "RIGHT", 8, 0 } },
+    onClick = function()
+      ImportQuestDataFromText(dataEditBox:GetText() or "")
+      end,
+  })
+  RT.questDataImportButton = importButton
+
+  local selectButton = Skin.MakeButton(dataWindow, {
+    width = 84,
+    height = 24,
+    textKey = "BUTTON_SELECT_ALL",
+    points = { { "LEFT", importButton, "RIGHT", 8, 0 } },
+    onClick = function()
+      if RT.questDataMode == "export" then
+        SetQuestDataText(RT.ExportQuestDataText("select-all"))
+      end
+      RT.SelectQuestDataText()
+      end,
+  })
+  RT.questDataSelectButton = selectButton
+
+  local clearButton = Skin.MakeButton(dataWindow, {
+    width = 64,
+    height = 24,
+    textKey = "BUTTON_CLEAR",
+    points = { { "LEFT", selectButton, "RIGHT", 8, 0 } },
+    onClick = function()
+      RT.questDataMode = "import"
+      RT.SyncQuestDataControls()
+      SetQuestDataText("")
+      dataEditBox:SetFocus()
+      end,
+  })
+  RT.questDataClearButton = clearButton
+
+  RT.questDataSelectionText = dataWindow:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  RT.questDataSelectionText:SetPoint("LEFT", clearButton, "RIGHT", 12, 0)
+  Localized(RT.questDataSelectionText, "QUESTDATA_SELECTED_HINT")
+  Skin.HeadingText(RT.questDataSelectionText)
+  RT.questDataSelectionText:Hide()
+end
+
+local function CreateQuestDataWindow()
+  dataWindow = Skin.Window("AutoCallboardQuestDataWindow", {
+    width = 720,
+    height = 430,
+    strata = "FULLSCREEN_DIALOG",
+    movable = true,
+    titleKey = "QUESTDATA_WINDOW_TITLE",
+    titlePlain = true,
+    close = true,
+  })
+  dataWindow:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
+
+  local scrollFrame = CreateFrame("ScrollFrame", "AutoCallboardQuestDataScrollFrame", dataWindow, "UIPanelScrollFrameTemplate")
+  scrollFrame:SetPoint("TOPLEFT", dataWindow, "TOPLEFT", 24, -48)
+  scrollFrame:SetPoint("BOTTOMRIGHT", dataWindow, "BOTTOMRIGHT", -36, 54)
+  Skin.ScrollPanel(scrollFrame)
+  Skin.ScrollBar(scrollFrame)
+  RT.questDataScrollFrame = scrollFrame
+  RT.questDataSelectionOverlay = scrollFrame:CreateTexture(nil, "ARTWORK")
+  RT.questDataSelectionOverlay:SetTexture(Skin.WHITE8X8)
+  RT.questDataSelectionOverlay:SetPoint("TOPLEFT", scrollFrame, "TOPLEFT", 3, -3)
+  RT.questDataSelectionOverlay:SetPoint("BOTTOMRIGHT", scrollFrame, "BOTTOMRIGHT", -22, 3)
+  Skin.ApplyColor(RT.questDataSelectionOverlay, "SetVertexColor", THEME.selection)
+  RT.questDataSelectionOverlay:Hide()
+
+  CreateQuestDataEditBox(scrollFrame)
+  CreateQuestDataButtons()
+end
+
 local function ShowQuestDataWindow(mode)
   if not dataWindow then
-    dataWindow = Skin.Window("AutoCallboardQuestDataWindow", {
-      width = 720,
-      height = 430,
-      strata = "FULLSCREEN_DIALOG",
-      movable = true,
-      titleKey = "QUESTDATA_WINDOW_TITLE",
-      titlePlain = true,
-      close = true,
-    })
-    dataWindow:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
-
-    local scrollFrame = CreateFrame("ScrollFrame", "AutoCallboardQuestDataScrollFrame", dataWindow, "UIPanelScrollFrameTemplate")
-    scrollFrame:SetPoint("TOPLEFT", dataWindow, "TOPLEFT", 24, -48)
-    scrollFrame:SetPoint("BOTTOMRIGHT", dataWindow, "BOTTOMRIGHT", -36, 54)
-    Skin.ScrollPanel(scrollFrame)
-    Skin.ScrollBar(scrollFrame)
-    RT.questDataScrollFrame = scrollFrame
-    RT.questDataSelectionOverlay = scrollFrame:CreateTexture(nil, "ARTWORK")
-    RT.questDataSelectionOverlay:SetTexture(Skin.WHITE8X8)
-    RT.questDataSelectionOverlay:SetPoint("TOPLEFT", scrollFrame, "TOPLEFT", 3, -3)
-    RT.questDataSelectionOverlay:SetPoint("BOTTOMRIGHT", scrollFrame, "BOTTOMRIGHT", -22, 3)
-    Skin.ApplyColor(RT.questDataSelectionOverlay, "SetVertexColor", THEME.selection)
-    RT.questDataSelectionOverlay:Hide()
-
-    dataEditBox = CreateFrame("EditBox", "AutoCallboardQuestDataEditBox", scrollFrame)
-    dataEditBox:SetMultiLine(true)
-    dataEditBox:SetAutoFocus(false)
-    dataEditBox:SetFontObject(ChatFontNormal)
-    dataEditBox:SetWidth(650)
-    dataEditBox:SetHeight(330)
-    if dataEditBox.SetTextInsets then
-      dataEditBox:SetTextInsets(3, 3, 3, 3)
-    end
-    Skin.StripFrameTextures(dataEditBox)
-    if dataEditBox.SetTextColor then
-      Skin.ApplyColor(dataEditBox, "SetTextColor", THEME.text)
-    end
-    if dataEditBox.SetBackdrop then
-      dataEditBox:SetBackdrop(nil)
-    end
-    dataEditBox:SetScript("OnTextChanged", function(self)
-      if RT.questDataEditBoxUpdating then
-        return
-      end
-
-      if RT.questDataMode == "export" then
-        RT.questDataEditBoxUpdating = true
-        self:SetText(RT.questDataReadOnlyText or "")
-        self:HighlightText()
-        RT.questDataEditBoxUpdating = false
-        RT.SetQuestDataSelectionVisible(true)
-      else
-        RT.SetQuestDataSelectionVisible(false)
-      end
-      end)
-    dataEditBox:SetScript("OnEditFocusGained", function()
-      if RT.questDataMode == "export" then
-        RT.SelectQuestDataText(true)
-      end
-      end)
-    dataEditBox:SetScript("OnMouseUp", function()
-      if RT.questDataMode == "export" then
-        RT.SelectQuestDataText()
-      end
-      end)
-    dataEditBox:SetScript("OnEscapePressed", function(self)
-      self:ClearFocus()
-      dataWindow:Hide()
-      end)
-    scrollFrame:SetScrollChild(dataEditBox)
-
-    local exportButton = Skin.MakeButton(dataWindow, {
-      width = 76,
-      height = 24,
-      textKey = "BUTTON_EXPORT",
-      points = { { "BOTTOMLEFT", dataWindow, "BOTTOMLEFT", 24, 22 } },
-      onClick = function()
-        RT.questDataMode = "export"
-        RT.SyncQuestDataControls()
-        SetQuestDataText(RT.ExportQuestDataText("button"))
-        RT.SelectQuestDataText()
-        end,
-    })
-    RT.questDataExportButton = exportButton
-
-    local importButton = Skin.MakeButton(dataWindow, {
-      width = 76,
-      height = 24,
-      textKey = "BUTTON_IMPORT",
-      points = { { "LEFT", exportButton, "RIGHT", 8, 0 } },
-      onClick = function()
-        ImportQuestDataFromText(dataEditBox:GetText() or "")
-        end,
-    })
-    RT.questDataImportButton = importButton
-
-    local selectButton = Skin.MakeButton(dataWindow, {
-      width = 84,
-      height = 24,
-      textKey = "BUTTON_SELECT_ALL",
-      points = { { "LEFT", importButton, "RIGHT", 8, 0 } },
-      onClick = function()
-        if RT.questDataMode == "export" then
-          SetQuestDataText(RT.ExportQuestDataText("select-all"))
-        end
-        RT.SelectQuestDataText()
-        end,
-    })
-    RT.questDataSelectButton = selectButton
-
-    local clearButton = Skin.MakeButton(dataWindow, {
-      width = 64,
-      height = 24,
-      textKey = "BUTTON_CLEAR",
-      points = { { "LEFT", selectButton, "RIGHT", 8, 0 } },
-      onClick = function()
-        RT.questDataMode = "import"
-        RT.SyncQuestDataControls()
-        SetQuestDataText("")
-        dataEditBox:SetFocus()
-        end,
-    })
-    RT.questDataClearButton = clearButton
-
-    RT.questDataSelectionText = dataWindow:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    RT.questDataSelectionText:SetPoint("LEFT", clearButton, "RIGHT", 12, 0)
-    Localized(RT.questDataSelectionText, "QUESTDATA_SELECTED_HINT")
-    Skin.HeadingText(RT.questDataSelectionText)
-    RT.questDataSelectionText:Hide()
+    CreateQuestDataWindow()
   end
 
   RT.questDataMode = mode

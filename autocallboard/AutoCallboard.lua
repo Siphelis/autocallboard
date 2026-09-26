@@ -6,8 +6,11 @@ local RT = AutoCallboardRuntime
 local Print = RT.Print
 local ResolveFramePath = RT.ResolveFramePath
 
+RT.api = EbonAPI and EbonAPI:NewAddon("AutoCallboard", 0, 5) or nil
+
 local frame = CreateFrame("Frame")
 RT.eventFrame = frame
+if RT.api then RT.api:Track("Events", frame) end
 local characterProfileKey
 local state = RT.state
 
@@ -165,6 +168,8 @@ function RT.SetField(field, value)
 
     RT.InvalidateInstanceTarget()
     RT.RefreshCurrentInstanceQuestTarget("setting")
+  elseif field == "showSpeed" then
+    RT.LayoutMainToolbar()
   end
 end
 
@@ -181,15 +186,7 @@ local function HandleSlash(input)
   local parsed = Core.parseSlash(input)
 
   if parsed.kind == "version" then
-    Print(string.format(L.SLASH_VERSION, RT.GetAddonVersion()))
-
-    if RT.GetAvailableUpdate then
-      local available, installed = RT.GetAvailableUpdate()
-
-      if available then
-        Print(string.format(L.UPDATE_CHAT, available, installed) .. " " .. RT.updateUrl)
-      end
-    end
+    RT.ShowAddonHelp("about")
   elseif parsed.kind == "run" then
     if not RT.IsControlFrameShown() then
       RT.ShowControlFrame(true)
@@ -203,7 +200,7 @@ local function HandleSlash(input)
   elseif parsed.kind == "routes" then
     RT.ToggleRouteWindow()
   elseif parsed.kind == "help" then
-    RT.ShowAddonHelp()
+    RT.ShowAddonHelp("about")
   elseif parsed.kind == "show" then
     RT.SaveControlFrameShown(true)
     RT.ShowControlFrame(true)
@@ -294,17 +291,6 @@ local routeShareTask = {
   every = 1,
 }
 
-local updateTask = {
-  fn = function(now)
-    if not RT.ProcessVersionAnnounce then
-      return 60
-    end
-
-    return RT.ProcessVersionAnnounce(now)
-  end,
-  every = 1,
-}
-
 local eternalsTask = {
   fn = function()
     if not RT.WatchEternalSequence then
@@ -320,12 +306,12 @@ local TASKS = {
   { fn = RT.WatchCurrentObjectives, every = 0.5 },
   { fn = RT.WatchDifficultyChange, every = 0.5 },
   { fn = RT.SyncOverlayFrameLevels, every = 0.5 },
+  { fn = RT.RefreshSpeedDisplay, every = 0.2 },
   indoorTask,
   eternalsTask,
   travelTask,
   routeTask,
   routeShareTask,
-  updateTask,
 }
 
 local function WakeIndoorCheck()
@@ -410,20 +396,19 @@ EVENTS.ADDON_LOADED = function(arg1)
   frame:UnregisterEvent("ADDON_LOADED")
   EVENTS.ADDON_LOADED = nil
 
+  local chosenLanguage = type(AutoCallboardDB) == "table" and AutoCallboardDB.language or nil
+
   ApplyState(Core.restoreQuestState(AutoCallboardDB, AutoCallboardQuestDB))
 
-  if state.language ~= "" and RT.IsLanguageAvailable(state.language) then
-    RT.SetLanguage(state.language)
+  if type(chosenLanguage) == "string" and chosenLanguage ~= ""
+      and not EbonAPI:IsLanguageChosen() and RT.IsLanguageAvailable(chosenLanguage) then
+    RT.SetLanguage(chosenLanguage)
   end
 
   RT.RepairKnownQuestState()
   RT.PersistState(Core.migrateLegacyPresets(state, AutoCallboardPresetsDB))
   SetUpCharacter()
 
-  if RegisterAddonMessagePrefix then
-    pcall(RegisterAddonMessagePrefix, RT.questSharePrefix)
-    pcall(RegisterAddonMessagePrefix, RT.routeSharePrefix)
-  end
   RT.InstallSharedQuestAutoAcceptHook()
   RT.InstallAbandonQuestHook()
   RT.InstallRouteRecorderHooks()
@@ -437,6 +422,10 @@ EVENTS.ADDON_LOADED = function(arg1)
   RT.InitSettingsAccess()
   RT.RestoreRouteWindow()
   RT.InitVersionWatch()
+  RT.InitRouteShare()
+  RT.InitBuilds()
+  RT.InitLanguage()
+  RT.InitQuestShare()
 
   RT.buildsRefreshAt = GetTime() + RT.buildsRefreshDelay
 
@@ -455,24 +444,6 @@ EVENTS.PLAYER_REGEN_ENABLED = EVENTS.PLAYER_REGEN_DISABLED
 
 EVENTS.PLAYER_LOGOUT = function()
   RT.FlushQuestStateBackup()
-end
-
-EVENTS.CHAT_MSG_ADDON = function(arg1, arg2, arg3, arg4)
-  if arg1 == RT.questSharePrefix then
-    RT.RecordSharedQuestAnnouncement(arg2, arg3, arg4)
-  elseif arg1 == RT.echoPrefix then
-    RT.HandleEchoAddonMessage(arg2)
-  elseif arg1 == RT.routeSharePrefix then
-    RT.HandleRouteShareWhisper(arg2, arg3, arg4)
-  end
-end
-
-EVENTS.CHAT_MSG_CHANNEL = function(arg1, arg2, _, arg4)
-  RT.HandleRouteShareChannel(arg1, arg2, arg4)
-end
-
-EVENTS.CHAT_MSG_SYSTEM = function(arg1)
-  RT.HandleRouteShareSystem(arg1)
 end
 
 local function RouteDialogue(source)
@@ -603,7 +574,7 @@ EVENTS.ZONE_CHANGED_NEW_AREA = function()
   RT.InvalidatePlayerMap()
   WakeIndoorCheck()
   RT.HookRouteCheckpointService()
-  RT.RefreshRouteArrowScale()
+  RT.LayoutRouteArrow()
 end
 
 EVENTS.PLAYER_ENTERING_WORLD = EVENTS.ZONE_CHANGED_NEW_AREA
@@ -628,9 +599,6 @@ end)
 
 frame:RegisterEvent("ADDON_LOADED")
 frame:RegisterEvent("PLAYER_LOGOUT")
-frame:RegisterEvent("CHAT_MSG_ADDON")
-frame:RegisterEvent("CHAT_MSG_CHANNEL")
-frame:RegisterEvent("CHAT_MSG_SYSTEM")
 frame:RegisterEvent("QUEST_DETAIL")
 frame:RegisterEvent("QUEST_PROGRESS")
 frame:RegisterEvent("QUEST_COMPLETE")

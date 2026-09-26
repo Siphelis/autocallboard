@@ -76,6 +76,98 @@ local SIMPLE_SLASH_RESULTS = {
   clearlogs = { kind = "debug", action = "clearlogs" },
 }
 
+local function parseText(rest, usage, field)
+  if rest == "" then
+    return { kind = "invalid", message = L[usage] }
+  end
+
+  return { kind = "set", field = field, value = rest }
+end
+
+local function parseDebugFlag(rest, usage, action)
+  local value = parseBoolean(rest)
+
+  if value == nil then
+    return { kind = "invalid", message = L[usage] }
+  end
+
+  return { kind = "debug", action = action, value = value }
+end
+
+local SLASH_PARSERS = {
+  minimap = function(rest)
+    local shown = parseBoolean(rest, "show", "hide")
+
+    if shown == nil then
+      return { kind = "invalid", message = L.USAGE_MINIMAP }
+    end
+
+    return { kind = "minimap", shown = shown }
+  end,
+  name = function(rest) return parseText(rest, "USAGE_NAME", "targetName") end,
+  buttonfield = function(rest) return parseText(rest, "USAGE_BUTTONFIELD", "objectiveButtonField") end,
+  id = function(rest)
+    local spellID = tonumber(rest)
+
+    if not spellID then
+      return { kind = "invalid", message = L.USAGE_ID }
+    end
+
+    return { kind = "set", field = "summonSpellID", value = spellID }
+  end,
+  reroll = function(rest)
+    if rest == "" then
+      return { kind = "reroll" }
+    end
+
+    return { kind = "set", field = "rerollFrame", value = rest }
+  end,
+  objective = function(rest)
+    local index = tonumber(rest)
+
+    if not index or index < 1 or index > 3 then
+      return { kind = "invalid", message = L.USAGE_OBJECTIVE }
+    end
+
+    return { kind = "objective", index = index }
+  end,
+  maxrolls = function(rest)
+    local value = tonumber(rest)
+
+    if not value or value < 1 then
+      return { kind = "invalid", message = L.USAGE_MAXROLLS }
+    end
+
+    return { kind = "set", field = "maxRerolls", value = math.floor(value) }
+  end,
+  debug = function(rest)
+    if rest == "" then
+      return { kind = "debug", action = "open" }
+    end
+
+    return parseDebugFlag(rest, "USAGE_DEBUG", "enabled")
+  end,
+  watch = function(rest) return parseDebugFlag(rest, "USAGE_WATCH", "mouseWatch") end,
+  sniff = function(rest)
+    local lowered = rest:lower()
+
+    if rest == "" or lowered == "dump" then
+      return { kind = "debug", action = "sniffDump" }
+    end
+
+    if lowered == "clear" then
+      return { kind = "debug", action = "sniffClear" }
+    end
+
+    return parseDebugFlag(rest, "USAGE_SNIFF", "sniffer")
+  end,
+}
+
+SLASH_PARSERS.spellid = SLASH_PARSERS.id
+SLASH_PARSERS.obj = SLASH_PARSERS.objective
+SLASH_PARSERS.pick = SLASH_PARSERS.objective
+SLASH_PARSERS.sniffer = SLASH_PARSERS.sniff
+
 function Core.parseSlash(input)
   local message = trim(input)
 
@@ -97,16 +189,6 @@ function Core.parseSlash(input)
     return { kind = simpleResult.kind, action = simpleResult.action }
   end
 
-  if command == "minimap" then
-    local shown = parseBoolean(rest, "show", "hide")
-
-    if shown == nil then
-      return { kind = "invalid", message = L.USAGE_MINIMAP }
-    end
-
-    return { kind = "minimap", shown = shown }
-  end
-
   local booleanField = BOOLEAN_SETTING_COMMANDS[command]
   if booleanField then
     local value = parseBoolean(rest)
@@ -118,104 +200,13 @@ function Core.parseSlash(input)
     return { kind = "set", field = booleanField, value = value }
   end
 
-  if command == "name" then
-    if rest == "" then
-      return { kind = "invalid", message = L.USAGE_NAME }
-    end
-
-    return { kind = "set", field = "targetName", value = rest }
-  end
-
-  if command == "id" or command == "spellid" then
-    local spellID = tonumber(rest)
-
-    if not spellID then
-      return { kind = "invalid", message = L.USAGE_ID }
-    end
-
-    return { kind = "set", field = "summonSpellID", value = spellID }
-  end
-
-  if command == "reroll" then
-    if rest == "" then
-      return { kind = "reroll" }
-    end
-
-    return { kind = "set", field = "rerollFrame", value = rest }
-  end
-
-  if command == "objective" or command == "obj" or command == "pick" then
-    local index = tonumber(rest)
-
-    if not index or index < 1 or index > 3 then
-      return { kind = "invalid", message = L.USAGE_OBJECTIVE }
-    end
-
-    return { kind = "objective", index = index }
-  end
-
   if command == "1" or command == "2" or command == "3" then
     return { kind = "objective", index = tonumber(command) }
   end
 
-  if command == "buttonfield" then
-    if rest == "" then
-      return { kind = "invalid", message = L.USAGE_BUTTONFIELD }
-    end
-
-    return { kind = "set", field = "objectiveButtonField", value = rest }
-  end
-
-  if command == "maxrolls" then
-    local value = tonumber(rest)
-
-    if not value or value < 1 then
-      return { kind = "invalid", message = L.USAGE_MAXROLLS }
-    end
-
-    return { kind = "set", field = "maxRerolls", value = math.floor(value) }
-  end
-
-  if command == "debug" then
-    if rest == "" then
-      return { kind = "debug", action = "open" }
-    end
-
-    local value = parseBoolean(rest)
-    if value == nil then
-      return { kind = "invalid", message = L.USAGE_DEBUG }
-    end
-
-    return { kind = "debug", action = "enabled", value = value }
-  end
-
-  if command == "watch" then
-    local value = parseBoolean(rest)
-
-    if value == nil then
-      return { kind = "invalid", message = L.USAGE_WATCH }
-    end
-
-    return { kind = "debug", action = "mouseWatch", value = value }
-  end
-
-  if command == "sniff" or command == "sniffer" then
-    local lowered = rest:lower()
-
-    if rest == "" or lowered == "dump" then
-      return { kind = "debug", action = "sniffDump" }
-    end
-
-    if lowered == "clear" then
-      return { kind = "debug", action = "sniffClear" }
-    end
-
-    local value = parseBoolean(rest)
-    if value == nil then
-      return { kind = "invalid", message = L.USAGE_SNIFF }
-    end
-
-    return { kind = "debug", action = "sniffer", value = value }
+  local parser = SLASH_PARSERS[command]
+  if parser then
+    return parser(rest)
   end
 
   return { kind = "unknown", message = L.CORE_UNKNOWN_COMMAND }

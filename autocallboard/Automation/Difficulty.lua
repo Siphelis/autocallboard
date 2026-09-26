@@ -9,11 +9,7 @@ RT.difficultyPollInterval = 0.5
 RT.difficultyIdlePollInterval = 2
 
 function RT.GetHardmodeService()
-  if ProjectEbonhold and ProjectEbonhold.HardmodeService then
-    return ProjectEbonhold.HardmodeService
-  end
-
-  return nil
+  return EbonAPI.Ebonhold.Hardmode()
 end
 
 function RT.GetCurrentDifficulty()
@@ -29,8 +25,8 @@ function RT.GetCurrentDifficulty()
     end
   end
 
-  if ProjectEbonhold then
-    return Core.sanitizeDifficulty(ProjectEbonhold.currentHardmodeTier)
+  if EbonAPI.Ebonhold.IsPresent() then
+    return Core.sanitizeDifficulty(EbonAPI.Ebonhold.CurrentHardmodeTier())
   end
 
   return nil

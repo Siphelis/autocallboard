@@ -8,150 +8,39 @@ local Localized = RT.Localized
 
 local Log = RT.Log
 
-RT.echoPrefix = "AAM0x9"
-RT.echoOpRefreshPerks = 330
-RT.echoOpRefreshBuilds = 340
-RT.echoOpBuildList = 540
-RT.echoOpBuildActive = 542
-RT.echoOpBuildSelect = 344
 RT.buildsRefreshDelay = 5
 RT.buildsRefreshThrottle = 30
 
-RT.echoMaxChunks = 400
-RT.echoStreamTimeout = 20
-RT.echoStreams = {}
+local State = EbonAPI.State
+local CS = EbonAPI.CS
 
 function RT.SendEchoMessage(opcode, body)
-  if not SendAddonMessage or not UnitName then
+  if not RT.api then
     return false
   end
 
-  local me = UnitName("player")
-  if not me or me == "" then
-    return false
-  end
-
-  local payload = tostring(opcode)
-  if body and body ~= "" then
-    payload = payload .. "\t" .. body
-  end
-
-  local ok = pcall(SendAddonMessage, RT.echoPrefix, payload, "WHISPER", me)
-
-  return ok
+  return RT.api:SendServer(opcode, body)
 end
 
-function RT.ParseServerBuildList(body)
-  if type(body) ~= "string" then
-    return nil
-  end
-
-  local parsed = { slots = {} }
-  local first = true
-
-  for chunk in string.gmatch(body, "[^;]+") do
-    if first then
-      local active, maxSlots, unlocked = string.match(chunk, "^(%d+)|(%d+)|(%d+)|")
-
-      if not active then
-        return nil
-      end
-
-      parsed.active = tonumber(active)
-      parsed.maxSlots = tonumber(maxSlots)
-      parsed.unlocked = tonumber(unlocked)
-      first = false
-    else
-
-      local slot, name = string.match(chunk, "^(%d+)|([^|]*)|")
-
-      if slot then
-        parsed.slots[tonumber(slot)] = { slot = tonumber(slot), name = name }
-      end
-    end
-  end
-
-  return parsed
+local function OnServerBuilds(_, builds)
+  Log("builds", "liste recue actif=", builds.active)
+  RT.RefreshBuildsWindowIfShown()
+  RT.RefreshEchoBar()
 end
 
-function RT.HandleEchoPayload(opcode, body)
-  if opcode == RT.echoOpBuildList then
-    local parsed = RT.ParseServerBuildList(body)
-
-    if parsed then
-      RT.serverBuilds = parsed
-      Log("builds", "liste recue actif=", parsed.active)
-      RT.RefreshBuildsWindowIfShown()
-      RT.RefreshEchoBar()
-    end
-  elseif opcode == RT.echoOpBuildActive then
-
-    local slot = tonumber(string.match(tostring(body), "^(%d+)"))
-
-    if slot and RT.serverBuilds then
-      RT.serverBuilds.active = slot
-      Log("builds", "slot actif = ", slot)
-      RT.RefreshBuildsWindowIfShown()
-      RT.RefreshEchoBar()
-    end
-  end
+local function OnServerBuildActive(_, slot)
+  Log("builds", "slot actif = ", slot)
+  RT.RefreshBuildsWindowIfShown()
+  RT.RefreshEchoBar()
 end
 
-function RT.HandleEchoAddonMessage(message)
-  if type(message) ~= "string" then
+function RT.InitBuilds()
+  if not RT.api then
     return
   end
 
-  local opcode, rest = string.match(message, "^(%d+)\t?(.*)$")
-  opcode = tonumber(opcode)
-
-  if not opcode then
-    return
-  end
-
-  local mid, index, total, slice = string.match(rest, "^(@%x+)\t(%x+)/(%x+)\t?(.*)$")
-
-  if not mid then
-    RT.HandleEchoPayload(opcode, rest)
-    return
-  end
-
-  index = tonumber(index, 16)
-  total = tonumber(total, 16)
-
-  if not index or not total
-      or total < 1 or total > RT.echoMaxChunks
-      or index < 1 or index > total then
-    return
-  end
-
-  local now = GetTime()
-  local key = tostring(opcode) .. mid
-  local streams = RT.echoStreams
-
-  for otherKey, stream in pairs(streams) do
-    if now - stream.at > RT.echoStreamTimeout then
-      streams[otherKey] = nil
-    end
-  end
-
-  local stream = streams[key]
-  if not stream then
-    stream = { parts = {}, got = 0, total = total }
-    streams[key] = stream
-  end
-
-  stream.at = now
-
-  if not stream.parts[index] then
-    stream.parts[index] = slice or ""
-    stream.got = stream.got + 1
-  end
-
-  if stream.got >= stream.total then
-    streams[key] = nil
-    RT.HandleEchoPayload(opcode, table.concat(stream.parts, "", 1, stream.total))
-  end
+  RT.api:On("SERVER_BUILDS", OnServerBuilds)
+  RT.api:On("SERVER_BUILD_ACTIVE", OnServerBuildActive)
 end
 
 function RT.RefreshBuildsWindowIfShown()
@@ -172,38 +61,6 @@ function RT.BuildLabel(build)
   return name
 end
 
-function RT.GetActiveBuild()
-  local builds = RT.serverBuilds
-  local slot = builds and tonumber(builds.active)
-
-  if not slot or type(builds.slots) ~= "table" then
-    return nil, slot
-  end
-
-  return builds.slots[slot], slot
-end
-
-function RT.GetSortedServerBuilds()
-  local builds = RT.serverBuilds
-  local sorted = {}
-
-  if not builds or type(builds.slots) ~= "table" then
-    return sorted
-  end
-
-  for slot, build in pairs(builds.slots) do
-    if type(build) == "table" and tonumber(slot) then
-      table.insert(sorted, build)
-    end
-  end
-
-  table.sort(sorted, function(a, b)
-    return (tonumber(a.slot) or 0) < (tonumber(b.slot) or 0)
-  end)
-
-  return sorted
-end
-
 function RT.RequestBuildsRefresh(source)
   local now = GetTime()
 
@@ -213,8 +70,13 @@ function RT.RequestBuildsRefresh(source)
   end
 
   RT.lastBuildsRequestAt = now
-  RT.SendEchoMessage(RT.echoOpRefreshPerks, "")
-  local ok = RT.SendEchoMessage(RT.echoOpRefreshBuilds, "")
+
+  if not RT.api then
+    return false
+  end
+
+  RT.api:RequestServer(CS.REFRESH_PERKS, "", RT.buildsRefreshThrottle)
+  local ok = RT.api:RequestServer(CS.REFRESH_BUILDS, "", RT.buildsRefreshThrottle)
   Log("builds", "refresh demande source=", source, " ok=", ok)
 
   return ok
@@ -235,7 +97,7 @@ function RT.SwitchToBuild(slot, source)
     return false
   end
 
-  local builds = RT.GetSortedServerBuilds()
+  local builds = State.sortedBuilds()
   local label = string.format(L.BUILD_SLOT_FALLBACK, tostring(slot))
 
   for i = 1, #(builds) do
@@ -245,7 +107,7 @@ function RT.SwitchToBuild(slot, source)
     end
   end
 
-  local _, activeSlot = RT.GetActiveBuild()
+  local _, activeSlot = State.activeBuild()
   if activeSlot == slot then
     return false
   end
@@ -257,7 +119,7 @@ function RT.SwitchToBuild(slot, source)
     return false
   end
 
-  if not RT.SendEchoMessage(RT.echoOpBuildSelect, tostring(slot)) then
+  if not RT.SendEchoMessage(CS.BUILD_SELECT, tostring(slot)) then
     Error(L.BUILD_SWITCH_SEND_FAILED)
     Log("builds", "bascule echouee slot=", slot)
     return false
@@ -273,7 +135,7 @@ function RT.RefreshBuildRowVisual(row, hovered)
     return
   end
 
-  local _, activeSlot = RT.GetActiveBuild()
+  local _, activeSlot = State.activeBuild()
 
   Skin.PaintRow(row,
       activeSlot and tonumber(row.build.slot) == activeSlot,
@@ -282,7 +144,7 @@ function RT.RefreshBuildRowVisual(row, hovered)
 end
 
 local function BuildTooltip(owner, build, extraKey)
-  local _, activeSlot = RT.GetActiveBuild()
+  local _, activeSlot = State.activeBuild()
   local allowed, reason = RT.CanSwitchBuild()
 
   Skin.OpenTip(owner, "ANCHOR_RIGHT", RT.BuildLabel(build))
@@ -351,7 +213,7 @@ function RT.RefreshBuildsWindow()
     return
   end
 
-  local builds = RT.GetSortedServerBuilds()
+  local builds = State.sortedBuilds()
   local count = #(builds)
   local rows = RT.buildRows
 
@@ -489,7 +351,7 @@ local function EchoBarState()
 end
 
 local function BuildBySlot(slot)
-  local builds = RT.serverBuilds
+  local builds = State.GetBuilds()
 
   if not slot or not builds or type(builds.slots) ~= "table" then
     return nil
@@ -499,7 +361,7 @@ local function BuildBySlot(slot)
 end
 
 local function PaintEchoCell(cell, hovered)
-  local _, activeSlot = RT.GetActiveBuild()
+  local _, activeSlot = State.activeBuild()
 
   Skin.PaintRow(cell,
       cell.slot ~= nil and activeSlot == cell.slot,

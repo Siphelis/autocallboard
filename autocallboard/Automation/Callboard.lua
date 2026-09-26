@@ -327,11 +327,7 @@ end
 RT.UpdateSummonStatus = UpdateSummonStatus
 
 local function GetObjectivesService()
-  if ProjectEbonhold and ProjectEbonhold.ObjectivesService then
-    return ProjectEbonhold.ObjectivesService
-  end
-
-  return nil
+  return EbonAPI.Ebonhold.Objectives()
 end
 
 local EMPTY_OBJECTIVES = {}

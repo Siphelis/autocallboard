@@ -258,7 +258,7 @@ end
 function Core.routeCheckpointName(checkpointId, fallback)
   checkpointId = tonumber(checkpointId)
 
-  local service = ProjectEbonhold and ProjectEbonhold.CheckpointService
+  local service = EbonAPI.Ebonhold.Checkpoints()
 
   if checkpointId and service and service.GetCheckpoints then
     local ok, list = pcall(service.GetCheckpoints)

@@ -1,16 +1,20 @@
 local RT, Core, Skin, L = AutoCallboardRuntime, AutoCallboardCore, AutoCallboardSkin, AutoCallboardLocale
-local settings, pages, buttons, checks
+local settings, pages, tabs, buttons, checks
 local draft, layoutDraft
 local ACTIONS = {
   {"BUTTON_LISTS", "ToggleListsWindow"}, {"BUTTON_BUILDS", "ToggleBuildsWindow"},
   {"ADDON_NAME_TOOLTIP"}, {"BUTTON_START", "StartRolling"},
   {"BUTTON_SHARE", "ShareAcceptedQuest"}, {"BUTTON_QUESTS", "ShowQuestWindow"},
   {"BUTTON_EXPORT", "ShowQuestDataWindow", "export"}, {"BUTTON_IMPORT", "ShowQuestDataWindow", "import"},
-  {"UI_ETERNALS", "ShowSettings", 1}, {"UI_HELP", "ShowAddonHelp"},
+  {"UI_ETERNALS", "ShowSettings", 1}, {"UI_HELP", "ShowAddonHelp", "about"},
   {"UI_SETTINGS", "ShowSettings"}, {"AUTO_CURRENT_INSTANCE_LABEL", "ToggleInstanceMode"},
   {"BUTTON_ROUTES", "ToggleRouteWindow"},
 }
 local orderRows, colorButtons, sliders = {}, {}, {}
+local fontButton, fontMenu
+local layoutWaiter
+local RUN_SPEED = 7
+local speedText, speedShown
 
 local function Config() return RT.state.appearance end
 local function Character()
@@ -62,6 +66,17 @@ function RT.RefreshGoldDisplay()
   text:SetText(table.concat(parts, "  |  "))
 end
 
+function RT.RefreshSpeedDisplay()
+  if not speedText then return end
+  if not RT.state.showSpeed then speedText:Hide(); return end
+  speedText:Show()
+  if not speedText:IsVisible() then return end
+  local percent = math.floor(GetUnitSpeed("player") / RUN_SPEED * 100 + 0.5)
+  if percent == speedShown then return end
+  speedShown = percent
+  speedText:SetText(string.format(L.SPEED_VALUE, percent))
+end
+
 local function PlaceGold()
   local text, frame = RT.questGoldText, RT.controlFrame
   if not text then return end
@@ -91,10 +106,12 @@ local function CollapsedFloor(frame)
 
   local floor = (frame.title and frame.title:GetStringWidth() or 0) + 2 * (chrome + 8)
 
-  floor = math.max(floor, 20 + WidestText(RT.summonStatusText,
+  local status = WidestText(RT.summonStatusText,
     string.format(L.SUMMON_STATUS_ACTIVE, "0000s", "0000s"),
     string.format(L.SUMMON_STATUS_COOLDOWN, "0000s"),
-    L.SUMMON_STATUS_READY))
+    L.SUMMON_STATUS_READY)
+  local speed = RT.state.showSpeed and WidestText(speedText, string.format(L.SPEED_VALUE, 888)) or 0
+  floor = math.max(floor, 20 + status + (speed > 0 and speed + 12 or 0))
 
   if Config().goldMain and RT.questGoldText then
     floor = math.max(floor, 20 + (RT.questGoldText:GetStringWidth() or 0))
@@ -105,7 +122,22 @@ end
 
 function RT.LayoutMainToolbar()
   local frame = RT.controlFrame
-  if not buttons or InCombatLockdown() then return end
+  if not buttons then return end
+  if InCombatLockdown() then
+    if not layoutWaiter then
+      layoutWaiter = CreateFrame("Frame")
+      layoutWaiter:SetScript("OnEvent", function(self)
+        self:UnregisterEvent("PLAYER_REGEN_ENABLED")
+        self.waiting = nil
+        RT.LayoutMainToolbar()
+      end)
+    end
+    if not layoutWaiter.waiting then
+      layoutWaiter.waiting = true
+      layoutWaiter:RegisterEvent("PLAYER_REGEN_ENABLED")
+    end
+    return
+  end
   local order = Character().toolbar
   local width, x, row = CollapsedFloor(frame), 10, 0
   local function PlaceButton(button)
@@ -126,12 +158,20 @@ function RT.LayoutMainToolbar()
     end
     PlaceButton(button)
   end
+  if RT.GetAvailableUpdate and RT.GetAvailableUpdate() then
+    PlaceButton(frame.updateButton)
+  else
+    frame.updateButton:Hide()
+  end
   local extra = row * 29 + (Config().goldMain and 22 or 0)
   RT.controlCollapsedWidth, RT.controlCollapsedHeight = width, 84 + extra
   RT.controlExpandedHeight = 620 + extra
   RT.summonStatusText:ClearAllPoints()
   RT.summonStatusText:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, -59 - row * 29)
   RT.summonStatusText:SetWidth(frame:GetWidth() - 20)
+  speedText:ClearAllPoints()
+  speedText:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -10, -59 - row * 29)
+  RT.RefreshSpeedDisplay()
   if RT.questWindow then
     RT.questWindow:ClearAllPoints()
     RT.questWindow:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, -82 - row * 29)
@@ -169,7 +209,26 @@ local function RefreshDraft()
   for key, button in pairs(colorButtons) do
     button:SetText(L[key == "background" and "UI_BACKGROUND" or "UI_ACCENT"] .. string.format("  #%06X", draft[key]))
   end
+  fontButton:SetText(tostring(draft.arrowFont))
   RefreshOrder()
+end
+local function ToggleFontMenu()
+  if not fontMenu then
+    fontMenu = Skin.Menu("AutoCallboardArrowFontMenu")
+    fontMenu:SetAutoClose(true)
+    fontMenu:CloseWhenHidden(settings)
+    fontMenu:CloseWhenHidden(pages[2])
+    fontMenu:SetClampedToScreen(true)
+  end
+  if fontMenu:IsShown() then fontMenu:Hide(); return end
+  fontMenu:Reset()
+  for _, size in ipairs(Core.ARROW_FONT_SIZES) do
+    fontMenu:AddItem(tostring(size), {checked = size == draft.arrowFont, onClick = function()
+      draft.arrowFont = size
+      RefreshDraft()
+    end})
+  end
+  fontMenu:OpenAt(fontButton, "TOPLEFT", "BOTTOMLEFT", 0, -2)
 end
 local function PickColor(key)
   if not Allowed() then return end
@@ -187,10 +246,6 @@ local function PickColor(key)
   picker.cancelFunc = function() draft[key] = before; RefreshDraft() end
   picker:Show()
 end
-local function SelectPage(index)
-  for i, page in ipairs(pages) do if i == index then page:Show() else page:Hide() end end
-end
-
 local function CreateSettings()
   if settings then return end
   settings = Skin.Window("AutoCallboardSettings", {width = 580, height = 560, movable = true,
@@ -198,14 +253,13 @@ local function CreateSettings()
   RT.settingsWindow = settings
   settings:SetPoint("CENTER", UIParent, "CENTER")
   settings:Hide()
-  pages, checks = {}, {}
-  for i, key in ipairs({"UI_GENERAL", "UI_APPEARANCE", "UI_TOOLBAR", "UI_GOLD"}) do
-    local index = i
-    Button(settings, key, 18 + (i - 1) * 137, -40, 130, function() SelectPage(index) end)
-    local page = CreateFrame("Frame", nil, settings)
-    page:SetPoint("TOPLEFT", 18, -85); page:SetPoint("BOTTOMRIGHT", -18, 62)
-    pages[i] = page
-  end
+  checks = {}
+  tabs = Skin.Tabs(settings, {
+    keys = {"UI_GENERAL", "UI_APPEARANCE", "UI_TOOLBAR", "UI_GOLD"},
+    x = 18, y = -40, width = 130, step = 137,
+    pageInset = {18, -85, -18, 62},
+  })
+  pages = tabs.pages
   for i, key in ipairs({"background", "accent"}) do
     local field = key
     colorButtons[key] = Button(pages[2], i == 1 and "UI_BACKGROUND" or "UI_ACCENT", 0, -(i - 1) * 42, 260, function() PickColor(field) end)
@@ -219,6 +273,12 @@ local function CreateSettings()
     RT.Localized(sliders[key].titleText, spec[2])
     sliders[key]:SetPoint("TOPLEFT", pages[2], "TOPLEFT", 0, -125 - (i - 1) * 75)
   end
+  fontButton = Button(pages[2], nil, 290, -275, 120, ToggleFontMenu)
+  local fontTitle = pages[2]:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  fontTitle:SetPoint("BOTTOMLEFT", fontButton, "TOPLEFT", 0, 5)
+  Skin.MutedText(fontTitle)
+  RT.Localized(fontTitle, "UI_ARROW_FONT")
+  fontButton.titleText = fontTitle
   Button(pages[2], "ARROW_GALLERY_OPEN", 0, -330, 250, function() RT.ToggleArrowGallery() end)
 
   checks.locked = Check(pages[2], "UI_LOCK", 0, -375, function(self) draft.locked = self:GetChecked() and true or false end)
@@ -257,7 +317,7 @@ local function CreateSettings()
   settings:HookScript("OnHide", function()
     if ColorPickerFrame and ColorPickerFrame.func and ColorPickerFrame:IsShown() then ColorPickerFrame:Hide() end
   end)
-  SelectPage(1)
+  tabs.Select(1)
 end
 
 function RT.AttachSettingsControls()
@@ -273,18 +333,20 @@ function RT.AttachSettingsControls()
   RT.echoBarOrientationButton:SetParent(page)
   RT.echoBarOrientationButton:ClearAllPoints(); RT.echoBarOrientationButton:SetPoint("TOPLEFT", page, "TOPLEFT", 400, -30)
   RT.rollSpeedSlider:SetParent(page)
-  RT.rollSpeedSlider:ClearAllPoints(); RT.rollSpeedSlider:SetPoint("TOPLEFT", page, "TOPLEFT", 0, -280)
+  RT.rollSpeedSlider:ClearAllPoints(); RT.rollSpeedSlider:SetPoint("TOPLEFT", page, "TOPLEFT", 0, -310)
   RT.rollSpeedSlider:SetWidth(480)
   RT.rollSpeedSlider.valueText:SetWidth(520)
   RT.languageButton:SetParent(page)
-  RT.languageButton:ClearAllPoints(); RT.languageButton:SetPoint("TOPLEFT", page, "TOPLEFT", 0, -355)
+  RT.languageButton:ClearAllPoints(); RT.languageButton:SetPoint("TOPLEFT", page, "TOPLEFT", 0, -385)
   local accept = Check(page, "UI_AUTO_ACCEPT", 0, -210, function(self) RT.SetField("autoAccept", self:GetChecked() and true or false) end)
   local eternals = Check(page, "UI_ETERNALS", 0, -240, function(self)
     if SlashCmdList.AUTOCALLBOARDETERNALS then SlashCmdList.AUTOCALLBOARDETERNALS(self:GetChecked() and "on" or "off") end
   end)
+  local speed = Check(page, "UI_SHOW_SPEED", 0, -270, function(self) RT.SetField("showSpeed", self:GetChecked() and true or false) end)
   page:SetScript("OnShow", function()
     accept:SetChecked(RT.state.autoAccept)
     eternals:SetChecked(not AutoCallboardEternalsDB or AutoCallboardEternalsDB.enabled ~= false)
+    speed:SetChecked(RT.state.showSpeed)
   end)
 end
 
@@ -293,13 +355,13 @@ function RT.ShowSettings(page)
   if not RT.questWindow then RT.CreateQuestWindow() end
   draft, layoutDraft = Core.copyAppearance(Config()), Core.copyToolbar(Character().toolbar)
   RefreshDraft()
-  SelectPage(page or 1)
+  tabs.Select(page or 1)
   settings:Show()
 end
 
 function RT.ApplyWindowScale()
   Skin.ScaleRoots(Config().scale)
-  RT.RefreshRouteArrowScale()
+  RT.LayoutRouteArrow()
   RT.RefreshRouteArrowLock()
   RT.OnArrowSkinChanged()
   RT.RefreshArrowGallery()
@@ -315,6 +377,9 @@ function RT.InitSettingsAccess()
     RT.summonStatusText:SetWidth(frame:GetWidth() - 20)
     if RT.questGoldText and Config().goldMain then RT.questGoldText:SetWidth(frame:GetWidth() - 20) end
   end
+  speedText = frame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+  speedText:SetJustifyH("RIGHT")
+  Skin.MutedText(speedText)
   RT.LayoutMainToolbar()
   if InterfaceOptions_AddCategory then
     local panel = CreateFrame("Frame", "AutoCallboardOptions", UIParent)
@@ -332,6 +397,8 @@ end
 function RT.RefreshSettingsLanguage()
   goldConfig = nil
   RT.RefreshGoldDisplay()
+  speedShown = nil
+  RT.RefreshSpeedDisplay()
   if settings and settings:IsShown() then RefreshDraft() end
   if buttons then
     for id, button in pairs(buttons) do

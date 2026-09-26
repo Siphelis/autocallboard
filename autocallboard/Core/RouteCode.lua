@@ -281,12 +281,7 @@ local function HasSpot(step)
   return type(step.map) == "string" and step.map ~= "" and step.x ~= nil and step.y ~= nil
 end
 
-function Core.encodeRoute(route, stored)
-  if type(route) ~= "table" or not Core.isRouteCategory(route.category) then
-    return nil
-  end
-
-  local steps = stored and type(route.steps) == "table" and route.steps or Core.copyRouteSteps(route.steps)
+local function CollectRouteTables(steps)
   local quests, questIndex, npcs, npcIndex, maps, mapIndex = {}, {}, {}, {}, {}, {}
 
   local function AddQuest(id)
@@ -335,128 +330,160 @@ function Core.encodeRoute(route, stored)
     npcIndex[id] = i - 1
   end
 
+  return { quests = quests, questIndex = questIndex, npcs = npcs, npcIndex = npcIndex, maps = maps, mapIndex = mapIndex }
+end
+
+local function WriteRouteHeader(w, route, tables)
+  w.var(tonumber(route.category) - 1, 3)
+  w.var(Core.sanitizeDifficulty(route.difficulty) or 0, 3)
+  w.bytes(Core.sanitizeSelectionName(route.name, ""), MAX_NAME_BYTES, 5)
+  w.var(#(tables.maps), 3)
+
+  for _, map in ipairs(tables.maps) do
+    w.bytes(map, MAX_MAP_BYTES, 4)
+  end
+
+  w.var(#(tables.quests), 5)
+
+  local previous = 0
+
+  for _, id in ipairs(tables.quests) do
+    w.var(id - previous, 7)
+    previous = id
+  end
+
+  w.var(#(tables.npcs), 5)
+  previous = 0
+
+  for _, id in ipairs(tables.npcs) do
+    w.var(id - previous, 7)
+    previous = id
+  end
+end
+
+local function WriteSpot(w, step, tables, widths, last)
+  local spot = HasSpot(step) and tables.mapIndex[step.map] ~= nil
+  local x = spot and math.floor(step.x * XY_MAX + 0.5) or 0
+  local y = spot and math.floor(step.y * XY_MAX + 0.5) or 0
+  local same = spot and last and last.map == step.map and last.x == x and last.y == y
+
+  w.put(same and 1 or 0, 1)
+
+  if same then
+    return last
+  end
+
+  w.put(spot and 1 or 0, 1)
+
+  if not spot then
+    return last
+  end
+
+  w.put(tables.mapIndex[step.map], widths.map)
+  w.put(x, XY_BITS)
+  w.put(y, XY_BITS)
+
+  return { map = step.map, x = x, y = y }
+end
+
+local function WriteActions(w, step, PutQuest)
+  local actions = step.actions or {}
+
+  w.var(math.min(#(actions), MAX_ACTIONS), 3)
+
+  for i = 1, math.min(#(actions), MAX_ACTIONS) do
+    local action = actions[i]
+
+    w.put(ACTION_INDEX[action.kind], 3)
+
+    if INDEXED_ACTIONS[action.kind] then
+      w.var((tonumber(action.index) or 1) - 1, 2)
+    elseif action.kind == "turnin" then
+      w.var(tonumber(action.reward) or 0, 2)
+    end
+
+    if QUEST_ACTIONS[action.kind] then
+      PutQuest(action.questId)
+    end
+  end
+end
+
+local function WriteStep(w, step, tables, widths, PutQuest, last)
+  local kind = StepKind(step)
+  local tier = Core.sanitizeDifficulty(step.difficulty)
+
+  w.put(kind, 2)
+  w.put(step.resting and 1 or 0, 1)
+  w.put(tier and 1 or 0, 1)
+
+  if tier then
+    w.var(tier - 1, 3)
+  end
+
+  if kind ~= 0 then
+    last = WriteSpot(w, step, tables, widths, last)
+  end
+
+  if kind == 0 then
+    w.var(step.checkpoint, 5)
+  elseif kind == 1 then
+    local npc = step.npcId and tables.npcIndex[step.npcId]
+    local active = step.active or {}
+
+    w.put(npc and 1 or 0, 1)
+
+    if npc then
+      w.put(npc, widths.npc)
+    end
+
+    w.var(math.min(#(active), MAX_REFS), 2)
+
+    for i = 1, math.min(#(active), MAX_REFS) do
+      PutQuest(active[i].questId)
+    end
+
+    w.var(math.min(#(step.available or {}), MAX_REFS), 2)
+  else
+    if kind == 2 then
+      w.put(CHANGE_INDEX[step.on], 2)
+    end
+
+    PutQuest(step.questId)
+  end
+
+  WriteActions(w, step, PutQuest)
+
+  return last
+end
+
+function Core.encodeRoute(route, stored)
+  if type(route) ~= "table" or not Core.isRouteCategory(route.category) then
+    return nil
+  end
+
+  local steps = stored and type(route.steps) == "table" and route.steps or Core.copyRouteSteps(route.steps)
+  local tables = CollectRouteTables(steps)
   local w = Writer()
-  local wm, wq, wn = Width(#(maps)), Width(#(quests)), Width(#(npcs))
+  local widths = { map = Width(#(tables.maps)), quest = Width(#(tables.quests)), npc = Width(#(tables.npcs)) }
 
   local function PutQuest(id)
     id = tonumber(id)
-    local index = id and questIndex[id]
+    local index = id and tables.questIndex[id]
 
     w.put(index and 1 or 0, 1)
 
     if index then
-      w.put(index, wq)
+      w.put(index, widths.quest)
     end
   end
 
-  w.var(tonumber(route.category) - 1, 3)
-  w.var(Core.sanitizeDifficulty(route.difficulty) or 0, 3)
-  w.bytes(Core.sanitizeSelectionName(route.name, ""), MAX_NAME_BYTES, 5)
-  w.var(#(maps), 3)
-
-  for _, map in ipairs(maps) do
-    w.bytes(map, MAX_MAP_BYTES, 4)
-  end
-
-  w.var(#(quests), 5)
-
-  local previous = 0
-
-  for _, id in ipairs(quests) do
-    w.var(id - previous, 7)
-    previous = id
-  end
-
-  w.var(#(npcs), 5)
-  previous = 0
-
-  for _, id in ipairs(npcs) do
-    w.var(id - previous, 7)
-    previous = id
-  end
-
+  WriteRouteHeader(w, route, tables)
   w.var(#(steps), 6)
 
   local last
 
   for _, step in ipairs(steps) do
-    local kind = StepKind(step)
-    local tier = Core.sanitizeDifficulty(step.difficulty)
-
-    w.put(kind, 2)
-    w.put(step.resting and 1 or 0, 1)
-    w.put(tier and 1 or 0, 1)
-
-    if tier then
-      w.var(tier - 1, 3)
-    end
-
-    if kind ~= 0 then
-      local spot = HasSpot(step) and mapIndex[step.map] ~= nil
-      local x = spot and math.floor(step.x * XY_MAX + 0.5) or 0
-      local y = spot and math.floor(step.y * XY_MAX + 0.5) or 0
-      local same = spot and last and last.map == step.map and last.x == x and last.y == y
-
-      w.put(same and 1 or 0, 1)
-
-      if not same then
-        w.put(spot and 1 or 0, 1)
-
-        if spot then
-          w.put(mapIndex[step.map], wm)
-          w.put(x, XY_BITS)
-          w.put(y, XY_BITS)
-          last = { map = step.map, x = x, y = y }
-        end
-      end
-    end
-
-    if kind == 0 then
-      w.var(step.checkpoint, 5)
-    elseif kind == 1 then
-      local npc = step.npcId and npcIndex[step.npcId]
-      local active = step.active or {}
-
-      w.put(npc and 1 or 0, 1)
-
-      if npc then
-        w.put(npc, wn)
-      end
-
-      w.var(math.min(#(active), MAX_REFS), 2)
-
-      for i = 1, math.min(#(active), MAX_REFS) do
-        PutQuest(active[i].questId)
-      end
-
-      w.var(math.min(#(step.available or {}), MAX_REFS), 2)
-    else
-      if kind == 2 then
-        w.put(CHANGE_INDEX[step.on], 2)
-      end
-
-      PutQuest(step.questId)
-    end
-
-    local actions = step.actions or {}
-
-    w.var(math.min(#(actions), MAX_ACTIONS), 3)
-
-    for i = 1, math.min(#(actions), MAX_ACTIONS) do
-      local action = actions[i]
-
-      w.put(ACTION_INDEX[action.kind], 3)
-
-      if INDEXED_ACTIONS[action.kind] then
-        w.var((tonumber(action.index) or 1) - 1, 2)
-      elseif action.kind == "turnin" then
-        w.var(tonumber(action.reward) or 0, 2)
-      end
-
-      if QUEST_ACTIONS[action.kind] then
-        PutQuest(action.questId)
-      end
-    end
+    last = WriteStep(w, step, tables, widths, PutQuest, last)
   end
 
   local body = w.finish()
@@ -464,10 +491,7 @@ function Core.encodeRoute(route, stored)
   return PREFIX .. body .. Checksum(body)
 end
 
-local function DecodeBody(body)
-  local r = Reader(body)
-  local route = { steps = {} }
-
+local function ReadRouteHeader(r, route)
   route.category = r.var(3, Core.routeCategoryCount() - 1) + 1
   route.difficulty = Core.sanitizeDifficulty(r.var(3, 255))
   route.name = r.bytes(MAX_NAME_BYTES, 5)
@@ -492,94 +516,121 @@ local function DecodeBody(body)
     npcs[i] = previous
   end
 
+  return { maps = maps, quests = quests, npcs = npcs }
+end
+
+local function ReadSpot(r, step, maps, last)
+  if r.get(1) == 1 then
+    if not last then
+      error("no previous spot")
+    end
+
+    step.map, step.x, step.y = last.map, last.x, last.y
+
+    return last
+  end
+
+  if r.get(1) == 0 then
+    return last
+  end
+
+  step.map = maps[r.index(#(maps)) + 1]
+  step.x = r.get(XY_BITS) / XY_MAX
+  step.y = r.get(XY_BITS) / XY_MAX
+
+  return { map = step.map, x = step.x, y = step.y }
+end
+
+local function ReadActions(r, step, GetQuest)
+  for i = 1, r.var(3, MAX_ACTIONS) do
+    local actionKind = ACTION_KINDS[r.get(3) + 1]
+
+    if not actionKind then
+      error("bad action")
+    end
+
+    local action = { kind = actionKind }
+
+    if INDEXED_ACTIONS[actionKind] then
+      action.index = r.var(2, 255) + 1
+    elseif actionKind == "turnin" then
+      action.reward = r.var(2, 255)
+    end
+
+    if QUEST_ACTIONS[actionKind] then
+      action.questId = GetQuest()
+    end
+
+    step.actions[i] = action
+  end
+end
+
+local function ReadStep(r, tables, GetQuest, last)
+  local kind = r.get(2)
+  local step = { resting = r.get(1) == 1, actions = {} }
+
+  if r.get(1) == 1 then
+    step.difficulty = r.var(3, 255) + 1
+  end
+
+  if kind ~= 0 then
+    last = ReadSpot(r, step, tables.maps, last)
+  end
+
+  if kind == 0 then
+    step.kind = "travel"
+    step.checkpoint = r.var(5, MAX_ID)
+  elseif kind == 1 then
+    step.kind = "npc"
+    step.npcName = ""
+
+    if r.get(1) == 1 then
+      step.npcId = tables.npcs[r.index(#(tables.npcs)) + 1]
+    end
+
+    step.active = {}
+
+    for i = 1, r.var(2, MAX_REFS) do
+      step.active[i] = { questId = GetQuest() }
+    end
+
+    step.available = {}
+
+    for i = 1, r.var(2, MAX_REFS) do
+      step.available[i] = {}
+    end
+  else
+    step.kind = "quest"
+
+    if kind == 2 then
+      step.on = CHANGES[r.get(2) + 1]
+    end
+
+    step.questId = GetQuest()
+  end
+
+  ReadActions(r, step, GetQuest)
+
+  return step, last
+end
+
+local function DecodeBody(body)
+  local r = Reader(body)
+  local route = { steps = {} }
+  local tables = ReadRouteHeader(r, route)
+
   local function GetQuest()
     if r.get(1) == 0 then
       return nil
     end
 
-    return quests[r.index(#(quests)) + 1]
+    return tables.quests[r.index(#(tables.quests)) + 1]
   end
 
   local last
 
   for s = 1, r.var(6, Core.MAX_ROUTE_STEPS) do
-    local kind = r.get(2)
-    local step = { resting = r.get(1) == 1, actions = {} }
-
-    if r.get(1) == 1 then
-      step.difficulty = r.var(3, 255) + 1
-    end
-
-    if kind ~= 0 then
-      if r.get(1) == 1 then
-        if not last then
-          error("no previous spot")
-        end
-
-        step.map, step.x, step.y = last.map, last.x, last.y
-      elseif r.get(1) == 1 then
-        step.map = maps[r.index(#(maps)) + 1]
-        step.x = r.get(XY_BITS) / XY_MAX
-        step.y = r.get(XY_BITS) / XY_MAX
-        last = { map = step.map, x = step.x, y = step.y }
-      end
-    end
-
-    if kind == 0 then
-      step.kind = "travel"
-      step.checkpoint = r.var(5, MAX_ID)
-    elseif kind == 1 then
-      step.kind = "npc"
-      step.npcName = ""
-
-      if r.get(1) == 1 then
-        step.npcId = npcs[r.index(#(npcs)) + 1]
-      end
-
-      step.active = {}
-
-      for i = 1, r.var(2, MAX_REFS) do
-        step.active[i] = { questId = GetQuest() }
-      end
-
-      step.available = {}
-
-      for i = 1, r.var(2, MAX_REFS) do
-        step.available[i] = {}
-      end
-    else
-      step.kind = "quest"
-
-      if kind == 2 then
-        step.on = CHANGES[r.get(2) + 1]
-      end
-
-      step.questId = GetQuest()
-    end
-
-    for i = 1, r.var(3, MAX_ACTIONS) do
-      local actionKind = ACTION_KINDS[r.get(3) + 1]
-
-      if not actionKind then
-        error("bad action")
-      end
-
-      local action = { kind = actionKind }
-
-      if INDEXED_ACTIONS[actionKind] then
-        action.index = r.var(2, 255) + 1
-      elseif actionKind == "turnin" then
-        action.reward = r.var(2, 255)
-      end
-
-      if QUEST_ACTIONS[actionKind] then
-        action.questId = GetQuest()
-      end
-
-      step.actions[i] = action
-    end
-
-    route.steps[s] = step
+    route.steps[s], last = ReadStep(r, tables, GetQuest, last)
   end
 
   route.steps = Core.copyRouteSteps(route.steps)

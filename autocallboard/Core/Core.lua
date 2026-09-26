@@ -13,7 +13,6 @@ local DEFAULTS = {
   summonCooldown = 45,
   rerollFrame = "ObjectivesMainFrame.rerollBtn",
   objectivePrefix = "ObjectiveFrame",
-  language = "",
   objectiveButtonField = "selectBtn",
   autoAccept = true,
   autoAcceptShared = false,
@@ -21,6 +20,7 @@ local DEFAULTS = {
   travelEnabled = true,
   travelAuto = false,
   remoteRoll = false,
+  showSpeed = false,
   maxRerolls = 50,
   rerollDelay = 0.1,
   rerollTimeout = 1.5,
@@ -33,11 +33,8 @@ local DEFAULTS = {
   migratedCharacters = {},
   accountListSeeded = false,
   presetsMigrated = false,
+  arrowPointUnscaled = true,
   questPanelExpanded = false,
-  update = {
-    latest = "",
-    sessionAt = 0,
-  },
   debug = {
     enabled = false,
     mouseWatch = false,
@@ -370,46 +367,10 @@ function Core.autoCurrentInstanceWarningText()
   return L.AUTO_CURRENT_INSTANCE_WARNING
 end
 
-function Core.parseVersion(text)
-  if type(text) ~= "string" or #(text) > 20 then
-    return nil
-  end
-
-  local major, minor, patch, build = string.match(text, "^(%d+)%.(%d+)%.(%d+)(.*)$")
-
-  if not major or (build ~= "" and not string.match(build, "^%-%d+$")) then
-    return nil
-  end
-
-  return { tonumber(major), tonumber(minor), tonumber(patch) }, build == ""
-end
-
-function Core.compareVersions(left, right)
-  for i = 1, 3 do
-    if left[i] ~= right[i] then
-      return left[i] < right[i] and -1 or 1
-    end
-  end
-
-  return 0
-end
-
-function Core.isNewerVersion(candidate, reference)
-  local parsed, release = Core.parseVersion(candidate)
-
-  if not parsed or not release then
-    return false
-  end
-
-  local mine = Core.parseVersion(reference)
-
-  return mine ~= nil and Core.compareVersions(parsed, mine) > 0
-end
-
 local MERGE_NONEMPTY_STRING = { "targetName", "rerollFrame", "objectivePrefix", "objectiveButtonField" }
-local MERGE_STRING = { "summonSpell", "language" }
+local MERGE_STRING = { "summonSpell" }
 local MERGE_BOOLEAN = {
-  "autoAccept", "autoCurrentInstanceQuest", "travelEnabled", "travelAuto", "remoteRoll",
+  "autoAccept", "autoCurrentInstanceQuest", "travelEnabled", "travelAuto", "remoteRoll", "showSpeed",
   "presetsMigrated", "questPanelExpanded", "buttonShown",
   "accountListSeeded",
 }
@@ -523,20 +484,15 @@ function Core.mergeState(saved, adopt)
     end
   end
 
-  if type(saved.minimap) == "table" then
-    mergeNested(saved.minimap, state.minimap, { shown = "boolean", angle = "number" })
+  local arrowPoint = state.windowPositions.AutoCallboardRouteArrow
+  if arrowPoint and saved.arrowPointUnscaled ~= true then
+    local factor = state.appearance.arrowScale
+    if arrowPoint.x then arrowPoint.x = arrowPoint.x * factor end
+    if arrowPoint.y then arrowPoint.y = arrowPoint.y * factor end
   end
 
-  if type(saved.update) == "table" then
-    local latest = trim(saved.update.latest)
-
-    if Core.parseVersion(latest) then
-      state.update.latest = latest
-    end
-
-    if type(saved.update.sessionAt) == "number" and saved.update.sessionAt > 0 then
-      state.update.sessionAt = saved.update.sessionAt
-    end
+  if type(saved.minimap) == "table" then
+    mergeNested(saved.minimap, state.minimap, { shown = "boolean", angle = "number" })
   end
 
   if type(state.accountProfile) ~= "table" or type(state.accountProfile.savedSelections) ~= "table"

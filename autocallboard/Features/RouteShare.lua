@@ -5,32 +5,21 @@ local L = AutoCallboardLocale
 local Log = RT.Log
 
 RT.routeSharePrefix = "ACBR"
-RT.routeShareChannel = "acbroutes"
 
 local PREFIX = RT.routeSharePrefix
-local CHANNEL = RT.routeShareChannel
-local TEXT_TAG = "ACBR1:"
-local CHUNK_BYTES = 200
-local MAX_CHUNKS = 400
-local STREAM_TIMEOUT = 30
 local START_DELAY = 5
-local CHANNEL_CHECK = 10
 local HELLO_DELAY = 3
 local REPLY_MIN, REPLY_MAX = 1, 5
 local WHO_COOLDOWN = 30
 local AVAILABILITY_TTL = 600
 local FETCH_TIMEOUT = 30
 local PURGE_DELAY = 60
-local MAX_QUEUE = 500
-local SEND_INTERVAL = 0.15
 local HASHES_PER_MESSAGE = 15
 local REQUEST_COOLDOWN = 10
 local DIGEST_CHARS = 8
 
 local share = {
   replies = {},
-  queue = {},
-  streams = {},
   availability = {},
   asked = {},
   fetching = {},
@@ -42,23 +31,6 @@ RT.routeShare = share
 
 local function MyName()
   return UnitName and UnitName("player") or ""
-end
-
-local function BaseName(name)
-  if type(name) ~= "string" then
-    return nil
-  end
-
-  name = string.match(name, "^([^%-]+)") or name
-
-  return name ~= "" and name or nil
-end
-
-local function StripServerMarks(message)
-  message = string.gsub(tostring(message or ""), "|c%x%x%x%x%x%x%x%x", "")
-  message = string.gsub(message, "|r", "")
-
-  return (string.gsub(message, "^%s*%[[^%]]*%]%s*", ""))
 end
 
 function RT.GetRouteLibrary()
@@ -130,169 +102,28 @@ function RT.RefreshHeldLibraryEntries()
   return changed
 end
 
-local function ChannelNameAt(index)
-  if not GetChannelName or not index then
-    return nil
-  end
-
-  local _, name = GetChannelName(index)
-
-  return type(name) == "string" and string.lower(name) or nil
-end
-
-local function FindChannel()
-  if not GetChannelList then
-    return nil
-  end
-
-  local list = { GetChannelList() }
-
-  for i = 1, #(list), 2 do
-    local index, name = tonumber(list[i]), list[i + 1]
-
-    if index and type(name) == "string" and string.lower(name) == CHANNEL then
-      return index
-    end
-  end
-
-  return nil
-end
-
-local function HideChannel()
-  if not ChatFrame_RemoveChannel then
-    return
-  end
-
-  for i = 1, (NUM_CHAT_WINDOWS or 10) do
-    local frame = _G["ChatFrame" .. i]
-
-    if frame then
-      pcall(ChatFrame_RemoveChannel, frame, CHANNEL)
-    end
-  end
-end
-
-local function EnsureChannel(now)
-  local index = FindChannel()
-
-  if index then
-    if share.channel ~= index then
-      share.channel = index
-      HideChannel()
-    end
-
-    return index
-  end
-
-  share.channel = nil
-
-  if JoinChannelByName and (not share.joinedAt or now >= share.joinedAt + CHANNEL_CHECK) then
-    share.joinedAt = now
-    pcall(JoinChannelByName, CHANNEL)
-  end
-
-  return nil
-end
-
-local function SendChannel(text)
-  local index = share.channel
-
-  if not index or ChannelNameAt(index) ~= CHANNEL or not SendChatMessage then
+local function Say(op, body)
+  if not RT.api then
     return false
   end
 
-  return pcall(SendChatMessage, TEXT_TAG .. text, "CHANNEL", nil, index)
+  return RT.api:Say(op, body or "")
 end
-
-RT.SendShareChannel = SendChannel
 
 local function Whisper(target, payload)
-  if not target or target == "" or #(share.queue) >= MAX_QUEUE then
+  if not target or target == "" or not RT.api then
     return false
   end
 
-  share.queue[#(share.queue) + 1] = { target = target, payload = payload }
-
-  return true
-end
-
-local function SplitUtf8(data)
-  local chunks, start, length = {}, 1, #(data)
-
-  while start <= length do
-    local stop = math.min(start + CHUNK_BYTES - 1, length)
-
-    while stop < length and stop > start do
-      local nextByte = string.byte(data, stop + 1)
-
-      if nextByte < 128 or nextByte > 191 then
-        break
-      end
-
-      stop = stop - 1
-    end
-
-    chunks[#(chunks) + 1] = string.sub(data, start, stop)
-    start = stop + 1
-  end
-
-  if #(chunks) == 0 then
-    chunks[1] = ""
-  end
-
-  return chunks
+  return RT.api:Whisper(PREFIX, target, payload)
 end
 
 local function SendStream(target, op, id, data)
-  local chunks = SplitUtf8(data)
-
-  if #(chunks) > MAX_CHUNKS or #(share.queue) + #(chunks) > MAX_QUEUE then
+  if not RT.api then
     return false
   end
 
-  if not id then
-    share.serial = share.serial % 1048575 + 1
-    id = string.format("%x", share.serial)
-  end
-
-  for i = 1, #(chunks) do
-    Whisper(target, op .. ":" .. id .. ":" .. i .. ":" .. #(chunks) .. ":" .. chunks[i])
-  end
-
-  return true
-end
-
-local function ReceiveStream(sender, op, id, index, total, data, now)
-  index, total = tonumber(index), tonumber(total)
-
-  if not index or not total or total < 1 or total > MAX_CHUNKS or index < 1 or index > total then
-    return nil
-  end
-
-  local key = sender .. ":" .. op .. ":" .. id
-  local stream = share.streams[key]
-
-  if not stream or stream.total ~= total then
-    stream = { total = total, got = 0, parts = {} }
-    share.streams[key] = stream
-  end
-
-  stream.at = now
-
-  local progressed = not stream.parts[index]
-
-  if progressed then
-    stream.parts[index] = data
-    stream.got = stream.got + 1
-  end
-
-  if stream.got < total then
-    return nil, progressed
-  end
-
-  share.streams[key] = nil
-
-  return table.concat(stream.parts, "", 1, total), progressed
+  return RT.api:WhisperStream(PREFIX, target, op, id, data)
 end
 
 local function Throttled(sender, kind, now)
@@ -309,7 +140,7 @@ local function Throttled(sender, kind, now)
 end
 
 local function SendHello(now)
-  if not SendChannel("H:" .. table.concat(Core.libraryDigests(RT.GetRouteLibrary()), ",")) then
+  if not Say("H", table.concat(Core.libraryDigests(RT.GetRouteLibrary()), ",")) then
     return false
   end
 
@@ -371,7 +202,7 @@ local function OnBuckets(sender, payload)
 
   if share.helloSent and not share.served then
     share.served = true
-    SendChannel("S")
+    Say("S")
   end
 
   local mine = Core.libraryBucketDigests(RT.GetRouteLibrary(), category)
@@ -518,7 +349,7 @@ function RT.RequestRouteAvailability(category, force)
     return false
   end
 
-  if not SendChannel("W:" .. category) then
+  if not Say("W", tostring(category)) then
     return false
   end
 
@@ -696,7 +527,7 @@ function RT.SyncSharedRoutes()
         RefreshLibrary()
       end
 
-      if SendChannel("N:" .. Core.serializeLibraryEntry(hash, entry)) then
+      if Say("N", Core.serializeLibraryEntry(hash, entry)) then
         nextProfile = (Core.routeContainer.update(nextProfile, route.id, { sharedHash = hash }))
         announced = true
       end
@@ -734,37 +565,7 @@ function RT.ShareRoute(id, shared)
   return true
 end
 
-local offlineTemplate, offlinePattern
-
-local function OfflinePlayer(message)
-  local template = ERR_CHAT_PLAYER_NOT_FOUND_S
-
-  if type(template) ~= "string" or type(message) ~= "string" or not string.find(template, "%s", 1, true) then
-    return nil
-  end
-
-  if template ~= offlineTemplate then
-    local escaped = string.gsub(template, "[%^%$%(%)%%%.%[%]%*%+%-%?]", "%%%0")
-
-    offlineTemplate, offlinePattern = template, (string.gsub(escaped, "%%%%s", "(.+)"))
-  end
-
-  return string.match(message, offlinePattern)
-end
-
-function RT.HandleRouteShareSystem(message)
-  local name = BaseName(OfflinePlayer(message))
-
-  if not name then
-    return false
-  end
-
-  for i = #(share.queue), 1, -1 do
-    if share.queue[i].target == name then
-      table.remove(share.queue, i)
-    end
-  end
-
+local function OnPeerOffline(_, name)
   share.replies[name] = nil
 
   for hash, holders in pairs(share.availability) do
@@ -778,54 +579,30 @@ function RT.HandleRouteShareSystem(message)
   end
 
   RefreshLibrary()
-
-  return true
 end
 
-function RT.HandleRouteShareChannel(message, sender, channelString)
-  if type(channelString) ~= "string" or not string.find(string.lower(channelString), CHANNEL, 1, true) then
-    return false
-  end
-
-  sender = BaseName(sender)
-
-  if not sender or sender == MyName() then
-    return false
-  end
-
-  local body = string.match(StripServerMarks(message), TEXT_TAG .. "(.*)$")
-  local op, rest = string.match(body or "", "^(%a):?(.*)$")
-  local now = GetTime()
-
-  if op == "H" then
-    OnHello(sender, rest, now)
-  elseif op == "S" then
-    share.replies[sender] = nil
-  elseif op == "N" then
-    MergeEntries({ rest })
-  elseif op == "W" then
-    OnWho(sender, rest, now)
-  elseif op == "V" then
-    RT.NoteHeardVersion(sender, rest)
-  else
-    return false
-  end
-
-  return true
+local function OnChannelHello(sender, body)
+  OnHello(sender, body, GetTime())
 end
 
-function RT.HandleRouteShareWhisper(message, distribution, sender)
-  if distribution ~= "WHISPER" then
-    return false
+local function OnChannelServed(sender)
+  share.replies[sender] = nil
+end
+
+local function OnChannelNew(_, body)
+  MergeEntries({ body })
+end
+
+local function OnChannelWho(sender, body)
+  OnWho(sender, body, GetTime())
+end
+
+local function OnWhisper(sender, text, distribution)
+  if distribution ~= "WHISPER" or sender == MyName() then
+    return
   end
 
-  sender = BaseName(sender)
-
-  if not sender or sender == MyName() then
-    return false
-  end
-
-  local op, rest = string.match(StripServerMarks(message), "^(%a):(.*)$")
+  local op, rest = string.match(text, "^(%a):(.*)$")
   local now = GetTime()
 
   if op == "B" then
@@ -838,39 +615,45 @@ function RT.HandleRouteShareWhisper(message, distribution, sender)
     OnGet(sender, rest, now)
   elseif op == "X" then
     OnMissing(sender, rest)
-  elseif op == "E" or op == "C" then
-    local id, index, total, data = string.match(rest or "", "^([^:]+):(%d+):(%d+):(.*)$")
-    local whole, progressed
+  end
+end
 
-    if id then
-      whole, progressed = ReceiveStream(sender, op, id, index, total, data, now)
-    end
+local function OnEntriesStream(_, body)
+  OnEntries(body)
+end
 
-    local fetch = progressed and op == "C" and share.fetching[id]
+local function OnCodeStream(sender, body, id)
+  OnCode(sender, id, body)
+end
 
-    if fetch and fetch.holder == sender then
-      fetch.at = now
-    end
+local function OnCodePart(sender, id)
+  local fetch = share.fetching[id]
 
-    if whole and op == "E" then
-      OnEntries(whole)
-    elseif whole then
-      OnCode(sender, id, whole)
-    end
-  else
+  if fetch and fetch.holder == sender then
+    fetch.at = GetTime()
+  end
+end
+
+function RT.InitRouteShare()
+  local api = RT.api
+
+  if not api then
     return false
   end
+
+  api:OnChannel("H", OnChannelHello)
+  api:OnChannel("S", OnChannelServed)
+  api:OnChannel("N", OnChannelNew)
+  api:OnChannel("W", OnChannelWho)
+  api:OnWhisper(PREFIX, OnWhisper)
+  api:OnWhisperStream(PREFIX, "E", OnEntriesStream)
+  api:OnWhisperStream(PREFIX, "C", OnCodeStream, OnCodePart)
+  api:On("PEER_OFFLINE", OnPeerOffline)
 
   return true
 end
 
 local function Expire(now)
-  for key, stream in pairs(share.streams) do
-    if now - (stream.at or now) > STREAM_TIMEOUT then
-      share.streams[key] = nil
-    end
-  end
-
   for key, at in pairs(share.recent) do
     if now - at > REQUEST_COOLDOWN then
       share.recent[key] = nil
@@ -909,14 +692,9 @@ function RT.ProcessRouteShare(now)
     return 1
   end
 
-  if not share.channel or not share.checkedAt or now >= share.checkedAt + CHANNEL_CHECK then
-    share.checkedAt = now
-    EnsureChannel(now)
-  end
-
   RT.SyncSharedRoutes()
 
-  if share.channel and not share.helloSent then
+  if RT.api and RT.api:IsChannelJoined() and not share.helloSent then
     share.helloAt = share.helloAt or now + HELLO_DELAY
 
     if now >= share.helloAt and SendHello(now) then
@@ -950,16 +728,6 @@ function RT.ProcessRouteShare(now)
   end
 
   Expire(now)
-
-  local item = table.remove(share.queue, 1)
-
-  if item then
-    if SendAddonMessage then
-      pcall(SendAddonMessage, PREFIX, item.payload, "WHISPER", item.target)
-    end
-
-    return SEND_INTERVAL
-  end
 
   return 1
 end

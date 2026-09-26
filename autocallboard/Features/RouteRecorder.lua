@@ -592,7 +592,7 @@ function RT.HookRouteCheckpointService()
     return true
   end
 
-  local service = ProjectEbonhold and ProjectEbonhold.CheckpointService
+  local service = EbonAPI.Ebonhold.Checkpoints()
 
   if not service or type(service.UseCheckpoint) ~= "function" then
     return false

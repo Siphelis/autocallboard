@@ -615,8 +615,10 @@ function RT.CloseObjectiveBoardAfterSelection(source)
     HideUIPanel(GossipFrame)
   end
 
-  if ProjectEbonhold and ProjectEbonhold.ObjectivesUI and ProjectEbonhold.ObjectivesUI.HideObjectives then
-    ProjectEbonhold.ObjectivesUI.HideObjectives()
+  local objectivesUI = EbonAPI.Ebonhold.ObjectivesUI()
+
+  if objectivesUI and objectivesUI.HideObjectives then
+    objectivesUI.HideObjectives()
   elseif _G.ObjectivesMainFrame and _G.ObjectivesMainFrame.Hide then
     _G.ObjectivesMainFrame:Hide()
   end
@@ -650,8 +652,7 @@ local function SelectObjectiveIndex(index)
   local boardWasOpen = RT.IsBoardSessionOpen()
   local selected
 
-  if ProjectEbonhold and ProjectEbonhold.sendToServer and ProjectEbonhold.CS and ProjectEbonhold.CS.REQUEST_SELECT_OBJECTIVE then
-    ProjectEbonhold.sendToServer(ProjectEbonhold.CS.REQUEST_SELECT_OBJECTIVE, tostring(index - 1))
+  if EbonAPI.Ebonhold.SendToServer("REQUEST_SELECT_OBJECTIVE", tostring(index - 1)) then
     selected = true
   else
     selected = RT.ClickNamedFrame(state.objectivePrefix .. tostring(index) .. "." .. state.objectiveButtonField, string.format(L.OBJECTIVE_LABEL, index))
@@ -1106,7 +1107,7 @@ StartRolling = function(confirmedUntargeted)
   RT.nextRollStatePollAt = nil
   pendingReroll = false
   RT.blockedMatchKey = nil
-  RT.learningQuestList = desiredCount == 0 and not autoCurrentInstanceEnabled
+  RT.learningQuestList = desiredCount == 0 and not autoCurrentInstanceEnabled and not currentInstanceTarget
   rolling = true
   RT.rolling = true
 

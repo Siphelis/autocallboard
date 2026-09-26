@@ -140,7 +140,7 @@ local function WorldPoint(checkpoint, boundsByName)
 end
 
 ClientBounds = function()
-  local ebonBounds = ProjectEbonhold and ProjectEbonhold.WorldMapBounds
+  local ebonBounds = EbonAPI.Ebonhold.WorldMapBounds()
 
   if not ebonBounds then
     return nil
@@ -381,11 +381,7 @@ function Core.countUnlockedCheckpoints(checkpoints)
 end
 
 local function GetService()
-  if ProjectEbonhold and ProjectEbonhold.CheckpointService then
-    return ProjectEbonhold.CheckpointService
-  end
-
-  return nil
+  return EbonAPI.Ebonhold.Checkpoints()
 end
 
 local function GetCheckpoints()

@@ -411,7 +411,7 @@ end
 function RT.UseRouteCheckpoint(checkpointId)
   checkpointId = tonumber(checkpointId)
 
-  local service = ProjectEbonhold and ProjectEbonhold.CheckpointService
+  local service = EbonAPI.Ebonhold.Checkpoints()
 
   if not checkpointId or not service or type(service.UseCheckpoint) ~= "function" then
     return false

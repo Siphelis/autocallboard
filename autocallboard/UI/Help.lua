@@ -1,110 +1,239 @@
 local Skin = AutoCallboardSkin
-local THEME = Skin.THEME
 local L = AutoCallboardLocale
 local RT = AutoCallboardRuntime
-local Localized = RT.Localized
 
-local helpWindow
+local SECTIONS = { "about", "callboard", "routes", "builds", "display" }
+local TAB_KEYS = {
+  "HELP_TAB_ABOUT",
+  "HELP_TAB_CALLBOARD",
+  "HELP_TAB_ROUTES",
+  "HELP_TAB_BUILDS",
+  "HELP_TAB_DISPLAY",
+}
 
-local function HelpName(text)
-  return Skin.AccentCode() .. tostring(text or "") .. "|r"
+local WINDOW_WIDTH = 580
+local WINDOW_HEIGHT = 560
+local PAGE_WIDTH = WINDOW_WIDTH - 36
+local TEXT_WIDTH = PAGE_WIDTH - 32
+
+local helpWindow, tabs
+
+local function SectionIndex(name)
+  for i = 1, #SECTIONS do
+    if SECTIONS[i] == name then
+      return i
+    end
+  end
+
+  return nil
 end
 
-local function GetHelpText()
-  local H = L.HELP_LINES
-  local lines = {
-    string.format(H[1], HelpName(L.BUTTON_QUESTS)),
-    H[2],
-    H[3],
-    H[4],
-    H[5],
-    H[6],
-    H[7],
-    H[8],
-    H[9],
-    string.format(H[10], HelpName(L.BUTTON_START)),
-    H[11],
-    H[12],
-    H[13],
-    string.format(H[14], HelpName("Callboard")),
-    H[15],
-    H[16],
-    H[17],
-    H[18],
-    H[19],
-    H[20],
-    H[21],
-    string.format(H[22], HelpName(L.BUTTON_STOP)),
-    H[23],
-    H[24],
-    H[25],
-    H[26],
-    H[27],
-    H[28],
-    H[29],
-    H[30],
-    string.format(H[31], HelpName("Callboard")),
-    string.format(H[32], HelpName(L.BUTTON_START)),
-    string.format(H[33], HelpName(L.AUTO_CURRENT_INSTANCE_LABEL)),
-    string.format(H[34], HelpName(L.BUTTON_SHARE)),
-    H[35],
-    string.format(H[36], HelpName(L.AUTO_ACCEPT_SHARED_LABEL)),
-    H[37],
-    string.format(H[38], HelpName(L.SEARCH_LABEL)),
-    string.format(H[39], HelpName(L.BUTTON_SELECT)),
-    string.format(H[40], HelpName(L.BUTTON_EXPORT), HelpName(L.BUTTON_IMPORT)),
-    string.format(H[41], HelpName(L.MINIMAP_BUTTON_LABEL)),
-    string.format(H[42], HelpName("/acb minimap on"), HelpName("/acb minimap off")),
-    string.format(H[43], HelpName("+"), HelpName("<<")),
-    string.format(H[44], HelpName(L.ROLL_SPEED_LABEL)),
-    string.format(H[45],
-        HelpName(L.ROLL_SPEED_PRESET_NAMES.turbo),
-        HelpName(L.ROLL_SPEED_PRESET_NAMES.fast),
-        HelpName(L.ROLL_SPEED_PRESET_NAMES.normal),
-        HelpName(L.ROLL_SPEED_PRESET_NAMES.safe)),
-    H[46],
+local MARKERS = { ["# "] = "heading", ["! "] = "note" }
+
+local LINKS = {
+  update = function()
+    return RT.updateUrl
+  end,
+  license = function()
+    return RT.licenseUrl
+  end,
+}
+
+local DYNAMIC = {
+  targetName = function()
+    return RT.state and RT.state.targetName
+  end,
+  version = function()
+    return RT.GetAddonVersion and RT.GetAddonVersion()
+  end,
+  latest = function()
+    return RT.GetAvailableUpdate and (RT.GetAvailableUpdate())
+  end,
+}
+
+local function Resolve(text, plain)
+  local missing = false
+  local resolved = string.gsub(text, "{([%w_]+)}", function(key)
+    local dynamic = DYNAMIC[key]
+    local value
+
+    if dynamic then
+      value = dynamic()
+    else
+      value = L[key]
+    end
+
+    if value == nil or value == "" then
+      if dynamic then missing = true end
+      return "{" .. key .. "}"
+    end
+
+    value = tostring(value)
+
+    if plain then
+      return value
+    end
+
+    return Skin.AccentCode() .. value .. "|r"
+    end)
+
+  return resolved, missing
+end
+
+local function ParseLine(line)
+  local target, rest = string.match(line, "^@(%a+) (.+)$")
+
+  if target then
+    return "link", rest, target
+  end
+
+  target, rest = string.match(line, "^%[(%a+)%] (.+)$")
+
+  if target then
+    return "button", rest, target
+  end
+
+  local style = MARKERS[string.sub(line, 1, 2)]
+
+  if style then
+    return style, string.sub(line, 3)
+  end
+
+  return "body", line
+end
+
+local function LinkBlock(style, text, target)
+  local url = LINKS[target] and LINKS[target]()
+
+  if not url then
+    return { style = "body", text = text }
+  end
+
+  if not RT.LinkMethod() then
+    return { style = "body", text = text .. " " .. url }
+  end
+
+  return {
+    style = style,
+    text = text,
+    tip = RT.LinkTip(),
+    onClick = function() RT.OpenLink(url) end,
   }
-
-  return table.concat(lines, "\n")
 end
 
-local function ShowAddonHelp()
-  if not helpWindow then
-    helpWindow = Skin.Window("AutoCallboardHelpWindow", {
-      width = 430,
-      height = 560,
-      strata = "FULLSCREEN_DIALOG",
-      movable = true,
-      titleKey = "HELP_WINDOW_TITLE",
-      close = true,
-    })
-    helpWindow:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
+local function RenderSection(name)
+  local sections = L.HELP_SECTIONS
+  local lines = sections and sections[name]
+  local blocks = {}
 
-    helpWindow.body = helpWindow:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    helpWindow.body:SetPoint("TOPLEFT", helpWindow, "TOPLEFT", 24, -52)
-    helpWindow.body:SetPoint("BOTTOMRIGHT", helpWindow, "BOTTOMRIGHT", -24, 44)
-    helpWindow.body:SetJustifyH("LEFT")
-    helpWindow.body:SetJustifyV("TOP")
-    Skin.ApplyColor(helpWindow.body, "SetTextColor", THEME.text)
+  if not lines then
+    return blocks
+  end
 
-    helpWindow.okButton = Skin.MakeButton(helpWindow, {
-      width = 78,
-      height = 24,
-      textKey = "BUTTON_CLOSE",
-      points = { { "BOTTOMRIGHT", helpWindow, "BOTTOMRIGHT", -24, 18 } },
-      onClick = function() helpWindow:Hide() end,
+  for i = 1, #lines do
+    local line = lines[i]
+
+    if line == "" then
+      blocks[#blocks + 1] = { style = "gap" }
+    else
+      local style, source, target = ParseLine(line)
+      local text, missing = Resolve(source, style ~= "body" and style ~= "note")
+
+      if not missing and target then
+        blocks[#blocks + 1] = LinkBlock(style, text, target)
+      elseif not missing then
+        blocks[#blocks + 1] = { style = style, text = text }
+      end
+    end
+  end
+
+  return blocks
+end
+
+local function Refresh()
+  for i = 1, #SECTIONS do
+    helpWindow.scrolls[i]:SetBlocks(RenderSection(SECTIONS[i]))
+  end
+end
+
+local function CreateHelpWindow()
+  if helpWindow then
+    return
+  end
+
+  helpWindow = Skin.Window("AutoCallboardHelpWindow", {
+    width = WINDOW_WIDTH,
+    height = WINDOW_HEIGHT,
+    strata = "FULLSCREEN_DIALOG",
+    movable = true,
+    titleKey = "HELP_WINDOW_TITLE",
+    close = true,
+  })
+  helpWindow:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
+
+  tabs = Skin.Tabs(helpWindow, {
+    keys = TAB_KEYS,
+    x = 18,
+    y = -40,
+    width = 104,
+    step = 110,
+    pageInset = { 18, -85, -18, 52 },
+  })
+
+  helpWindow.tabs = tabs
+  helpWindow.scrolls = {}
+
+  for i = 1, #SECTIONS do
+    local page = tabs.pages[i]
+
+    helpWindow.scrolls[i] = Skin.ScrollText(page, {
+      name = "AutoCallboardHelpScroll" .. i,
+      textWidth = TEXT_WIDTH,
+      points = {
+        { "TOPLEFT", page, "TOPLEFT", 0, 0 },
+        { "BOTTOMRIGHT", page, "BOTTOMRIGHT", -26, 0 },
+      },
     })
   end
 
-  Localized(helpWindow.title, "HELP_WINDOW_TITLE")
-  helpWindow.body:SetText(GetHelpText())
+  helpWindow.closeTextButton = Skin.MakeButton(helpWindow, {
+    width = 78,
+    height = 24,
+    textKey = "BUTTON_CLOSE",
+    points = { { "BOTTOMRIGHT", helpWindow, "BOTTOMRIGHT", -18, 18 } },
+    onClick = function() helpWindow:Hide() end,
+  })
+
+  RT.helpWindow = helpWindow
+end
+
+local function ShowAddonHelp(section)
+  CreateHelpWindow()
+
+  local index = tabs.index
+
+  if section then
+    index = SectionIndex(section) or 1
+  end
+
+  if index < 1 then
+    index = 1
+  end
+
+  Refresh()
+  tabs.Select(index)
   helpWindow:Show()
+
   if helpWindow.Raise then
     helpWindow:Raise()
   end
 end
 
 RT.ShowAddonHelp = ShowAddonHelp
+
+function RT.HelpSections()
+  return SECTIONS
+end
 
 function RT.IsHelpWindowShown()
   return helpWindow ~= nil and helpWindow:IsShown()

@@ -44,7 +44,7 @@ Core.MIN_DIFFICULTY = 1
 Core.MAX_DIFFICULTY = 6
 
 function Core.maxDifficulty()
-  local service = ProjectEbonhold and ProjectEbonhold.HardmodeService
+  local service = EbonAPI.Ebonhold.Hardmode()
   local tiers = service and service.HARDMODE_REWARDS
   local highest = 0
 

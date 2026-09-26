@@ -127,6 +127,10 @@ function RT.GetCurrentInstanceQuestTarget()
 
   local target, reason = RT.ComputeCurrentInstanceQuestTarget()
 
+  if not target and RT.requestedInstanceTarget then
+    target, reason = RT.requestedInstanceTarget, nil
+  end
+
   if target then
     RT.instanceTargetSignature = tostring(target.questType) .. ":"
         .. tostring(target.name) .. ":" .. table.concat(target.aliases or {}, ",")
@@ -146,6 +150,29 @@ function RT.GetCurrentInstanceQuestTarget()
   RT.instanceTargetReason = reason
 
   return target, reason
+end
+
+function RT.SetRequestedInstance(areaId, questType, name)
+  areaId = math.floor(tonumber(areaId) or 0)
+  questType = Core.sanitizeQuestType(questType)
+
+  if areaId <= 0 or (questType ~= 2 and questType ~= 3) then
+    RT.requestedInstanceTarget = nil
+  else
+    local label = Core.trim(name)
+
+    RT.requestedInstanceTarget = {
+      builtTarget = true,
+      areaId = areaId,
+      questType = questType,
+      name = label ~= "" and label or tostring(areaId),
+      aliases = {},
+    }
+  end
+
+  RT.InvalidateInstanceTarget()
+
+  return RT.requestedInstanceTarget ~= nil
 end
 
 function RT.RefreshCurrentInstanceQuestTarget(source)
