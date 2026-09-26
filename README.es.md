@@ -1,16 +1,13 @@
 # 🎯 AutoCallboard
 
-**El Callboard nunca volverá a hacerte perder el tiempo.**
+**El Callboard nunca volverá a hacerle perder el tiempo.**
 
-AutoCallboard vuelve a tirar el _Callboard_ por ti, reconoce la misión
-que buscas en el momento en que aparece, la selecciona y se detiene en
-el instante justo.
-A esto se suma una memoria de todas las misiones vistas, listas de
-selección guardadas y compartidas entre todos tus personajes, un modo
-"misión de la instancia actual", el compartido automático en grupo, y
-una integración completa con el sistema de builds del servidor. Todo
-ello envuelto en una interfaz elegante y discreta, disponible en
-español, inglés, francés y alemán.
+AutoCallboard vuelve a tirar el _Callboard_ por usted, reconoce la misión que busca en cuanto
+aparece, la selecciona y retoma la búsqueda cuando la misión termina. También recuerda todas
+las misiones vistas, guarda sus selecciones como colecciones comunes a todos sus personajes,
+graba y repite sus rutas con una flecha guía, permite que los jugadores las compartan y le
+ofrece una barra rápida para sus builds de ecos. Todo ello en una interfaz elegante y
+discreta, disponible en español, inglés, francés y alemán.
 
 [English](README.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Español](README.es.md)
 
@@ -18,182 +15,309 @@ español, inglés, francés y alemán.
 
 ## Tabla de contenidos
 
-- [Por qué esta extensión](#-por-qué-esta-extensión)
+- [Por qué este accesorio](#-por-qué-este-accesorio)
 - [Características](#-características)
+- [Requisitos](#-requisitos)
 - [Instalación](#-instalación)
-- [Inicio rápido](#️-inicio-rápido)
-- [Anatomía del código](#-anatomía-del-código--cómo-funciona)
-- [Comandos slash](#️-comandos-slash)
+- [Inicio rápido](#-inicio-rápido)
+- [El panel principal](#-el-panel-principal)
+- [Misiones y colecciones](#-misiones-y-colecciones)
+- [Las tiradas](#-las-tiradas)
+- [Rutas](#-rutas)
+- [Builds](#-builds)
+- [Extras](#-extras)
+- [Ajustes](#-ajustes)
+- [Conviene saber](#-conviene-saber)
 - [Idiomas](#-idiomas)
-- [Complementos opcionales](#-complementos-opcionales)
-- [Capturas de pantalla](#-capturas-de-pantalla)
-- [Contribuir](#-contribuir)
 - [Licencia y créditos](#-licencia-y-créditos)
 
 ---
 
-## 🔥 Por qué esta extensión
+## 🔥 Por qué este accesorio
 
-El Callboard ofrece tres misiones aleatorias y te obliga a volver a
-tirar a mano hasta conseguir la que quieres. Es repetitivo y consume
-tiempo. AutoCallboard hace ese trabajo por ti.
+El Callboard ofrece tres misiones aleatorias y le obliga a volver a tirar a mano hasta
+conseguir la que quiere. Es repetitivo y lleva tiempo. Con AutoCallboard usted marca las
+misiones que desea y él se encarga de las tiradas.
 
 ## ✨ Características
 
-- **Re-tirada automática inteligente** — marca las misiones que
-  quieres, pulsa iniciar, y la extensión selecciona automáticamente
-  la(s) misión(es) elegida(s).
-- **Memoria persistente de misiones** — cada misión vista en el
-  tablero se registra automáticamente (título, tipo, recompensas) y se
-  clasifica por categoría: mazmorra, banda, mundo abierto, profesión.
-- **Listas de selección guardadas** — guarda varias selecciones con
-  nombre, organizadas en grupos estilo panel de control, compartidas
-  entre todos tus personajes.
-- **Modo "instancia actual"** — dentro de una mazmorra o banda
-  reconocida, solo vuelve a tirar por la misión propia de esa
-  instancia.
-- **Dificultad sincronizada (Hardmode)** — cada lista puede fijar un
-  nivel de dificultad; la extensión lo aplica automáticamente en
-  cuanto puede.
-- **Compartición de misiones de grupo** — vuelve a compartir
-  automáticamente tu última misión aceptada, y puede auto-aceptar
-  misiones compartidas por otro AutoCallboard de tu grupo.
-- **Seguimiento del gasto de oro** — cada re-tirada cuesta oro; el
-  panel muestra el gasto total, el gasto de la sesión actual y el
-  coste de la última misión obtenida.
-- **Integración con el sistema de builds del servidor** — consulta,
-  cambia y fija tus builds de talentos desde una pequeña barra "Echo"
-  de 3 espacios, movible y asignable a atajos de teclado.
-- **Exportación/importación de texto** — copia tu lista de misiones
-  aprendidas de una instalación a otra con un simple copiar y pegar.
-- **Cambio de idioma en vivo** — cambia el idioma desde el panel, y
-  todos los textos visibles se actualizan al instante, sin `/reload`.
+- **Tirada automática inteligente** — marque las misiones que quiere y pulse Empezar: el
+  accesorio tira hasta que aparece una de ellas, la selecciona, la acepta si usted quiere y
+  sigue cuando la misión termina.
+- **Misiones conocidas** — cada misión vista en el tablón se recuerda (título, tipo,
+  recompensas) para que pueda buscarla, filtrarla y marcarla.
+- **Colecciones** — guarde selecciones de misiones con nombre, ordénelas en grupos y cargue
+  una con un solo clic. Son comunes a todos sus personajes, y cada una puede llevar una
+  dificultad.
+- **Modo «instancia actual»** — dentro de una mazmorra o una banda, tira solo por la misión de
+  esa instancia.
+- **Rutas** — grabe sus recorridos (pnj, diálogos, misiones, puntos de viaje), repítalos con
+  una flecha guía y compártalos con otros jugadores mediante una biblioteca.
+- **Botón de viaje** — viaje a un punto de viaje cercano a la zona de su misión.
+- **Misiones compartidas en grupo** — cada misión que acepta se comparte con su grupo o su
+  banda, y las misiones compartidas mediante AutoCallboard pueden aceptarse automáticamente.
+- **Builds de ecos** — cambie de build desde una ventana o desde una barra rápida movible de 3
+  huecos, con atajos de teclado.
+- **Asistencia Eternals** — convierte sus cristales mientras hace las misiones de los Eternals.
+- **Contadores de oro** — vea lo que cuestan sus tiradas: total, sesión, búsqueda en curso,
+  última misión.
+- **Aviso de actualización** — un botón le avisa cuando hay una versión más reciente.
+- **Exportar / importar** — copie sus misiones conocidas de una instalación a otra.
+- **Su aspecto** — colores, escala, opacidad, estilo de flecha y botones de la barra principal.
+- **Cuatro idiomas** — español, inglés, francés y alemán, con cambio en vivo sin `/reload`.
+
+## 📋 Requisitos
+
+| | |
+|---|---|
+| **Juego** | World of Warcraft 3.3.5a en el servidor **Ebonhold** |
+| **Integración** | ProjectEbonhold, incluido con el cliente de Ebonhold |
+| **Accesorio necesario** | [**EbonAPI**](https://github.com/Siphelis/EbonAPI/releases/latest), común a los accesorios de Ebonhold; AutoCallboard no se carga sin él |
 
 ## 📦 Instalación
 
-1. [**AutoCallboard**](https://github.com/Siphelis/autocallboard/releases/latest) — descarga la última versión.
-2. Descomprime la carpeta `AutoCallboard` en
-   `Interface/AddOns/`.
-3. Comprueba en la pantalla de selección de complementos que
-   **AutoCallboard** esté marcado.
-4. Eso es todo — no se necesita ninguna dependencia para que
-   funcione.
+1. Descargue la última versión desde la
+   [página de versiones](https://github.com/Siphelis/autocallboard/releases/latest).
+2. Descomprima la carpeta `AutoCallboard` en `Interface/AddOns/`. Instale
+   [**EbonAPI**](https://github.com/Siphelis/EbonAPI/releases/latest) del mismo modo si aún no
+   está.
+3. Reinicie el juego y compruebe en la pantalla de selección de accesorios que **AutoCallboard**
+   y **EbonAPI** están marcados.
+4. El panel de AutoCallboard aparece en pantalla. Un botón del minimapa le da acceso rápido.
 
-## 🕹️ Inicio rápido
+## 🚀 Inicio rápido
 
-```
-/acb           → muestra la versión instalada
-/acb quests    → abre la ventana de misiones conocidas
-/acb roll      → inicia la re-tirada
-/acb stop      → detiene la re-tirada
-/acb help      → abre la ayuda integrada en el juego
-```
+1. Haga clic en **Misiones** y marque las misiones que desea conseguir.
+2. Haga clic en **Callboard**: invoca un Callboard si dispone del hechizo de la tienda, y
+   después lo selecciona como objetivo y lo abre por usted. ¿Está junto a un Objectives Board
+   fijo? Haga clic en él una primera vez para que AutoCallboard pueda leer su contenido.
+3. Haga clic en **Empezar**. AutoCallboard tira hasta que aparece una de sus misiones, deja de
+   tirar y la selecciona. También la acepta, salvo que haya desactivado esa opción.
+4. Haga la misión. En cuanto la entregue, la búsqueda se reanuda sola en cuanto haya un tablón
+   abierto, hasta que haga clic en **Detener**.
 
-1. Abre la ventana de misiones (`/acb quests`) y marca las que quieres
-   buscar.
-2. Acércate al Callboard (o deja que la extensión lo invoque) y pulsa
-   **Iniciar**.
-3. La extensión vuelve a tirar por ti, se detiene en el momento en que
-   aparece una misión marcada, y la selecciona.
-4. Termina la misión y vuelve a tirar en cuanto quieras la siguiente.
+En una instalación nueva, la lista de misiones conocidas aún está vacía: vea
+[Misiones conocidas](#misiones-conocidas) para llenarla.
 
-Toda la ayuda contextual (atajos, consejos, costes en oro) está
-disponible en el juego mediante `/acb help`.
+La línea bajo los botones le indica qué está pasando: Callboard activo o en enfriamiento,
+tiradas hechas, búsqueda en pausa, misión seleccionada.
 
-## 🧠 Anatomía del código — cómo funciona
+## 🧭 El panel principal
 
-AutoCallboard está dividido en módulos de sentido único: cada carpeta
-tiene una función clara, y todo se comunica a través del espacio de
-nombres compartido `AutoCallboardRuntime` (abreviado `RT` en el
-código).
+| Elemento | Función |
+|---|---|
+| **Listas** | Abre sus colecciones. |
+| **Builds** | Abre sus builds de ecos. |
+| **Callboard** | Invoca el Callboard y lo abre. Aparece en gris mientras su personaje está en un interior. |
+| **Empezar / Detener** | Inicia o detiene la búsqueda. |
+| **Compartir** | Vuelve a compartir su última misión aceptada con su grupo o su banda. En gris hasta que acepte una misión. |
+| **Misiones** | Despliega la ventana de misiones conocidas bajo el panel. El botón pasa entonces a llamarse **Ocultar**. |
+| Engranaje, **?**, **×** (arriba a la derecha) | Ajustes, ayuda integrada, cerrar. |
+| **Actualización disponible** | Solo aparece cuando se ha detectado una versión más reciente. Abre la página de descarga. |
+| **Viaje: …** | Aparece bajo el panel cuando un punto de viaje coincide con su misión. Véase [Extras](#-extras). |
 
-### `Core/` — lógica pura, sin estado de juego
+Arrastre el panel para moverlo, o arrastre cualquiera de sus botones manteniendo Mayús. El
+botón del minimapa muestra u oculta el panel (clic izquierdo), abre los ajustes (clic derecho)
+y se puede arrastrar alrededor del minimapa. La ayuda tiene cinco pestañas y se abre con **?**.
 
-| Archivo | Rol exacto |
-| --- | --- |
-| `Core.lua` | El cerebro sin efectos secundarios: valores por defecto de los datos guardados, fusión/adopción de un estado guardado (retrocompatibilidad), el analizador del comando `/acb`, la clasificación heurística de misiones (palabras clave de mazmorra/banda/profesión/mundo abierto), la lógica de listas y grupos guardados (crear, renombrar, mover, límites), y el formato de exportación/importación de texto del catálogo de misiones. |
-| `State.lua` | El puente entre `Core` y la partida guardada `AutoCallboardDB`: aplica un nuevo estado, incrementa un contador de revisión para que la interfaz solo se actualice cuando sea necesario, y controla el oro gastado en re-tiradas. |
-| `Migration.lua` | La migración única de las antiguas partidas guardadas *por personaje* al perfil de cuenta compartido — con diálogos cada vez que una importación debe fusionarse, reemplazarse, conservarse o descartarse. |
-| `Util.lua` | La caja de herramientas compartida: impresión en el chat, resolución de rutas de frames de Blizzard (`"Frame.child.other"`), clics simulados que silencian temporalmente el sonido del juego para no alterar el ambiente, formateo de dinero/tiempo, y el pequeño sistema de registro de depuración. |
+## 📂 Misiones y colecciones
 
-### `Automation/` — lo que actúa sobre el juego
+### Misiones conocidas
 
-| Archivo | Rol exacto |
-| --- | --- |
-| `Callboard.lua` | Detecta e invoca el Callboard: apunta al PNJ, lanza el hechizo de invocación, lee los tiempos de reutilización, reconoce una sesión de tablero abierta (interfaz, PNJ o ventana de objetivos), la máquina de estados "tablero activo / en reutilización". |
-| `Roll.lua` | El motor de re-tirada en sí: un bucle de evaluación sobre los objetivos mostrados en cada tick, comparación con las misiones deseadas, gestión de pausas (ningún tablero abierto, ninguna misión deseada, una misión ya seleccionada y en curso), seguimiento del oro gastado durante la sesión. |
-| `Instance.lua` | Calcula la misión objetivo automática cuando el modo "Instancia actual" está activado: detecta en qué mazmorra/banda te encuentras y la asocia con su misión de instancia conocida. |
-| `Difficulty.lua` | Lee y aplica el nivel de dificultad (Hardmode) mediante el servicio del servidor, sincronizándolo con la dificultad solicitada por la lista activa. |
+**Misiones** abre la lista de todas las misiones que AutoCallboard ha visto en un tablón. Está
+vacía en una instalación nueva y crece a medida que los tablones le muestran misiones.
 
-### `Features/` — extras que no dependen de nada más
+- Marque una misión para buscarla. Pase el ratón por encima para ver su tipo, su objetivo, sus
+  recompensas (XP y Soul Ash por dificultad) y cuántas veces ha salido.
+- **Buscar** filtra por nombre, objetivo, tipo o recompensa. Las casillas de tipo (Mundo
+  abierto, Mazmorra, Banda, Profesión, Otro) afinan aún más la lista.
+- **Mostrar todo** mantiene todas las misiones conocidas en la lista aunque haya una colección
+  cargada. Sin esa opción, la lista solo muestra las misiones de la colección cargada.
+- Haga **clic derecho** en una misión para archivarla en una colección o para empezar una
+  colección nueva con ella.
+- **Exportar** muestra sus misiones conocidas como texto para copiar. Pegue ese texto en
+  **Importar** en otra instalación para añadirlas allí.
+- Para llenar la lista rápidamente, haga clic en **Empezar** sin marcar nada: AutoCallboard le
+  pide confirmación y después tira solo para aprender misiones, sin detenerse en ninguna.
 
-| Archivo | Rol exacto |
-| --- | --- |
-| `Share.lua` | Comparte automáticamente tu última misión aceptada con el grupo/banda (mediante un protocolo dedicado de mensajes de extensión), y auto-acepta una misión compartida por otro AutoCallboard — nunca una compartida por un jugador normal, que queda pendiente de aceptación manual. |
-| `Builds.lua` | El puente hacia el sistema de builds de talentos del servidor (un protocolo de opcodes "echo"), una ventana de selección de build, y la **barra Echo**: 3 espacios de arrastrar y soltar, anclables en cualquier lugar, bloqueables y asignables a atajos de teclado. |
-| `Eternals.lua` | Una mini-utilidad independiente: convierte Cristal Elemental → Eterno → objeto final mediante un botón seguro asignable a una tecla, detectando automáticamente cada paso de la secuencia. |
+### Colecciones
 
-### `Language/` y `Locales/` — el sistema multilingüe
+Una colección es un conjunto con nombre de misiones marcadas. **Listas** las abre.
 
-| Archivo | Rol exacto |
-| --- | --- |
-| `Language/Locale.lua` | El registro de idiomas disponibles y el resolutor que elige el idioma predeterminado del cliente en el primer inicio. |
-| `Language/Switcher.lua` | El menú de selección de idioma y la actualización en vivo de **todos** los textos en pantalla, sin recargar la interfaz. |
-| `Locales/enUS.lua`, `frFR.lua`, `deDE.lua`, `esES.lua` | Las cuatro traducciones completas de la extensión. |
+- Haga clic en una colección para cargarla: sus misiones se marcan. Haga clic de nuevo para
+  descargarla, lo que desmarca todo. **(Sin selección)** también lo desmarca todo. No se puede
+  cambiar de colección mientras la búsqueda está en marcha.
+- El **+** de arriba a la derecha de la lista (o de un grupo abierto) guarda allí sus misiones
+  marcadas como una colección nueva. El **+** de arriba a la izquierda de la ventana crea un
+  grupo.
+- Haga clic derecho en una colección para moverla, fijar su dificultad, actualizarla con sus
+  misiones marcadas, renombrarla o eliminarla. Arrástrela para reordenarla o soltarla en otro
+  grupo.
+- Los grupos ordenan sus colecciones. Un grupo plegado aparece como una franja: haga clic en
+  ella para abrirlo y use **>>** para plegarlo de nuevo. Hasta 10 grupos y hasta 50 colecciones
+  en cada grupo y en la lista base.
+- Una colección puede llevar una dificultad (Normal, HC1 a HC5). Se aplica al cargar la
+  colección, siempre que esté en una zona de descanso (una posada o una capital) y fuera de
+  combate.
 
-### `UI/` — todo lo que ves
+Las colecciones son comunes a todos sus personajes. Las misiones marcadas y la colección
+cargada son propias de cada personaje.
 
-| Archivo | Rol exacto |
-| --- | --- |
-| `Skin.lua` | El sistema de temas (morado sobre negro), y las fábricas reutilizables para ventanas, botones, filas y casillas de verificación que dan a toda la extensión su aspecto coherente. |
-| `ControlFrame.lua` | El pequeño panel de control (botón Callboard, Iniciar/Detener, estado de invocación) y el botón del minimapa. |
-| `QuestWindow.lua` | La ventana de misiones conocidas: búsqueda, filtros por tipo, casillas de verificación para misiones deseadas, y selección directa de una misión actualmente en el tablero. |
-| `Lists.lua` | El gestor de listas y grupos guardados, un diseño de dos paneles estilo panel de control con arrastrar y soltar entre grupos y reordenación. |
-| `QuestData.lua` | La ventana de exportación/importación de texto del catálogo de misiones aprendidas. |
-| `Help.lua` | La ayuda integrada, disponible en el juego en cualquier momento. |
+### Instancia actual
 
-### En la raíz
+**Instancia actual automática**: dentro de una mazmorra o una banda, **Empezar** ignora las
+misiones marcadas y tira solo por la misión de esa instancia. No todas las mazmorras y bandas
+tienen una misión del Callboard; si ninguna coincide, AutoCallboard sigue tirando hasta
+alcanzar su límite o hasta que usted lo detenga.
 
-| Archivo | Rol exacto |
-| --- | --- |
-| `AutoCallboard.lua` | El punto de entrada: crea el bucle `OnUpdate` adaptativo (se ralentiza automáticamente en cuanto no pasa nada), enruta cada evento de WoW que escucha la extensión, e interpreta los comandos `/acb`. |
-| `AutoCallboard.toc` | El manifiesto de WoW: metadatos, variables guardadas (`AutoCallboardDB`, `AutoCallboardQuestDB`, `AutoCallboardEternalsDB`), y el orden de carga de archivos. |
-| `Bindings.xml` | Los 3 atajos de teclado asignables para activar cada espacio de la barra Echo. |
+## ⚡ Las tiradas
 
-## 🗣️ Comandos slash
+Cada tirada cuesta oro. Cuando hace clic en **Empezar**, AutoCallboard:
 
-Alias: `/acb` y `/autocallboard`.
+1. tira el tablón, esperando siempre la respuesta del servidor antes de la siguiente tirada;
+2. compara las tres misiones ofrecidas con las que ha marcado (o con la misión de la
+   instancia);
+3. si hay coincidencia, deja de tirar, selecciona la misión y cierra el tablón;
+4. se queda en pausa mientras la misión está en curso y se reanuda cuando la entrega o la
+   abandona.
 
-| Comando | Efecto |
-| --- | --- |
-| `/acb` (o `version` / `v`) | Muestra la versión instalada de la extensión. |
-| `/acb run` (o `call`) | Abre el panel y reanuda el flujo del tablero. La invocación en sí debe hacerse con el botón Callboard. |
-| `/acb help` | Abre la ayuda integrada. |
-| `/acb show` / `hide` | Muestra u oculta el panel de control. |
-| `/acb roll` (o `autoroll`) | Inicia la re-tirada. |
-| `/acb stop` | Detiene la re-tirada. |
-| `/acb quests` (o `quest`) | Abre la ventana de misiones conocidas. |
-| `/acb reroll [nombre_frame]` | Fuerza una re-tirada puntual, o cambia el nombre del frame de re-tirada. |
-| `/acb objective <1-3>` (o `obj` / `pick` / simplemente `1`, `2`, `3`) | Selecciona directamente uno de los 3 espacios mostrados. |
-| `/acb reset` | Restablece la configuración conservando las misiones aprendidas. |
-| `/acb name <texto>` | Cambia el nombre del PNJ objetivo usado para la invocación. |
-| `/acb id <spellID>` | Cambia el hechizo de invocación utilizado. |
-| `/acb maxrolls <n>` | Cambia el número máximo de re-tiradas antes de rendirse. |
-| `/acb accept on/off` | Activa/desactiva la aceptación automática de la misión encontrada. |
-| `/acb autoacceptquests on/off` | Activa/desactiva la auto-aceptación de misiones compartidas por otro ACB. |
-| `/acb autoinstance on/off` | Activa/desactiva el modo "misión de la instancia actual". |
-| `/acb minimap on/off` | Muestra u oculta el botón del minimapa. |
-| `/acb export` / `import` | Abre la ventana de exportación o importación del catálogo de misiones. |
+Una misión abandonada queda fuera de la búsqueda hasta que acepte otra de sus misiones
+seleccionadas. La búsqueda se detiene sola tras 50 tiradas sin coincidencia, o cuando ya no
+puede permitirse una tirada.
 
-El botón **Callboard** invoca el Callboard; el control deslizante de
-velocidad de re-tirada ofrece 4 ajustes predefinidos (Turbo, Rápido,
-Normal, Seguro) directamente desde el panel.
+| Opción | Función |
+|---|---|
+| **Aceptar automáticamente las misiones seleccionadas** *(activada)* | Acepta la misión del Callboard en cuanto coincide con una de las que ha marcado. |
+| **Aceptar misiones automáticamente** *(desactivada)* | Acepta las misiones que comparten mediante AutoCallboard los miembros de su grupo o de su banda. Las misiones compartidas por otros jugadores quedan para que las acepte usted. |
+| **Instancia actual automática** *(desactivada)* | Véase [Instancia actual](#instancia-actual). |
+| **Tirar sin el tablero** *(desactivada)* | Sigue tirando y eligiendo misiones sin ningún tablón abierto, en cualquier parte del mundo. Cada tirada sigue costando oro, y el servidor puede rechazarla en cualquier momento. |
+| **Velocidad de tirada** | Con qué rapidez se suceden las tiradas. Cuatro ajustes: Turbo, Rápida, Normal, Segura. |
+
+Estas opciones están en los ajustes, en la pestaña **General**.
+
+## 📍 Rutas
+
+Una ruta es un recorrido que usted ha grabado: los pnj con los que habló, las opciones que
+eligió en sus diálogos, las misiones que tomó o entregó, los puntos de viaje que usó y el lugar
+de cada paso. Al repetirla, AutoCallboard vuelve a hacer las interacciones grabadas cuando
+llega a ellas, y una flecha indica adónde ir después. Mover a su personaje sigue siendo cosa
+suya.
+
+El botón **Rutas** abre la ventana de rutas. No está en la barra principal de forma
+predeterminada: añádalo en los ajustes, en la pestaña **Barra principal**. La ventana tiene
+**●** (grabar), **▶** (reproducir), **⏭** (saltar), los botones **Mis rutas** y **Biblioteca**,
+y **_**, que la reduce a una sola línea que se queda por encima de todo, mapa del mundo
+incluido.
+
+### Grabar
+
+Haga clic en **●** y juegue con normalidad: hable con pnj, tome y entregue misiones, use puntos
+de viaje. Cuando termine su recorrido, haga clic en **■**: dé un nombre a la ruta y elija una
+de las ocho categorías (Subida de nivel, Diarias, Reputaciones, Profesiones, Cadenas y accesos,
+Clase, Eventos mundiales, Logros y colecciones). Una ruta admite hasta 400 pasos, y puede
+guardar hasta 50 por categoría.
+
+### Reproducir
+
+Haga clic en una ruta de **Mis rutas** para cargarla (haga clic de nuevo para descargarla) y
+después en **▶** para empezar desde el principio, o haga clic en cualquier línea de la ruta
+para empezar desde ahí. **⏭** salta el bloque en curso. Una ruta de la facción
+contraria se niega a empezar. La reproducción se detiene sola si un punto de viaje no está
+desbloqueado para su personaje o si un paso no se puede completar.
+
+Haga clic derecho en una ruta para cargarla o descargarla, cambiar su categoría, compartirla,
+añadirle su grabación actual (**Añadir al final**) o sustituirla (**Sobrescribir**), fijar su
+**Dificultad inicial**, renombrarla o eliminarla. Haga clic derecho en una línea para borrarla o
+para apuntar la flecha hacia ella.
+
+### La flecha
+
+La flecha señala el siguiente lugar grabado y muestra la distancia y la acción esperada.
+Cuando no puede apuntar (el lugar está en otro continente, usted está en una instancia o no se
+puede leer su posición), lo indica en lugar de señalar, y le avisa cuando ha llegado. Muévala
+arrastrándola. Elija su aspecto con **Ver estilos** (diez estilos), y su tamaño y el del texto
+en los ajustes, en la pestaña **Apariencia**.
+
+### Compartir
+
+Haga clic derecho en una ruta y elija **Compartir**: aparece en la **Biblioteca** de los demás
+jugadores de AutoCallboard, ordenada por categoría. Abra una categoría y haga clic en una ruta
+para conseguirla. Una ruta en gris no se puede descargar por ahora, porque no hay conectado ningún
+jugador que la tenga. Una ruta conseguida se comparte a su vez; elija **Dejar de compartir** si
+prefiere evitarlo. Si edita una ruta compartida, la nueva versión se vuelve a publicar, mientras
+que los jugadores que ya la tomaron conservan su propia copia. Las rutas de la otra facción se
+pueden conservar, editar y compartir, pero no reproducir. El uso compartido se hace en segundo
+plano.
+
+## 🔄 Builds
+
+El botón **Builds** abre los builds de ecos de su personaje, tal como los guarda el servidor.
+Haga clic en un build para activarlo. No se puede cambiar de build en combate.
+
+**Barra rápida de ecos** (ajustes, pestaña **General**) añade una pequeña barra de tres
+huecos. Arrastre un build desde la ventana Builds hasta un hueco. Haga clic derecho en un
+hueco para vaciarlo, o arrastre un hueco sobre otro para intercambiarlos. **Orientación**
+cambia la barra entre horizontal y vertical. El punto de la esquina superior izquierda de la
+barra la bloquea: una barra bloqueada no se puede mover ni modificar, pero sus huecos siguen
+funcionando. Cada hueco puede tener su propio atajo de teclado, en el menú de asignación de
+teclas de World of Warcraft, bajo AutoCallboard.
+
+## 🧰 Extras
+
+- **Botón de viaje** *(activado)* — cuando su misión pertenece a una zona, aparece bajo el panel
+  un botón **Viaje** que le teletransporta a un punto de viaje desbloqueado en esa zona o cerca
+  de ella. **Viaje automático** *(desactivado)* lo hace en cuanto se selecciona una misión
+  nueva, sin preguntar. Nunca se activa en combate ni si usted está muerto, y solo usa puntos de
+  viaje que haya desbloqueado.
+- **Asistencia Eternals** *(activada)* — cuando acepta una misión de Eternal (Agua, Fuego,
+  Tierra, Aire o Sombra) con 10 cristales correspondientes en sus bolsas, aparece un pequeño
+  botón que los convierte en dos pasos. Haga clic en él o pulse su tecla (Ctrl+W de forma
+  predeterminada). Haga clic derecho en él para cerrarlo.
+- **Contadores de oro** — AutoCallboard cuenta lo que cuestan sus tiradas: total, sesión,
+  búsqueda en curso y última misión obtenida. Elija los contadores y dónde se muestran en los
+  ajustes, en la pestaña **Oro**. Esta función aún está en desarrollo y algunos contadores
+  pueden no ser exactos.
+- **Mostrar la velocidad del personaje** *(desactivado)* — muestra su velocidad real bajo los
+  botones, como porcentaje de la velocidad normal de carrera. Cuenta su montura y todos los
+  efectos activos, y marca 0 % cuando está parado.
+- **Aviso de actualización** — cuando se detecta a un jugador con una versión más reciente,
+  aparece un mensaje en su chat y el botón **Actualización disponible** se muestra en el panel.
+- **EbonInvite** — si también usa EbonInvite, puede pedir a AutoCallboard que tire por la
+  mazmorra o la banda que haya seleccionado.
+
+## 🔧 Ajustes
+
+Haga clic en el engranaje del panel, o haga clic derecho en el botón del minimapa.
+
+| Pestaña | Contenido |
+|---|---|
+| **General** | Las opciones anteriores: Instancia actual automática, Barra rápida de ecos, Aceptar misiones automáticamente, Botón del minimapa, Botón de viaje, Viaje automático, Tirar sin el tablero, Aceptar automáticamente las misiones seleccionadas, Asistencia Eternals, Mostrar la velocidad del personaje, Velocidad de tirada e Idioma. |
+| **Apariencia** | Colores Fondo y Acento, Escala de la interfaz, Opacidad del fondo, tamaño, texto y estilo de la flecha, y **Bloquear posiciones**. |
+| **Barra principal** | Elija los botones que muestra la barra principal y su orden. De forma predeterminada: Listas, Builds, Callboard, Empezar, Compartir y Misiones. También puede añadir Rutas, Exportar, Importar, Instancia actual automática, Asistencia Eternals, Ayuda y Ajustes. Cada personaje tiene su propia barra. |
+| **Oro** | Qué contadores de oro se muestran, y si se muestran en la barra principal. |
+
+Los cambios de la pestaña **General** se aplican al instante. Los de las pestañas
+**Apariencia**, **Barra principal** y **Oro** se aplican al hacer clic en **Aplicar**;
+**Predeterminados** devuelve esas tres pestañas a sus valores originales.
+
+## 💡 Conviene saber
+
+- **Las misiones conocidas, las colecciones, las rutas y el aspecto son comunes a todos sus
+  personajes.** Las misiones marcadas, la colección cargada, la barra principal, la barra rápida
+  y la ruta cargada son propias de cada personaje.
+- **El botón Callboard aparece en gris en interiores**, porque el tablón no se puede invocar
+  allí.
+- **Si usaba una versión anterior**, las listas guardadas por personaje pasan a su cuenta cuando
+  se conecta cada personaje, y también se recuperan las listas del antiguo accesorio
+  AutoCallboardPresets. Si los diez grupos ya están en uso, AutoCallboard le pregunta qué
+  conservar.
 
 ## 🌍 Idiomas
 
-Español, inglés, francés y alemán están disponibles al completo. El
-selector de idioma en el panel cambia todo al instante, incluidas las
-ventanas ya abiertas.
+El español, el inglés, el francés y el alemán se incluyen completos. AutoCallboard sigue el
+idioma de su juego, y puede cambiarlo con el botón de idioma de los ajustes: todo cambia al
+instante, incluidas las ventanas que ya están abiertas. El idioma es común a los demás
+accesorios de Ebonhold que usan EbonAPI.
 
 ## 📜 Licencia y créditos
 
@@ -201,9 +325,6 @@ Autor original: **Disarray** — fork mantenido por **Siphelis**.
 
 ## Licencia
 
-Este proyecto se distribuye bajo una licencia personalizada (base MIT
-+ PolyForm Noncommercial para las modificaciones) — consulta
-[LICENSE](https://github.com/Siphelis/autocallboard/blob/main/LICENSE)
-para más detalles.
+Este proyecto se distribuye bajo una licencia personalizada basada en MIT y, para las modificaciones, en PolyForm Noncommercial. Consulte el archivo [LICENSE](https://github.com/Siphelis/autocallboard/blob/main/LICENSE) para conocer las condiciones completas.
 
 ---

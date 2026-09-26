@@ -2,10 +2,12 @@
 
 **The Callboard will never waste your time again.**
 
-AutoCallboard rerolls the _Callboard_ for you, recognizes the quest you're
-looking for the moment it appears, selects it, and stops right on cue.
-Add to that a memory of every quest you've ever seen, saved selection lists shared across your characters, a "current dungeon quest" mode, automatic party sharing, and full integration with the server's build system. All wrapped in a sleek, understated interface, available in
-English, French, German, or Spanish.
+AutoCallboard rerolls the _Callboard_ for you, recognizes the quest you're looking for the
+moment it appears, selects it, and picks the search back up once the quest is done. It also
+remembers every quest it has seen, saves your selections as collections shared by all your
+characters, records and replays your routes with a guiding arrow, lets players share those
+routes, and gives you a quick bar for your echo builds. All wrapped in a sleek, understated
+interface, available in English, French, German, or Spanish.
 
 [English](README.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Español](README.es.md)
 
@@ -15,173 +17,285 @@ English, French, German, or Spanish.
 
 - [Why this addon](#-why-this-addon)
 - [Features](#-features)
+- [Requirements](#-requirements)
 - [Installation](#-installation)
-- [Quick start](#️-quick-start)
-- [Code anatomy](#-code-anatomy--how-it-works)
-- [Slash commands](#️-slash-commands)
+- [Quick start](#-quick-start)
+- [The main panel](#-the-main-panel)
+- [Quests and collections](#-quests-and-collections)
+- [Rolling](#-rolling)
+- [Routes](#-routes)
+- [Echo builds](#-echo-builds)
+- [Extras](#-extras)
+- [Settings](#-settings)
+- [Good to know](#-good-to-know)
 - [Languages](#-languages)
-- [Optional companions](#-optional-companions)
-- [Screenshots](#-screenshots)
-- [Contributing](#-contributing)
 - [License & credits](#-license--credits)
 
 ---
 
 ## 🔥 Why this addon
 
-The Callboard offers three random quests and makes you reroll by hand
-until you land the one you want. It's repetitive, it takes time.
-AutoCallboard does that work for you.
+The Callboard offers three random quests and makes you reroll by hand until you land the one
+you want. It's repetitive, and it takes time. With AutoCallboard you tick the quests you want
+and it does the rerolling for you.
 
 ## ✨ Features
 
-- **Smart auto-reroll** — tick the quests you want, hit start, and the
-  addon automatically selects the chosen quest(s).
-- **Persistent quest memory** — every quest seen on the board gets
-  recorded automatically (title, type, rewards) and sorted by category:
-  dungeon, raid, open world, profession.
-- **Saved selection lists** — save multiple named selections, organized
-  into dashboard-style groups, shared across all your characters.
-- **"Current instance" mode** — inside a recognized dungeon or raid, only
-  reroll for that instance's own quest.
-- **Synced difficulty (Hardmode)** — each list can target a difficulty
-  tier; the addon applies it automatically whenever it can.
-- **Group quest sharing** — automatically re-shares your last accepted
-  quest, and can auto-accept quests shared by another AutoCallboard in
-  your group.
-- **Gold spend tracking** — every reroll costs gold; the panel shows
-  total spend, current session spend, and the cost of the last quest
-  obtained.
-- **Server build integration** — check, switch, and pin your talent
-  builds from a small 3-slot "Echo" bar, movable and bindable to
-  keyboard shortcuts.
-- **Text export / import** — copy your learned quest list from one
-  install to another with a simple copy-paste.
-- **Live multilingual switching** — change language from the panel, and
-  every visible text updates instantly, no /reload needed.
+- **Smart auto-reroll** — tick the quests you want and click Start: the addon rerolls until
+  one shows up, selects it, accepts it if you like, and resumes once the quest is done.
+- **Known quests** — every quest seen on the board is remembered (title, type, rewards) so
+  you can search it, filter it and tick it.
+- **Collections** — save named sets of quests, sort them into groups, and load one in a
+  single click. They are shared by all your characters, and each can carry a difficulty.
+- **"Current instance" mode** — inside a dungeon or raid, roll only for that instance's quest.
+- **Routes** — record your runs (NPCs, dialogues, quests, checkpoints), replay them with a
+  guiding arrow, and share them with other players through a library.
+- **Travel button** — jump to a checkpoint near the zone of your quest.
+- **Group quest sharing** — every quest you accept is shared with your party or raid, and
+  quests shared through AutoCallboard can be accepted automatically.
+- **Echo builds** — switch builds from a window, or from a movable 3-slot quick bar with
+  key bindings.
+- **Eternals assistant** — converts your crystals while you do the Eternals quests.
+- **Gold counters** — see what your rerolls cost: total, session, current search, last quest.
+- **Update notice** — a button tells you when a newer version is out.
+- **Export / import** — copy your known quests from one install to another.
+- **Your look** — colors, scale, opacity, arrow style, and which buttons the main bar shows.
+- **Four languages** — English, French, German, Spanish, switched live without `/reload`.
+
+## 📋 Requirements
+
+| | |
+|---|---|
+| **Game** | World of Warcraft 3.3.5a on the **Ebonhold** server |
+| **Integration** | ProjectEbonhold, included with the Ebonhold client |
+| **Required addon** | [**EbonAPI**](https://github.com/Siphelis/EbonAPI/releases/latest), shared by the Ebonhold addons; AutoCallboard does not load without it |
 
 ## 📦 Installation
 
-1. [**AutoCallboard**](https://github.com/Siphelis/autocallboard/releases/latest) — download the latest version.
-2. Unzip the `AutoCallboard` folder into
-   `Interface/AddOns/`.
-3. Check the AddOns selection screen to make sure **AutoCallboard** is
-   ticked.
-4. That's it — no dependency is required for it to work.
+1. Download the latest version from the
+   [Releases page](https://github.com/Siphelis/autocallboard/releases/latest).
+2. Unzip the `AutoCallboard` folder into `Interface/AddOns/`. Install
+   [**EbonAPI**](https://github.com/Siphelis/EbonAPI/releases/latest) the same way if it is
+   not there yet.
+3. Restart the game and check on the AddOns selection screen that **AutoCallboard** and
+   **EbonAPI** are both ticked.
+4. The AutoCallboard panel appears on screen. A minimap button gives you quick access to it.
 
-## 🕹️ Quick start
+## 🚀 Quick start
 
-```
-/acb           → shows the installed version
-/acb quests    → opens the known quests window
-/acb roll      → starts rerolling
-/acb stop      → stops rerolling
-/acb help      → opens the built-in in-game help
-```
+1. Click **Quests**, then tick the quests you want to get.
+2. Click **Callboard**: it summons a Callboard if you have the spell from the shop, then
+   targets and opens it for you. Next to a fixed Objectives Board instead? Click the board
+   once so AutoCallboard can read its content.
+3. Click **Start**. AutoCallboard rerolls until one of your quests shows up, then stops
+   rerolling and selects it. It accepts it too, unless you turned that option off.
+4. Do the quest. Once you hand it in, the search resumes on its own as soon as a board is
+   open, until you click **Stop**.
 
-1. Open the quest window (`/acb quests`) and tick the ones you want to
-   hunt.
-2. Approach the Callboard (or let the addon summon it) and click
-   **Start**.
-3. The addon rerolls for you, stops the moment a ticked quest shows up,
-   and selects it.
-4. Finish the quest, reroll again whenever you want the next one.
+On a fresh install the list of known quests is still empty: see [Known quests](#known-quests)
+to fill it.
 
-All contextual help (shortcuts, tips, gold costs) is available in-game
-via `/acb help`.
+The line under the buttons tells you what is going on: Callboard active or on cooldown,
+rerolls made, search paused, quest selected.
 
-## 🧠 Code anatomy — how it works
+## 🧭 The main panel
 
-AutoCallboard is split into one-way modules: each folder has one clear
-job, and everything communicates through the shared namespace
-`AutoCallboardRuntime` (abbreviated `RT` in the code).
+| Control | What it does |
+|---|---|
+| **Lists** | Opens your collections. |
+| **Builds** | Opens your echo builds. |
+| **Callboard** | Summons the Callboard and opens it. Greyed out while your character is indoors. |
+| **Start / Stop** | Starts or stops the search. |
+| **Share** | Shares your last accepted quest again with your party or raid. Greyed out until you accept a quest. |
+| **Quests** | Unfolds the known quests window under the panel. The button then reads **Hide**. |
+| Gear, **?**, **×** (top right) | Settings, the in-game help, close. |
+| **Update available** | Only appears when a newer version has been spotted. Opens the download page. |
+| **Travel: …** | Appears under the panel when a checkpoint matches your quest. See [Extras](#-extras). |
 
-### `Core/` — pure logic, no game state
+Drag the panel to move it, or Shift-drag any of its buttons. The minimap button shows or
+hides the panel (left-click), opens the settings (right-click) and can be dragged around the
+minimap. The help window has five tabs and opens with **?**.
 
-| File | Exact role |
-| --- | --- |
-| `Core.lua` | The side-effect-free brain: saved-data defaults, merging/adopting a saved state (backward compatibility), the `/acb` command parser, heuristic quest classification (dungeon/raid/profession/open-world keywords), saved-list and group logic (create, rename, move, limits), and the text export/import format for the quest catalog. |
-| `State.lua` | The bridge between `Core` and the `AutoCallboardDB` save: applies a new state, bumps a revision counter so the UI only refreshes when needed, and tracks gold spent on rerolls. |
-| `Migration.lua` | The one-time migration of old *per-character* saves into the shared account profile — with dialogs whenever an import needs to be merged, replaced, kept, or discarded. |
-| `Util.lua` | The shared toolbox: chat printing, resolving Blizzard frame paths (`"Frame.child.other"`), simulated clicks that temporarily mute the game's sound so they don't pollute the ambiance, money/time formatting, and the small debug-log system. |
+## 📂 Quests and collections
 
-### `Automation/` — what acts on the game
+### Known quests
 
-| File | Exact role |
-| --- | --- |
-| `Callboard.lua` | Detects and summons the Callboard: targets the NPC, casts the summon spell, reads cooldowns, recognizes an open board session (UI, NPC, or objectives window), the "board active / on cooldown" state machine. |
-| `Roll.lua` | The reroll engine itself: an evaluation loop over the displayed objectives on every tick, matching against desired quests, handling pauses (no board open, no wanted quest, a quest already selected and in progress), tracking gold spent during the session. |
-| `Instance.lua` | Computes the automatic target quest when "Current instance" mode is on: detects which dungeon/raid you're in and matches it to its known instance quest. |
-| `Difficulty.lua` | Reads and applies the difficulty tier (Hardmode) via the server's service, syncing it with the difficulty requested by the active list. |
+**Quests** opens the list of every quest AutoCallboard has seen on a board. The list is empty
+on a fresh install and grows as boards show you quests.
 
-### `Features/` — extras that depend on nothing else
+- Tick a quest to look for it. Hover it to see its type, objective, rewards (XP and Soul Ash
+  per difficulty) and how many times it came up.
+- **Search** filters by name, objective, type or reward. The type boxes (Open World, Dungeon,
+  Raid, Profession, Other) narrow the list further.
+- **Show all** keeps every known quest in the list even while a collection is loaded. Without
+  it, the list only shows the quests of the loaded collection.
+- **Right-click** a quest to file it into a collection, or to start a new collection with it.
+- **Export** shows your known quests as text to copy. Paste that text into **Import** on
+  another install to add them there.
+- To fill the list quickly, click **Start** with nothing ticked: AutoCallboard asks you to
+  confirm, then rerolls only to learn quests, without stopping on any.
 
-| File | Exact role |
-| --- | --- |
-| `Share.lua` | Automatically shares your last accepted quest to party/raid (a dedicated addon-message protocol), and auto-accepts a quest shared by another AutoCallboard — never one shared by a regular player, which stays for you to accept by hand. |
-| `Builds.lua` | The bridge to the server's talent build system (an "echo" opcode protocol), a build-selection window, and the **Echo bar**: 3 drag-and-drop slots, anchorable anywhere, lockable, and bindable to keyboard shortcuts. |
-| `Eternals.lua` | An independent mini-utility: converts Elemental Crystal → Eternal → final item through a secure, key-bound button, auto-detecting each step of the sequence. |
+### Collections
 
-### `Language/` and `Locales/` — the multilingual system
+A collection is a named set of ticked quests. **Lists** opens them.
 
-| File | Exact role |
-| --- | --- |
-| `Language/Locale.lua` | The registry of available languages and the resolver that picks the client's default language on first launch. |
-| `Language/Switcher.lua` | The language-selection menu and the live refresh of **every** on-screen text, without reloading the UI. |
-| `Locales/enUS.lua`, `frFR.lua`, `deDE.lua`, `esES.lua` | The addon's four complete translations. |
+- Click a collection to load it: its quests get ticked. Click it again to unload it, which
+  clears the ticks. **(No selection)** clears them too. Collections cannot be switched while
+  the search is running.
+- The **+** at the top right of the list (or of an open group) saves your current ticks there
+  as a new collection. The **+** at the top left of the window creates a group.
+- Right-click a collection to move it, set its difficulty, update it with your current
+  ticks, rename it or delete it. Drag it to reorder it or drop it in another group.
+- Groups sort your collections. A folded group shows as a band: click it to open it, and use
+  **>>** to fold it again. Up to 10 groups, and up to 50 collections in each group and in the
+  base list.
+- A collection can carry a difficulty (Normal, HC1 to HC5). It is applied when you load the
+  collection, as long as you are in a rest area (an inn or a capital) and out of combat.
 
-### `UI/` — everything you see
+Collections are shared by all your characters. The ticked quests and the loaded collection
+belong to each character.
 
-| File | Exact role |
-| --- | --- |
-| `Skin.lua` | The theme system (purple on black), and the reusable factories for windows, buttons, rows, and checkboxes that give the whole addon its consistent look. |
-| `ControlFrame.lua` | The small control panel (Callboard button, Start/Stop, summon status) and the minimap button. |
-| `QuestWindow.lua` | The known-quests window: search, type filters, checkboxes for desired quests, and directly selecting a quest currently on the board. |
-| `Lists.lua` | The saved-lists and groups manager, a two-pane dashboard-style layout with drag-and-drop between groups and reordering. |
-| `QuestData.lua` | The text export/import window for the learned quest catalog. |
-| `Help.lua` | The built-in help, available in-game at any time. |
+### Current instance
 
-### At the root
+**Auto Current Instance**: inside a dungeon or raid, **Start** ignores the ticked quests and
+rolls only for that instance's quest. Not every dungeon or raid has a Callboard quest; if
+none matches, AutoCallboard keeps rerolling until it reaches its limit or you stop it.
 
-| File | Exact role |
-| --- | --- |
-| `AutoCallboard.lua` | The entry point: creates the adaptive `OnUpdate` loop (it slows itself down automatically once nothing's happening), routes every WoW event the addon listens to, and interprets `/acb` commands. |
-| `AutoCallboard.toc` | The WoW manifest: metadata, saved variables (`AutoCallboardDB`, `AutoCallboardQuestDB`, `AutoCallboardEternalsDB`), and file load order. |
-| `Bindings.xml` | The 3 assignable keybindings for triggering each Echo bar slot. |
+## ⚡ Rolling
 
-## 🗣️ Slash commands
+Every reroll costs gold. When you click **Start**, AutoCallboard:
 
-Aliases: `/acb` and `/autocallboard`.
+1. rerolls the board, always waiting for the server's answer before the next reroll;
+2. compares the three quests with the ones you ticked (or with the instance's quest);
+3. on a match, stops rerolling, selects the quest and closes the board;
+4. stays paused while the quest is in progress, then resumes when you hand it in or abandon it.
 
-| Command | Effect |
-| --- | --- |
-| `/acb` (or `version` / `v`) | Prints the installed addon version. |
-| `/acb run` (or `call`) | Opens the panel and resumes the board flow. Summoning itself must be done with the Callboard button. |
-| `/acb help` | Opens the built-in help. |
-| `/acb show` / `hide` | Shows or hides the control panel. |
-| `/acb roll` (or `autoroll`) | Starts rerolling. |
-| `/acb stop` | Stops rerolling. |
-| `/acb quests` (or `quest`) | Opens the known quests window. |
-| `/acb reroll [frame_name]` | Forces a one-off reroll, or changes the reroll frame's name. |
-| `/acb objective <1-3>` (or `obj` / `pick` / just `1`, `2`, `3`) | Directly selects one of the 3 displayed slots. |
-| `/acb reset` | Resets settings while keeping learned quests. |
-| `/acb name <text>` | Changes the targeted NPC name used for summoning. |
-| `/acb id <spellID>` | Changes the summon spell used. |
-| `/acb maxrolls <n>` | Changes the maximum number of rerolls before giving up. |
-| `/acb accept on/off` | Toggles auto-accepting the quest that was found. |
-| `/acb autoacceptquests on/off` | Toggles auto-accepting quests shared by another ACB. |
-| `/acb autoinstance on/off` | Toggles "current instance quest" mode. |
-| `/acb minimap on/off` | Shows or hides the minimap button. |
-| `/acb export` / `import` | Opens the export or import window for the quest catalog. |
+An abandoned quest is left out of the search until you accept another one of your selected
+quests. The search stops by itself after 50 rerolls without a match, or when you can no
+longer afford a reroll.
 
-The **Callboard** button summons the Callboard; the reroll speed slider
-offers 4 presets (Turbo, Fast, Normal, Safe) right from the panel.
+| Option | What it does |
+|---|---|
+| **Automatically accept selected quests** *(on)* | Accepts the Callboard quest as soon as it matches one you ticked. |
+| **Auto Accept Quests** *(off)* | Accepts quests shared by members of your party or raid through AutoCallboard. Quests shared by other players stay for you to accept. |
+| **Auto Current Instance** *(off)* | See [Current instance](#current-instance). |
+| **Roll without the board** *(off)* | Keeps rerolling and picking quests with no board open, anywhere in the world. Each reroll still costs gold, and the server may refuse it at any time. |
+| **Roll speed** | How quickly rerolls follow one another. Four presets: Turbo, Fast, Normal, Safe. |
+
+You find these options in the settings, on the **General** tab.
+
+## 📍 Routes
+
+A route is a run you recorded: the NPCs you talked to, the dialogue choices you made, the
+quests you took or handed in, the checkpoints you used, and where each step happened. When
+you replay it, AutoCallboard repeats the recorded interactions as you reach them and an arrow
+shows where to go next. Moving your character is still up to you.
+
+The **Routes** button opens the routes window. It is not on the main bar by default: add it
+in the settings, on the **Main bar** tab. The window has **●** (record), **▶** (play),
+**⏭** (skip), the **My routes** and **Library** buttons, and **_**, which shrinks it to a
+single line that stays above everything, world map included.
+
+### Recording
+
+Click **●**, then play as usual: talk to NPCs, take and hand in quests, use checkpoints. When
+your run is over, click **■**: name the route and choose one of the eight categories
+(Leveling, Dailies, Reputations, Professions, Chains and access, Class, World events,
+Achievements and collections). A route holds up to 400 steps, and you can keep up to 50 in
+each category.
+
+### Playing
+
+Click a route in **My routes** to load it (click it again to unload it), then click **▶** to
+start from the beginning, or click any line of the route to start from there. **⏭** skips the
+block in progress. A route of the other faction refuses to start. Playback stops by itself if
+a checkpoint is not unlocked for your character, or if a step cannot be played through.
+
+Right-click a route to load or unload it, change its category, share it, add your current
+recording to it (**Append**) or replace it (**Overwrite**), set its **Starting difficulty**,
+rename it or delete it. Right-click a line to delete it, or to point the arrow at it.
+
+### The arrow
+
+The arrow points to the next recorded spot and shows the distance and the expected action.
+When it cannot aim (the spot is on another continent, you are inside an instance, or your
+position cannot be read) it says so instead of pointing, and it tells you when you have
+arrived. Move it by dragging. Choose its look with **Browse styles** (ten styles), and its
+size and text size, in the settings on the **Appearance** tab.
+
+### Sharing
+
+Right-click a route and choose **Share**: it appears in the **Library** of the other
+AutoCallboard players, sorted by category. Open a category, then click a route to get it. A
+greyed route cannot be downloaded right now, because nobody who has it is online. A route you
+get is shared in turn; choose **Stop sharing** if you would rather not. If you edit a shared
+route, the new version is published again, while players who already took it keep their own
+copy. Routes of the other faction can be kept, edited and shared, but not played. Sharing
+happens in the background.
+
+## 🔄 Echo builds
+
+The **Builds** button opens the echo builds of your character, as stored by the server. Click
+a build to activate it. Builds cannot be switched in combat.
+
+**Echo quick bar** (settings, **General** tab) adds a small bar of three slots. Drag a build
+from the Builds window onto a slot. Right-click a slot to clear it, or drag one slot onto
+another to swap them. **Bar layout** switches the bar between horizontal and vertical. The dot
+at the bar's top-left corner locks it: a locked bar cannot be moved or changed, but its slots
+still work. Each slot can have its own key binding, in the World of Warcraft key bindings
+menu, under AutoCallboard.
+
+## 🧰 Extras
+
+- **Quest travel button** *(on)* — when your quest belongs to a zone, a **Travel** button
+  appears under the panel and teleports you to an unlocked checkpoint in or near that zone.
+  **Travel automatically** *(off)* does it as soon as a new quest is selected, without asking.
+  It never fires in combat or while dead, and only uses checkpoints you have unlocked.
+- **Eternals assistance** *(on)* — when you accept an Eternal quest (Water, Fire, Earth, Air
+  or Shadow) with 10 matching crystals in your bags, a small button appears and converts them
+  in two steps. Click it or press its key (Ctrl+W by default). Right-click it to close it.
+- **Gold counters** — AutoCallboard counts what your rerolls cost: total, session, current
+  search and last quest obtained. Pick the counters and where they show in the settings, on
+  the **Gold** tab. This feature is still in development and some counters may be off.
+- **Show character speed** *(off)* — shows your actual speed under the buttons, as a
+  percentage of normal running speed. It counts your mount and every active effect, and reads
+  0% when you stand still.
+- **Update notice** — when a player with a newer version is spotted, one message appears in
+  your chat and the **Update available** button shows up on the panel.
+- **EbonInvite** — if you also use EbonInvite, it can ask AutoCallboard to roll for the
+  dungeon or raid it has selected.
+
+## 🔧 Settings
+
+Click the gear on the panel, or right-click the minimap button.
+
+| Tab | What you find |
+|---|---|
+| **General** | The options above: Auto Current Instance, Echo quick bar, Auto Accept Quests, Minimap Button, Quest travel button, Travel automatically, Roll without the board, Automatically accept selected quests, Eternals assistance, Show character speed, Roll speed and Language. |
+| **Appearance** | Background and Accent colors, Interface scale, Background opacity, arrow size, text size and style, and **Lock window positions**. |
+| **Main bar** | Choose which buttons the main bar shows and in which order. By default: Lists, Builds, Callboard, Start, Share and Quests. You can also add Routes, Export, Import, Auto Current Instance, Eternals assistance, Help and Settings. Each character has its own bar. |
+| **Gold** | Which gold counters to show, and whether to show them in the main bar. |
+
+Changes on the **General** tab apply at once. Changes on the **Appearance**, **Main bar** and
+**Gold** tabs apply when you click **Apply**; **Defaults** puts these three tabs back to their
+original values.
+
+## 💡 Good to know
+
+- **Known quests, collections, routes and the look are shared by all your characters.** The
+  ticked quests, the loaded collection, the main bar, the quick bar and the loaded route
+  belong to each character.
+- **The Callboard button is greyed out indoors**, because the board cannot be summoned there.
+- **If you used an older version**, the lists saved per character move to your account when
+  each character logs in, and lists from the old AutoCallboardPresets addon are picked up
+  too. If all ten groups are already in use, AutoCallboard asks what to keep.
 
 ## 🌍 Languages
 
-English, French, German, and Spanish ship complete. The language picker
-in the panel switches everything instantly, including windows that are
-already open.
+English, French, German, and Spanish ship complete. AutoCallboard follows the language of
+your game, and you can change it from the language button in the settings: everything
+switches instantly, including windows that are already open. The language is shared with the
+other Ebonhold addons that use EbonAPI.
 
 ## 📜 License & credits
 
