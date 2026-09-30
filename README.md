@@ -49,17 +49,18 @@ and it does the rerolling for you.
   single click. They are shared by all your characters, and each can carry a difficulty.
 - **"Current instance" mode** — inside a dungeon or raid, roll only for that instance's quest.
 - **Routes** — record your runs (NPCs, dialogues, quests, checkpoints), replay them with a
-  guiding arrow, and share them with other players through a library.
+  guiding arrow, once or on a loop, and share them with other players through a library.
 - **Travel button** — jump to a checkpoint near the zone of your quest.
-- **Group quest sharing** — every quest you accept is shared with your party or raid, and
-  quests shared through AutoCallboard can be accepted automatically.
+- **Group quest sharing** — the **Share** button shares the last quest you accepted with your
+  party or raid.
 - **Echo builds** — switch builds from a window, or from a movable 3-slot quick bar with
   key bindings.
 - **Eternals assistant** — converts your crystals while you do the Eternals quests.
 - **Gold counters** — see what your rerolls cost: total, session, current search, last quest.
 - **Update notice** — a button tells you when a newer version is out.
 - **Export / import** — copy your known quests from one install to another.
-- **Your look** — colors, scale, opacity, arrow style, and which buttons the main bar shows.
+- **Your look** — arrow style and which buttons the main bar shows; the windows follow the
+  skin, colors, scale and opacity chosen in [EbonAPI](https://github.com/Siphelis/EbonAPI).
 - **Four languages** — English, French, German, Spanish, switched live without `/reload`.
 
 ## 📋 Requirements
@@ -68,17 +69,17 @@ and it does the rerolling for you.
 |---|---|
 | **Game** | World of Warcraft 3.3.5a on the **Ebonhold** server |
 | **Integration** | ProjectEbonhold, included with the Ebonhold client |
-| **Required addon** | [**EbonAPI**](https://github.com/Siphelis/EbonAPI/releases/latest), shared by the Ebonhold addons; AutoCallboard does not load without it |
+| **Required addon** | [**EbonAPI**](https://github.com/Siphelis/EbonAPI), shared by the Ebonhold addons; AutoCallboard does not load without it |
 
 ## 📦 Installation
 
 1. Download the latest version from the
    [Releases page](https://github.com/Siphelis/autocallboard/releases/latest).
 2. Unzip the `AutoCallboard` folder into `Interface/AddOns/`. Install
-   [**EbonAPI**](https://github.com/Siphelis/EbonAPI/releases/latest) the same way if it is
+   [**EbonAPI**](https://github.com/Siphelis/EbonAPI) the same way if it is
    not there yet.
 3. Restart the game and check on the AddOns selection screen that **AutoCallboard** and
-   **EbonAPI** are both ticked.
+   [**EbonAPI**](https://github.com/Siphelis/EbonAPI) are both ticked.
 4. The AutoCallboard panel appears on screen. A minimap button gives you quick access to it.
 
 ## 🚀 Quick start
@@ -106,7 +107,7 @@ rerolls made, search paused, quest selected.
 | **Builds** | Opens your echo builds. |
 | **Callboard** | Summons the Callboard and opens it. Greyed out while your character is indoors. |
 | **Start / Stop** | Starts or stops the search. |
-| **Share** | Shares your last accepted quest again with your party or raid. Greyed out until you accept a quest. |
+| **Share** | Shares your last accepted quest with your party or raid. Greyed out until you accept a quest. |
 | **Quests** | Unfolds the known quests window under the panel. The button then reads **Hide**. |
 | Gear, **?**, **×** (top right) | Settings, the in-game help, close. |
 | **Update available** | Only appears when a newer version has been spotted. Opens the download page. |
@@ -114,7 +115,7 @@ rerolls made, search paused, quest selected.
 
 Drag the panel to move it, or Shift-drag any of its buttons. The minimap button shows or
 hides the panel (left-click), opens the settings (right-click) and can be dragged around the
-minimap. The help window has five tabs and opens with **?**.
+minimap. The help opens with **?**, in the EbonAPI window.
 
 ## 📂 Quests and collections
 
@@ -170,14 +171,17 @@ Every reroll costs gold. When you click **Start**, AutoCallboard:
 3. on a match, stops rerolling, selects the quest and closes the board;
 4. stays paused while the quest is in progress, then resumes when you hand it in or abandon it.
 
+Only one board objective can be active at a time. If a wanted quest shows up while another
+objective is already active, AutoCallboard does not replace it: it pauses until you hand in or
+abandon the objective in progress.
+
 An abandoned quest is left out of the search until you accept another one of your selected
-quests. The search stops by itself after 50 rerolls without a match, or when you can no
-longer afford a reroll.
+quests, or until you enter or leave a dungeon or raid. The search stops by itself after 50
+rerolls without a match, or when you can no longer afford a reroll.
 
 | Option | What it does |
 |---|---|
 | **Automatically accept selected quests** *(on)* | Accepts the Callboard quest as soon as it matches one you ticked. |
-| **Auto Accept Quests** *(off)* | Accepts quests shared by members of your party or raid through AutoCallboard. Quests shared by other players stay for you to accept. |
 | **Auto Current Instance** *(off)* | See [Current instance](#current-instance). |
 | **Roll without the board** *(off)* | Keeps rerolling and picking quests with no board open, anywhere in the world. Each reroll still costs gold, and the server may refuse it at any time. |
 | **Roll speed** | How quickly rerolls follow one another. Four presets: Turbo, Fast, Normal, Safe. |
@@ -188,13 +192,14 @@ You find these options in the settings, on the **General** tab.
 
 A route is a run you recorded: the NPCs you talked to, the dialogue choices you made, the
 quests you took or handed in, the checkpoints you used, and where each step happened. When
-you replay it, AutoCallboard repeats the recorded interactions as you reach them and an arrow
-shows where to go next. Moving your character is still up to you.
+you replay it, AutoCallboard repeats the recorded interactions as you reach them, except
+accepting a quest offered by a player, and an arrow shows where to go next. Moving your
+character is still up to you.
 
 The **Routes** button opens the routes window. It is not on the main bar by default: add it
 in the settings, on the **Main bar** tab. The window has **●** (record), **▶** (play),
-**⏭** (skip), the **My routes** and **Library** buttons, and **_**, which shrinks it to a
-single line that stays above everything, world map included.
+**⏭** (skip), **↻** (auto restart), the **My routes** and **Library** buttons, and **_**,
+which shrinks it to a single line that stays above everything, world map included.
 
 ### Recording
 
@@ -208,8 +213,12 @@ each category.
 
 Click a route in **My routes** to load it (click it again to unload it), then click **▶** to
 start from the beginning, or click any line of the route to start from there. **⏭** skips the
-block in progress. A route of the other faction refuses to start. Playback stops by itself if
-a checkpoint is not unlocked for your character, or if a step cannot be played through.
+block in progress. A route of the other faction refuses to start. A quest offered by a player
+(a share, an escort) is never accepted for you: accept it yourself; the route waits while the
+offer is on screen, then goes on. Playback stops by itself at the end of the route, if a
+checkpoint is not unlocked for your character, or if a step cannot be played through. Turn
+**↻** on to have the route start again from its first block instead of stopping at the end, and
+click it again to turn it off. A route made only of checkpoints does not start again.
 
 Right-click a route to load or unload it, change its category, share it, add your current
 recording to it (**Append**) or replace it (**Overwrite**), set its **Starting difficulty**,
@@ -262,29 +271,31 @@ menu, under AutoCallboard.
   0% when you stand still.
 - **Update notice** — when a player with a newer version is spotted, one message appears in
   your chat and the **Update available** button shows up on the panel.
-- **EbonInvite** — if you also use EbonInvite, it can ask AutoCallboard to roll for the
-  dungeon or raid it has selected.
 
 ## 🔧 Settings
 
-Click the gear on the panel, or right-click the minimap button.
+Click the gear on the panel, or right-click the minimap button: the settings open in the
+EbonAPI window, on the **AutoCallboard** tab.
 
 | Tab | What you find |
 |---|---|
-| **General** | The options above: Auto Current Instance, Echo quick bar, Auto Accept Quests, Minimap Button, Quest travel button, Travel automatically, Roll without the board, Automatically accept selected quests, Eternals assistance, Show character speed, Roll speed and Language. |
-| **Appearance** | Background and Accent colors, Interface scale, Background opacity, arrow size, text size and style, and **Lock window positions**. |
+| **General** | The options above: Auto Current Instance, Echo quick bar, Bar layout, Minimap Button, Quest travel button, Travel automatically, Roll without the board, Automatically accept selected quests, Eternals assistance, Show character speed and Roll speed. |
+| **Appearance** | Arrow size, text size and style. |
 | **Main bar** | Choose which buttons the main bar shows and in which order. By default: Lists, Builds, Callboard, Start, Share and Quests. You can also add Routes, Export, Import, Auto Current Instance, Eternals assistance, Help and Settings. Each character has its own bar. |
 | **Gold** | Which gold counters to show, and whether to show them in the main bar. |
+| **Help** | The in-game help, in five parts: About, Callboard, Routes, Builds and Settings. The **?** button opens it directly. |
 
-Changes on the **General** tab apply at once. Changes on the **Appearance**, **Main bar** and
-**Gold** tabs apply when you click **Apply**; **Defaults** puts these three tabs back to their
-original values.
+Every change applies at once. The **Appearance**, **Main bar** and **Gold** tabs have a
+**Defaults** button that puts them back to their original values. Skin, colors, scale, opacity
+and position locking are set on the **Appearance** tab of EbonAPI: AutoCallboard's windows
+follow them, like those of every addon that uses EbonAPI. A new skin applies when the interface
+reloads.
 
 ## 💡 Good to know
 
 - **Known quests, collections, routes and the look are shared by all your characters.** The
-  ticked quests, the loaded collection, the main bar, the quick bar and the loaded route
-  belong to each character.
+  ticked quests, the loaded collection, the main bar, the quick bar, the loaded route and its
+  auto restart belong to each character.
 - **The Callboard button is greyed out indoors**, because the board cannot be summoned there.
 - **If you used an older version**, the lists saved per character move to your account when
   each character logs in, and lists from the old AutoCallboardPresets addon are picked up
@@ -293,9 +304,9 @@ original values.
 ## 🌍 Languages
 
 English, French, German, and Spanish ship complete. AutoCallboard follows the language of
-your game, and you can change it from the language button in the settings: everything
+your game, and you can change it on the **General** tab of EbonAPI: everything
 switches instantly, including windows that are already open. The language is shared with the
-other Ebonhold addons that use EbonAPI.
+other Ebonhold addons that use [EbonAPI](https://github.com/Siphelis/EbonAPI).
 
 ## 📜 License & credits
 

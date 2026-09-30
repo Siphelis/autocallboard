@@ -52,10 +52,11 @@ misiones que desea y él se encarga de las tiradas.
 - **Modo «instancia actual»** — dentro de una mazmorra o una banda, tira solo por la misión de
   esa instancia.
 - **Rutas** — grabe sus recorridos (pnj, diálogos, misiones, puntos de viaje), repítalos con
-  una flecha guía y compártalos con otros jugadores mediante una biblioteca.
+  una flecha guía, una vez o en bucle, y compártalos con otros jugadores mediante una
+  biblioteca.
 - **Botón de viaje** — viaje a un punto de viaje cercano a la zona de su misión.
-- **Misiones compartidas en grupo** — cada misión que acepta se comparte con su grupo o su
-  banda, y las misiones compartidas mediante AutoCallboard pueden aceptarse automáticamente.
+- **Misiones compartidas en grupo** — el botón **Compartir** comparte su última misión aceptada
+  con su grupo o su banda.
 - **Builds de ecos** — cambie de build desde una ventana o desde una barra rápida movible de 3
   huecos, con atajos de teclado.
 - **Asistencia Eternals** — convierte sus cristales mientras hace las misiones de los Eternals.
@@ -63,7 +64,8 @@ misiones que desea y él se encarga de las tiradas.
   última misión.
 - **Aviso de actualización** — un botón le avisa cuando hay una versión más reciente.
 - **Exportar / importar** — copie sus misiones conocidas de una instalación a otra.
-- **Su aspecto** — colores, escala, opacidad, estilo de flecha y botones de la barra principal.
+- **Su aspecto** — estilo de flecha y botones de la barra principal; las ventanas siguen el
+  skin, los colores, la escala y la opacidad elegidos en [EbonAPI](https://github.com/Siphelis/EbonAPI).
 - **Cuatro idiomas** — español, inglés, francés y alemán, con cambio en vivo sin `/reload`.
 
 ## 📋 Requisitos
@@ -72,17 +74,17 @@ misiones que desea y él se encarga de las tiradas.
 |---|---|
 | **Juego** | World of Warcraft 3.3.5a en el servidor **Ebonhold** |
 | **Integración** | ProjectEbonhold, incluido con el cliente de Ebonhold |
-| **Accesorio necesario** | [**EbonAPI**](https://github.com/Siphelis/EbonAPI/releases/latest), común a los accesorios de Ebonhold; AutoCallboard no se carga sin él |
+| **Accesorio necesario** | [**EbonAPI**](https://github.com/Siphelis/EbonAPI), común a los accesorios de Ebonhold; AutoCallboard no se carga sin él |
 
 ## 📦 Instalación
 
 1. Descargue la última versión desde la
    [página de versiones](https://github.com/Siphelis/autocallboard/releases/latest).
 2. Descomprima la carpeta `AutoCallboard` en `Interface/AddOns/`. Instale
-   [**EbonAPI**](https://github.com/Siphelis/EbonAPI/releases/latest) del mismo modo si aún no
+   [**EbonAPI**](https://github.com/Siphelis/EbonAPI) del mismo modo si aún no
    está.
 3. Reinicie el juego y compruebe en la pantalla de selección de accesorios que **AutoCallboard**
-   y **EbonAPI** están marcados.
+   y [**EbonAPI**](https://github.com/Siphelis/EbonAPI) están marcados.
 4. El panel de AutoCallboard aparece en pantalla. Un botón del minimapa le da acceso rápido.
 
 ## 🚀 Inicio rápido
@@ -110,7 +112,7 @@ tiradas hechas, búsqueda en pausa, misión seleccionada.
 | **Builds** | Abre sus builds de ecos. |
 | **Callboard** | Invoca el Callboard y lo abre. Aparece en gris mientras su personaje está en un interior. |
 | **Empezar / Detener** | Inicia o detiene la búsqueda. |
-| **Compartir** | Vuelve a compartir su última misión aceptada con su grupo o su banda. En gris hasta que acepte una misión. |
+| **Compartir** | Comparte su última misión aceptada con su grupo o su banda. En gris hasta que acepte una misión. |
 | **Misiones** | Despliega la ventana de misiones conocidas bajo el panel. El botón pasa entonces a llamarse **Ocultar**. |
 | Engranaje, **?**, **×** (arriba a la derecha) | Ajustes, ayuda integrada, cerrar. |
 | **Actualización disponible** | Solo aparece cuando se ha detectado una versión más reciente. Abre la página de descarga. |
@@ -118,7 +120,7 @@ tiradas hechas, búsqueda en pausa, misión seleccionada.
 
 Arrastre el panel para moverlo, o arrastre cualquiera de sus botones manteniendo Mayús. El
 botón del minimapa muestra u oculta el panel (clic izquierdo), abre los ajustes (clic derecho)
-y se puede arrastrar alrededor del minimapa. La ayuda tiene cinco pestañas y se abre con **?**.
+y se puede arrastrar alrededor del minimapa. La ayuda se abre con **?**, en la ventana de EbonAPI.
 
 ## 📂 Misiones y colecciones
 
@@ -181,14 +183,17 @@ Cada tirada cuesta oro. Cuando hace clic en **Empezar**, AutoCallboard:
 4. se queda en pausa mientras la misión está en curso y se reanuda cuando la entrega o la
    abandona.
 
+Solo puede haber un objetivo del tablón activo a la vez. Si aparece una misión buscada mientras
+otro objetivo ya está activo, AutoCallboard no lo sustituye: se pone en pausa hasta que entregue
+o abandone el objetivo en curso.
+
 Una misión abandonada queda fuera de la búsqueda hasta que acepte otra de sus misiones
-seleccionadas. La búsqueda se detiene sola tras 50 tiradas sin coincidencia, o cuando ya no
-puede permitirse una tirada.
+seleccionadas, o hasta que entre en una mazmorra o banda o salga de ella. La búsqueda se
+detiene sola tras 50 tiradas sin coincidencia, o cuando ya no puede permitirse una tirada.
 
 | Opción | Función |
 |---|---|
 | **Aceptar automáticamente las misiones seleccionadas** *(activada)* | Acepta la misión del Callboard en cuanto coincide con una de las que ha marcado. |
-| **Aceptar misiones automáticamente** *(desactivada)* | Acepta las misiones que comparten mediante AutoCallboard los miembros de su grupo o de su banda. Las misiones compartidas por otros jugadores quedan para que las acepte usted. |
 | **Instancia actual automática** *(desactivada)* | Véase [Instancia actual](#instancia-actual). |
 | **Tirar sin el tablero** *(desactivada)* | Sigue tirando y eligiendo misiones sin ningún tablón abierto, en cualquier parte del mundo. Cada tirada sigue costando oro, y el servidor puede rechazarla en cualquier momento. |
 | **Velocidad de tirada** | Con qué rapidez se suceden las tiradas. Cuatro ajustes: Turbo, Rápida, Normal, Segura. |
@@ -200,14 +205,14 @@ Estas opciones están en los ajustes, en la pestaña **General**.
 Una ruta es un recorrido que usted ha grabado: los pnj con los que habló, las opciones que
 eligió en sus diálogos, las misiones que tomó o entregó, los puntos de viaje que usó y el lugar
 de cada paso. Al repetirla, AutoCallboard vuelve a hacer las interacciones grabadas cuando
-llega a ellas, y una flecha indica adónde ir después. Mover a su personaje sigue siendo cosa
-suya.
+llega a ellas, salvo aceptar una misión ofrecida por un jugador, y una flecha indica adónde ir
+después. Mover a su personaje sigue siendo cosa suya.
 
 El botón **Rutas** abre la ventana de rutas. No está en la barra principal de forma
 predeterminada: añádalo en los ajustes, en la pestaña **Barra principal**. La ventana tiene
-**●** (grabar), **▶** (reproducir), **⏭** (saltar), los botones **Mis rutas** y **Biblioteca**,
-y **_**, que la reduce a una sola línea que se queda por encima de todo, mapa del mundo
-incluido.
+**●** (grabar), **▶** (reproducir), **⏭** (saltar), **↻** (reinicio automático), los botones
+**Mis rutas** y **Biblioteca**, y **_**, que la reduce a una sola línea que se queda por encima
+de todo, mapa del mundo incluido.
 
 ### Grabar
 
@@ -222,8 +227,12 @@ guardar hasta 50 por categoría.
 Haga clic en una ruta de **Mis rutas** para cargarla (haga clic de nuevo para descargarla) y
 después en **▶** para empezar desde el principio, o haga clic en cualquier línea de la ruta
 para empezar desde ahí. **⏭** salta el bloque en curso. Una ruta de la facción
-contraria se niega a empezar. La reproducción se detiene sola si un punto de viaje no está
-desbloqueado para su personaje o si un paso no se puede completar.
+contraria se niega a empezar. Una misión ofrecida por un jugador (compartida o de escolta)
+nunca se acepta en su lugar: acéptela usted mismo; la ruta espera mientras la oferta está en
+pantalla y luego continúa. La reproducción se detiene sola al final de la ruta, si un punto de
+viaje no está desbloqueado para su personaje o si un paso no se puede completar. Active **↻**
+para que la ruta vuelva a empezar desde su primer bloque en lugar de detenerse al final, y haga
+clic de nuevo para desactivarlo. Una ruta hecha solo de puntos de viaje no vuelve a empezar.
 
 Haga clic derecho en una ruta para cargarla o descargarla, cambiar su categoría, compartirla,
 añadirle su grabación actual (**Añadir al final**) o sustituirla (**Sobrescribir**), fijar su
@@ -282,29 +291,31 @@ teclas de World of Warcraft, bajo AutoCallboard.
   efectos activos, y marca 0 % cuando está parado.
 - **Aviso de actualización** — cuando se detecta a un jugador con una versión más reciente,
   aparece un mensaje en su chat y el botón **Actualización disponible** se muestra en el panel.
-- **EbonInvite** — si también usa EbonInvite, puede pedir a AutoCallboard que tire por la
-  mazmorra o la banda que haya seleccionado.
 
 ## 🔧 Ajustes
 
-Haga clic en el engranaje del panel, o haga clic derecho en el botón del minimapa.
+Haga clic en el engranaje del panel, o haga clic derecho en el botón del minimapa: los ajustes
+se abren en la ventana de EbonAPI, en la pestaña **AutoCallboard**.
 
 | Pestaña | Contenido |
 |---|---|
-| **General** | Las opciones anteriores: Instancia actual automática, Barra rápida de ecos, Aceptar misiones automáticamente, Botón del minimapa, Botón de viaje, Viaje automático, Tirar sin el tablero, Aceptar automáticamente las misiones seleccionadas, Asistencia Eternals, Mostrar la velocidad del personaje, Velocidad de tirada e Idioma. |
-| **Apariencia** | Colores Fondo y Acento, Escala de la interfaz, Opacidad del fondo, tamaño, texto y estilo de la flecha, y **Bloquear posiciones**. |
+| **General** | Las opciones anteriores: Instancia actual automática, Barra rápida de ecos, Orientación, Botón del minimapa, Botón de viaje, Viaje automático, Tirar sin el tablero, Aceptar automáticamente las misiones seleccionadas, Asistencia Eternals, Mostrar la velocidad del personaje y Velocidad de tirada. |
+| **Apariencia** | Tamaño, texto y estilo de la flecha. |
 | **Barra principal** | Elija los botones que muestra la barra principal y su orden. De forma predeterminada: Listas, Builds, Callboard, Empezar, Compartir y Misiones. También puede añadir Rutas, Exportar, Importar, Instancia actual automática, Asistencia Eternals, Ayuda y Ajustes. Cada personaje tiene su propia barra. |
 | **Oro** | Qué contadores de oro se muestran, y si se muestran en la barra principal. |
+| **Ayuda** | La ayuda integrada, en cinco partes: Acerca de, Callboard, Rutas, Builds y Ajustes. El botón **?** la abre directamente. |
 
-Los cambios de la pestaña **General** se aplican al instante. Los de las pestañas
-**Apariencia**, **Barra principal** y **Oro** se aplican al hacer clic en **Aplicar**;
-**Predeterminados** devuelve esas tres pestañas a sus valores originales.
+Cada cambio se aplica al instante. Las pestañas **Apariencia**, **Barra principal** y **Oro**
+tienen un botón **Predeterminados** que las devuelve a sus valores originales. El skin, los
+colores, la escala, la opacidad y el bloqueo de posiciones se ajustan en la pestaña
+**Apariencia** de EbonAPI: las ventanas de AutoCallboard los siguen, como las de todos los
+accesorios que usan EbonAPI. Un skin nuevo se aplica al recargar la interfaz.
 
 ## 💡 Conviene saber
 
 - **Las misiones conocidas, las colecciones, las rutas y el aspecto son comunes a todos sus
-  personajes.** Las misiones marcadas, la colección cargada, la barra principal, la barra rápida
-  y la ruta cargada son propias de cada personaje.
+  personajes.** Las misiones marcadas, la colección cargada, la barra principal, la barra
+  rápida, la ruta cargada y su reinicio automático son propios de cada personaje.
 - **El botón Callboard aparece en gris en interiores**, porque el tablón no se puede invocar
   allí.
 - **Si usaba una versión anterior**, las listas guardadas por personaje pasan a su cuenta cuando
@@ -315,9 +326,9 @@ Los cambios de la pestaña **General** se aplican al instante. Los de las pesta�
 ## 🌍 Idiomas
 
 El español, el inglés, el francés y el alemán se incluyen completos. AutoCallboard sigue el
-idioma de su juego, y puede cambiarlo con el botón de idioma de los ajustes: todo cambia al
+idioma de su juego, y puede cambiarlo en la pestaña **General** de EbonAPI: todo cambia al
 instante, incluidas las ventanas que ya están abiertas. El idioma es común a los demás
-accesorios de Ebonhold que usan EbonAPI.
+accesorios de Ebonhold que usan [EbonAPI](https://github.com/Siphelis/EbonAPI).
 
 ## 📜 Licencia y créditos
 

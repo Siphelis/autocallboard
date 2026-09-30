@@ -53,10 +53,11 @@ die Quests an, die Sie wollen, und es übernimmt das Würfeln.
 - **Modus „aktuelle Instanz“** — in einem Dungeon oder Schlachtzug wird nur nach der Quest
   dieser Instanz gewürfelt.
 - **Routen** — zeichnen Sie Ihre Wege auf (NPCs, Dialoge, Quests, Checkpoints), spielen Sie
-  sie mit einem Leitpfeil ab und teilen Sie sie über eine Bibliothek mit anderen Spielern.
+  sie mit einem Leitpfeil einmal oder in Schleife ab und teilen Sie sie über eine Bibliothek mit
+  anderen Spielern.
 - **Reiseknopf** — reisen Sie zu einem Checkpoint in der Nähe des Gebiets Ihrer Quest.
-- **Quests in der Gruppe teilen** — jede angenommene Quest wird mit Ihrer Gruppe oder Ihrem
-  Schlachtzug geteilt, und über AutoCallboard geteilte Quests lassen sich automatisch annehmen.
+- **Quests in der Gruppe teilen** — der Knopf **Teilen** teilt Ihre zuletzt angenommene Quest
+  mit Ihrer Gruppe oder Ihrem Schlachtzug.
 - **Echo-Builds** — wechseln Sie Builds über ein Fenster oder über eine verschiebbare
   Schnellleiste mit 3 Plätzen und Tastenkürzeln.
 - **Eternals-Hilfe** — wandelt Ihre Kristalle um, während Sie die Eternals-Quests machen.
@@ -65,7 +66,9 @@ die Quests an, die Sie wollen, und es übernimmt das Würfeln.
 - **Update-Hinweis** — ein Knopf zeigt Ihnen, wenn eine neuere Version erschienen ist.
 - **Export / Import** — kopieren Sie Ihre bekannten Quests von einer Installation auf eine
   andere.
-- **Ihr Aussehen** — Farben, Größe, Deckkraft, Pfeilstil und die Knöpfe der Hauptleiste.
+- **Ihr Aussehen** — Pfeilstil und die Knöpfe der Hauptleiste; die Fenster folgen dem Skin,
+  den Farben, der Größe und der Deckkraft, die Sie in [EbonAPI](https://github.com/Siphelis/EbonAPI)
+  gewählt haben.
 - **Vier Sprachen** — Deutsch, Englisch, Französisch, Spanisch, live umschaltbar ohne `/reload`.
 
 ## 📋 Voraussetzungen
@@ -74,17 +77,17 @@ die Quests an, die Sie wollen, und es übernimmt das Würfeln.
 |---|---|
 | **Spiel** | World of Warcraft 3.3.5a auf dem Server **Ebonhold** |
 | **Integration** | ProjectEbonhold, im Ebonhold-Client enthalten |
-| **Erforderliches Addon** | [**EbonAPI**](https://github.com/Siphelis/EbonAPI/releases/latest), gemeinsam für die Ebonhold-Addons; AutoCallboard wird ohne es nicht geladen |
+| **Erforderliches Addon** | [**EbonAPI**](https://github.com/Siphelis/EbonAPI), gemeinsam für die Ebonhold-Addons; AutoCallboard wird ohne es nicht geladen |
 
 ## 📦 Installation
 
 1. Laden Sie die neueste Version von der
    [Releases-Seite](https://github.com/Siphelis/autocallboard/releases/latest) herunter.
 2. Entpacken Sie den Ordner `AutoCallboard` nach `Interface/AddOns/`. Installieren Sie
-   [**EbonAPI**](https://github.com/Siphelis/EbonAPI/releases/latest) auf dieselbe Weise, falls
+   [**EbonAPI**](https://github.com/Siphelis/EbonAPI) auf dieselbe Weise, falls
    es noch fehlt.
 3. Starten Sie das Spiel neu und prüfen Sie im AddOn-Auswahlbildschirm, dass **AutoCallboard**
-   und **EbonAPI** beide angehakt sind.
+   und [**EbonAPI**](https://github.com/Siphelis/EbonAPI) beide angehakt sind.
 4. Das AutoCallboard-Panel erscheint auf dem Bildschirm. Ein Minikarten-Knopf bietet
    schnellen Zugriff darauf.
 
@@ -115,7 +118,7 @@ Abklingzeit, bisherige Neuwürfe, Suche pausiert, Quest ausgewählt.
 | **Builds** | Öffnet Ihre Echo-Builds. |
 | **Callboard** | Beschwört das Callboard und öffnet es. Ausgegraut, solange sich Ihr Charakter in einem Gebäude befindet. |
 | **Start / Stopp** | Startet oder beendet die Suche. |
-| **Teilen** | Teilt Ihre zuletzt angenommene Quest noch einmal mit Ihrer Gruppe oder Ihrem Schlachtzug. Ausgegraut, bis Sie eine Quest angenommen haben. |
+| **Teilen** | Teilt Ihre zuletzt angenommene Quest mit Ihrer Gruppe oder Ihrem Schlachtzug. Ausgegraut, bis Sie eine Quest angenommen haben. |
 | **Quests** | Klappt das Fenster der bekannten Quests unter dem Panel auf. Der Knopf heißt dann **Ausblenden**. |
 | Zahnrad, **?**, **×** (oben rechts) | Einstellungen, integrierte Hilfe, Schließen. |
 | **Update verfügbar** | Erscheint nur, wenn eine neuere Version entdeckt wurde. Öffnet die Download-Seite. |
@@ -123,8 +126,8 @@ Abklingzeit, bisherige Neuwürfe, Suche pausiert, Quest ausgewählt.
 
 Ziehen Sie das Panel, um es zu verschieben, oder ziehen Sie einen seiner Knöpfe bei gedrückter
 Umschalttaste. Der Minikarten-Knopf blendet das Panel ein oder aus (Linksklick), öffnet die
-Einstellungen (Rechtsklick) und lässt sich um die Minikarte herum ziehen. Die Hilfe hat fünf
-Reiter und öffnet sich mit **?**.
+Einstellungen (Rechtsklick) und lässt sich um die Minikarte herum ziehen. Die Hilfe öffnet sich mit
+**?** im Fenster von EbonAPI.
 
 ## 📂 Quests und Sammlungen
 
@@ -189,14 +192,18 @@ Jeder Neuwurf kostet Gold. Wenn Sie auf **Start** klicken, geht AutoCallboard so
 4. Es bleibt pausiert, solange die Quest läuft, und macht weiter, wenn Sie sie abgeben oder
    aufgeben.
 
+Es kann immer nur ein Ziel des Boards aktiv sein. Erscheint eine gesuchte Quest, während bereits
+ein anderes Ziel aktiv ist, ersetzt AutoCallboard es nicht: Es pausiert, bis Sie das laufende
+Ziel abgeben oder aufgeben.
+
 Eine aufgegebene Quest bleibt aus der Suche draußen, bis Sie eine andere Ihrer ausgewählten
-Quests annehmen. Die Suche endet von selbst nach 50 Neuwürfen ohne Treffer oder wenn Sie sich
-keinen Neuwurf mehr leisten können.
+Quests annehmen oder einen Dungeon oder Schlachtzug betreten oder verlassen. Die Suche endet
+von selbst nach 50 Neuwürfen ohne Treffer oder wenn Sie sich keinen Neuwurf mehr leisten
+können.
 
 | Option | Aufgabe |
 |---|---|
 | **Ausgewählte Quests automatisch annehmen** *(an)* | Nimmt die Callboard-Quest an, sobald sie einer der angehakten Quests entspricht. |
-| **Quests automatisch annehmen** *(aus)* | Nimmt Quests an, die Mitglieder Ihrer Gruppe oder Ihres Schlachtzugs über AutoCallboard teilen. Von anderen Spielern geteilte Quests müssen Sie selbst annehmen. |
 | **Auto aktuelle Instanz** *(aus)* | Siehe [Aktuelle Instanz](#aktuelle-instanz). |
 | **Ohne Board neu würfeln** *(aus)* | Würfelt weiter und wählt Quests, ohne dass ein Brett geöffnet ist, überall in der Welt. Jeder Neuwurf kostet weiterhin Gold, und der Server kann ihn jederzeit ablehnen. |
 | **Roll-Geschwindigkeit** | Wie schnell die Neuwürfe aufeinander folgen. Vier Voreinstellungen: Turbo, Schnell, Normal, Sicher. |
@@ -208,14 +215,15 @@ Diese Optionen finden Sie in den Einstellungen auf dem Reiter **Allgemein**.
 Eine Route ist ein von Ihnen aufgezeichneter Weg: die NPCs, mit denen Sie gesprochen haben,
 Ihre Entscheidungen in deren Dialogen, die angenommenen oder abgegebenen Quests, die genutzten
 Checkpoints und der Ort jedes Schritts. Wenn Sie sie abspielen, wiederholt AutoCallboard die
-aufgezeichneten Interaktionen, sobald Sie sie erreichen, und ein Pfeil zeigt, wohin es als
-Nächstes geht. Ihren Charakter zu bewegen bleibt Ihre Sache.
+aufgezeichneten Interaktionen, sobald Sie sie erreichen, außer der Annahme einer von einem
+Spieler angebotenen Quest, und ein Pfeil zeigt, wohin es als Nächstes geht. Ihren Charakter zu
+bewegen bleibt Ihre Sache.
 
 Der Knopf **Routen** öffnet das Routenfenster. Er ist ab Werk nicht auf der Hauptleiste: Fügen
 Sie ihn in den Einstellungen auf dem Reiter **Hauptleiste** hinzu. Das Fenster hat **●**
-(aufnehmen), **▶** (abspielen), **⏭** (überspringen), die Knöpfe **Meine Routen** und
-**Bibliothek** sowie **_**, das es auf eine einzige Zeile verkleinert, die über allem bleibt,
-Weltkarte eingeschlossen.
+(aufnehmen), **▶** (abspielen), **⏭** (überspringen), **↻** (automatischer Neustart), die
+Knöpfe **Meine Routen** und **Bibliothek** sowie **_**, das es auf eine einzige Zeile
+verkleinert, die über allem bleibt, Weltkarte eingeschlossen.
 
 ### Aufnehmen
 
@@ -231,9 +239,13 @@ behalten.
 Klicken Sie unter **Meine Routen** auf eine Route, um sie zu laden (erneut klicken zum
 Entladen), und dann auf **▶**, um von vorn zu beginnen, oder klicken Sie auf eine beliebige
 Zeile der Route, um dort einzusteigen. **⏭** überspringt den laufenden Block. Eine Route der
-gegnerischen Fraktion startet nicht. Die Wiedergabe hält von selbst an, wenn ein Checkpoint für
-Ihren Charakter nicht freigeschaltet ist oder wenn ein Schritt nicht zu Ende gespielt werden
-kann.
+gegnerischen Fraktion startet nicht. Eine von einem Spieler angebotene Quest (geteilt oder als
+Eskorte) wird nie an Ihrer Stelle angenommen: Nehmen Sie sie selbst an; die Route wartet, solange
+das Angebot angezeigt wird, und geht dann weiter. Die Wiedergabe hält von selbst am Ende der
+Route an, wenn ein Checkpoint für Ihren Charakter nicht freigeschaltet ist oder wenn ein Schritt
+nicht zu Ende gespielt werden kann. Schalten Sie **↻** ein, damit die Route am Ende wieder bei
+ihrem ersten Block beginnt, statt anzuhalten; ein weiterer Klick schaltet es wieder aus. Eine
+Route, die nur aus Checkpoints besteht, beginnt nicht von vorn.
 
 Klicken Sie eine Route mit rechts an, um sie zu laden oder zu entladen, ihre Kategorie zu
 ändern, sie zu teilen, Ihre aktuelle Aufnahme anzuhängen (**Anhängen**) oder sie zu ersetzen
@@ -293,29 +305,31 @@ Tastenkürzel haben, im Tastenbelegungsmenü von World of Warcraft unter AutoCal
   Effekte sind eingerechnet, und im Stand steht dort 0 %.
 - **Update-Hinweis** — wird ein Spieler mit einer neueren Version entdeckt, erscheint eine
   Nachricht in Ihrem Chat, und der Knopf **Update verfügbar** taucht auf dem Panel auf.
-- **EbonInvite** — nutzen Sie auch EbonInvite, kann es AutoCallboard bitten, für den von ihm
-  gewählten Dungeon oder Schlachtzug zu würfeln.
 
 ## 🔧 Einstellungen
 
-Klicken Sie auf das Zahnrad am Panel oder mit rechts auf den Minikarten-Knopf.
+Klicken Sie auf das Zahnrad am Panel oder mit rechts auf den Minikarten-Knopf: Die
+Einstellungen öffnen sich im Fenster von EbonAPI, auf dem Reiter **AutoCallboard**.
 
 | Reiter | Inhalt |
 |---|---|
-| **Allgemein** | Die Optionen oben: Auto aktuelle Instanz, Echo-Schnellleiste, Quests automatisch annehmen, Minikarten-Schaltfläche, Reiseschaltfläche, Automatisch reisen, Ohne Board neu würfeln, Ausgewählte Quests automatisch annehmen, Eternals-Hilfe, Geschwindigkeit des Charakters anzeigen, Roll-Geschwindigkeit und Sprache. |
-| **Aussehen** | Farben Hintergrund und Akzent, Oberflächengröße, Hintergrunddeckkraft, Größe, Text und Stil des Pfeils sowie **Fensterpositionen sperren**. |
+| **Allgemein** | Die Optionen oben: Auto aktuelle Instanz, Echo-Schnellleiste, Ausrichtung, Minikarten-Schaltfläche, Reiseschaltfläche, Automatisch reisen, Ohne Board neu würfeln, Ausgewählte Quests automatisch annehmen, Eternals-Hilfe, Geschwindigkeit des Charakters anzeigen und Roll-Geschwindigkeit. |
+| **Aussehen** | Größe, Text und Stil des Pfeils. |
 | **Hauptleiste** | Wählen Sie, welche Knöpfe die Hauptleiste zeigt und in welcher Reihenfolge. Ab Werk: Listen, Builds, Callboard, Start, Teilen und Quests. Hinzufügen lassen sich außerdem Routen, Exportieren, Importieren, Auto aktuelle Instanz, Eternals-Hilfe, Hilfe und Einstellungen. Jeder Charakter hat seine eigene Leiste. |
 | **Gold** | Welche Goldzähler angezeigt werden und ob sie in der Hauptleiste erscheinen. |
+| **Hilfe** | Die integrierte Hilfe in fünf Teilen: Über, Callboard, Routen, Builds und Optionen. Der Knopf **?** öffnet sie direkt. |
 
-Änderungen auf dem Reiter **Allgemein** gelten sofort. Änderungen auf den Reitern **Aussehen**,
-**Hauptleiste** und **Gold** gelten erst nach einem Klick auf **Anwenden**; **Standard** setzt
-diese drei Reiter auf ihre ursprünglichen Werte zurück.
+Jede Änderung gilt sofort. Die Reiter **Aussehen**, **Hauptleiste** und **Gold** haben einen
+Knopf **Standard**, der sie auf ihre ursprünglichen Werte zurücksetzt. Skin, Farben, Größe,
+Deckkraft und das Sperren der Positionen stellen Sie auf dem Reiter **Erscheinungsbild** von
+EbonAPI ein: Die Fenster von AutoCallboard folgen ihnen wie die aller Addons, die EbonAPI nutzen.
+Ein neuer Skin gilt nach dem Neuladen der Oberfläche.
 
 ## 💡 Gut zu wissen
 
 - **Bekannte Quests, Sammlungen, Routen und das Aussehen gelten für alle Ihre Charaktere.**
-  Die angehakten Quests, die geladene Sammlung, die Hauptleiste, die Schnellleiste und die
-  geladene Route gehören zum jeweiligen Charakter.
+  Die angehakten Quests, die geladene Sammlung, die Hauptleiste, die Schnellleiste, die
+  geladene Route und ihr automatischer Neustart gehören zum jeweiligen Charakter.
 - **Der Knopf Callboard ist in Gebäuden ausgegraut**, weil sich das Brett dort nicht
   beschwören lässt.
 - **Wenn Sie eine ältere Version genutzt haben**, wechseln die pro Charakter gespeicherten
@@ -326,9 +340,9 @@ diese drei Reiter auf ihre ursprünglichen Werte zurück.
 ## 🌍 Sprachen
 
 Deutsch, Englisch, Französisch und Spanisch sind vollständig enthalten. AutoCallboard folgt
-der Sprache Ihres Spiels, und Sie können sie über den Sprachknopf in den Einstellungen ändern:
+der Sprache Ihres Spiels, und Sie können sie auf dem Reiter **Allgemein** von EbonAPI ändern:
 Alles wechselt sofort, auch bereits geöffnete Fenster. Die Sprache gilt gemeinsam für die
-anderen Ebonhold-Addons, die EbonAPI nutzen.
+anderen Ebonhold-Addons, die [EbonAPI](https://github.com/Siphelis/EbonAPI) nutzen.
 
 ## 📜 Lizenz & Danksagung
 

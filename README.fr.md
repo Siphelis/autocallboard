@@ -53,11 +53,11 @@ cochez les quêtes voulues et il se charge des relances.
 - **Mode « instance actuelle »** — dans un donjon ou un raid, relance uniquement pour la
   quête de cette instance.
 - **Routes** — enregistrez vos trajets (PNJ, dialogues, quêtes, checkpoints), rejouez-les avec
-  une flèche de guidage et partagez-les avec les autres joueurs grâce à une bibliothèque.
+  une flèche de guidage, une fois ou en boucle, et partagez-les avec les autres joueurs grâce à
+  une bibliothèque.
 - **Bouton de voyage** — rejoignez un checkpoint proche de la zone de votre quête.
-- **Partage de quêtes en groupe** — chaque quête acceptée est partagée avec votre groupe ou
-  votre raid, et les quêtes partagées via AutoCallboard peuvent être acceptées
-  automatiquement.
+- **Partage de quêtes en groupe** — le bouton **Partager** partage votre dernière quête acceptée
+  avec votre groupe ou votre raid.
 - **Builds d'échos** — changez de build depuis une fenêtre, ou depuis une barre d'accès rapide
   déplaçable à 3 emplacements, avec raccourcis clavier.
 - **Assistance Eternals** — convertit vos cristaux pendant les quêtes des Eternals.
@@ -65,8 +65,9 @@ cochez les quêtes voulues et il se charge des relances.
   cours, dernière quête.
 - **Avis de mise à jour** — un bouton vous prévient lorsqu'une nouvelle version existe.
 - **Export / import** — copiez vos quêtes connues d'une installation à l'autre.
-- **Votre apparence** — couleurs, échelle, opacité, style de flèche, et boutons affichés dans
-  la barre principale.
+- **Votre apparence** — style de flèche et boutons affichés dans la barre principale ; les
+  fenêtres suivent le skin, les couleurs, l'échelle et l'opacité choisis dans
+  [EbonAPI](https://github.com/Siphelis/EbonAPI).
 - **Quatre langues** — français, anglais, allemand, espagnol, changées à chaud sans `/reload`.
 
 ## 📋 Prérequis
@@ -75,17 +76,17 @@ cochez les quêtes voulues et il se charge des relances.
 |---|---|
 | **Jeu** | World of Warcraft 3.3.5a sur le serveur **Ebonhold** |
 | **Intégration** | ProjectEbonhold, fourni avec le client Ebonhold |
-| **Addon requis** | [**EbonAPI**](https://github.com/Siphelis/EbonAPI/releases/latest), commun aux addons Ebonhold ; AutoCallboard ne se charge pas sans lui |
+| **Addon requis** | [**EbonAPI**](https://github.com/Siphelis/EbonAPI), commun aux addons Ebonhold ; AutoCallboard ne se charge pas sans lui |
 
 ## 📦 Installation
 
 1. Téléchargez la dernière version depuis la
    [page des versions](https://github.com/Siphelis/autocallboard/releases/latest).
 2. Décompressez le dossier `AutoCallboard` dans `Interface/AddOns/`. Installez
-   [**EbonAPI**](https://github.com/Siphelis/EbonAPI/releases/latest) de la même façon s'il
+   [**EbonAPI**](https://github.com/Siphelis/EbonAPI) de la même façon s'il
    n'y est pas encore.
 3. Redémarrez le jeu et vérifiez dans l'écran de sélection des addons que **AutoCallboard** et
-   **EbonAPI** sont bien cochés.
+   [**EbonAPI**](https://github.com/Siphelis/EbonAPI) sont bien cochés.
 4. Le panneau AutoCallboard apparaît à l'écran. Un bouton sur la minicarte y donne un accès
    rapide.
 
@@ -115,7 +116,7 @@ relances effectuées, recherche en pause, quête sélectionnée.
 | **Builds** | Ouvre vos builds d'échos. |
 | **Callboard** | Invoque le Callboard et l'ouvre. Grisé lorsque votre personnage est en intérieur. |
 | **Démarrer / Arrêter** | Lance ou arrête la recherche. |
-| **Partager** | Partage à nouveau votre dernière quête acceptée avec votre groupe ou votre raid. Grisé tant que vous n'avez accepté aucune quête. |
+| **Partager** | Partage votre dernière quête acceptée avec votre groupe ou votre raid. Grisé tant que vous n'avez accepté aucune quête. |
 | **Quêtes** | Déploie la fenêtre des quêtes connues sous le panneau. Le bouton devient alors **Masquer**. |
 | Engrenage, **?**, **×** (en haut à droite) | Réglages, aide intégrée, fermeture. |
 | **Mise à jour disponible** | N'apparaît que lorsqu'une version plus récente a été repérée. Ouvre la page de téléchargement. |
@@ -123,8 +124,8 @@ relances effectuées, recherche en pause, quête sélectionnée.
 
 Faites glisser le panneau pour le déplacer, ou faites glisser l'un de ses boutons en
 maintenant Maj. Le bouton de la minicarte affiche ou masque le panneau (clic gauche), ouvre
-les réglages (clic droit) et peut être déplacé autour de la minicarte. L'aide comporte cinq
-onglets et s'ouvre avec **?**.
+les réglages (clic droit) et peut être déplacé autour de la minicarte. L'aide s'ouvre avec **?**,
+dans la fenêtre d'EbonAPI.
 
 ## 📂 Quêtes et collections
 
@@ -187,14 +188,18 @@ Chaque relance coûte de l'or. Lorsque vous cliquez sur **Démarrer**, AutoCallb
 4. reste en pause pendant que la quête est en cours, puis reprend lorsque vous la rendez ou
    l'abandonnez.
 
-Une quête abandonnée est écartée de la recherche jusqu'à ce que vous acceptiez une autre de
-vos quêtes sélectionnées. La recherche s'arrête d'elle-même après 50 relances sans
-correspondance, ou lorsque vous n'avez plus assez d'or pour relancer.
+Un seul objectif du tableau peut être actif à la fois. Si une quête voulue apparaît alors qu'un
+autre objectif est déjà actif, AutoCallboard ne le remplace pas : il se met en pause jusqu'à ce
+que vous rendiez ou abandonniez l'objectif en cours.
+
+Une quête abandonnée est écartée de la recherche jusqu'à ce que vous acceptiez une autre de vos
+quêtes sélectionnées, ou que vous entriez dans un donjon ou un raid ou en sortiez. La recherche
+s'arrête d'elle-même après 50 relances sans correspondance, ou lorsque vous n'avez plus assez
+d'or pour relancer.
 
 | Option | Rôle |
 |---|---|
 | **Accepter automatiquement les quêtes sélectionnées** *(activée)* | Accepte la quête du Callboard dès qu'elle correspond à l'une de celles que vous avez cochées. |
-| **Acceptation auto des quêtes** *(désactivée)* | Accepte les quêtes partagées via AutoCallboard par les membres de votre groupe ou de votre raid. Les quêtes partagées par d'autres joueurs restent à accepter vous-même. |
 | **Instance actuelle auto** *(désactivée)* | Voir [Instance actuelle](#instance-actuelle). |
 | **Relancer sans le tableau** *(désactivée)* | Continue de relancer et de choisir les quêtes sans tableau ouvert, partout dans le monde. Chaque relance coûte toujours de l'or, et le serveur peut la refuser à tout moment. |
 | **Vitesse de roll** | La cadence des relances. Quatre préréglages : Turbo, Rapide, Normale, Sûre. |
@@ -206,13 +211,14 @@ Ces options se trouvent dans les réglages, onglet **Général**.
 Une route est un trajet que vous avez enregistré : les PNJ auxquels vous avez parlé, les choix
 faits dans leurs dialogues, les quêtes prises ou rendues, les checkpoints utilisés et l'endroit
 de chaque étape. Lorsque vous la rejouez, AutoCallboard refait les interactions enregistrées
-au moment où vous les atteignez, et une flèche indique où aller ensuite. Déplacer votre
-personnage reste à votre charge.
+au moment où vous les atteignez, sauf l'acceptation d'une quête proposée par un joueur, et une
+flèche indique où aller ensuite. Déplacer votre personnage reste à votre charge.
 
 Le bouton **Routes** ouvre la fenêtre des routes. Il n'est pas dans la barre principale par
 défaut : ajoutez-le dans les réglages, onglet **Barre principale**. La fenêtre comporte **●**
-(enregistrer), **▶** (lire), **⏭** (passer), les boutons **Mes routes** et **Bibliothèque**, et
-**_**, qui la réduit à une seule ligne restant au-dessus de tout, carte du monde comprise.
+(enregistrer), **▶** (lire), **⏭** (passer), **↻** (relance automatique), les boutons
+**Mes routes** et **Bibliothèque**, et **_**, qui la réduit à une seule ligne restant au-dessus
+de tout, carte du monde comprise.
 
 ### Enregistrer
 
@@ -227,8 +233,12 @@ jusqu'à 400 étapes, et vous pouvez en garder jusqu'à 50 par catégorie.
 Cliquez sur une route dans **Mes routes** pour la charger (cliquez à nouveau pour la
 décharger), puis sur **▶** pour la démarrer depuis le début, ou cliquez sur n'importe quelle
 ligne de la route pour partir de là. **⏭** ignore le bloc en cours. Une route de la
-faction opposée refuse de démarrer. La lecture s'arrête d'elle-même si un checkpoint n'est pas
-débloqué pour votre personnage, ou si une étape ne peut pas être jouée jusqu'au bout.
+faction opposée refuse de démarrer. Une quête proposée par un joueur (partage, escorte) n'est
+jamais acceptée à votre place : acceptez-la vous-même, la route vous attend tant que l'offre est
+affichée, puis continue. La lecture s'arrête d'elle-même à la fin de la route, si un checkpoint
+n'est pas débloqué pour votre personnage, ou si une étape ne peut pas être jouée jusqu'au bout.
+Allumez **↻** pour que la route reparte de son premier bloc au lieu de s'arrêter à la fin, et
+cliquez à nouveau pour l'éteindre. Une route faite uniquement de checkpoints ne repart pas.
 
 Faites un clic droit sur une route pour la charger ou la décharger, changer sa catégorie, la
 partager, lui ajouter votre enregistrement actuel (**Ajouter à la suite**) ou la remplacer
@@ -290,29 +300,31 @@ sous AutoCallboard.
 - **Avis de mise à jour** — lorsqu'un joueur disposant d'une version plus récente est repéré,
   un message apparaît dans votre discussion et le bouton **Mise à jour disponible** s'affiche
   sur le panneau.
-- **EbonInvite** — si vous utilisez aussi EbonInvite, il peut demander à AutoCallboard de
-  relancer pour le donjon ou le raid qu'il a sélectionné.
 
 ## 🔧 Réglages
 
-Cliquez sur l'engrenage du panneau, ou faites un clic droit sur le bouton de la minicarte.
+Cliquez sur l'engrenage du panneau, ou faites un clic droit sur le bouton de la minicarte :
+les réglages s'ouvrent dans la fenêtre d'EbonAPI, onglet **AutoCallboard**.
 
 | Onglet | Contenu |
 |---|---|
-| **Général** | Les options ci-dessus : Instance actuelle auto, Accès rapide échos, Acceptation auto des quêtes, Bouton minicarte, Bouton de voyage, Voyage automatique, Relancer sans le tableau, Accepter automatiquement les quêtes sélectionnées, Assistance Eternals, Afficher la vitesse du personnage, Vitesse de roll et Langue. |
-| **Apparence** | Couleurs Fond et Accent, Échelle de l’interface, Opacité du fond, taille, texte et style de la flèche, et **Verrouiller les positions**. |
+| **Général** | Les options ci-dessus : Instance actuelle auto, Accès rapide échos, Sens de la barre, Bouton minicarte, Bouton de voyage, Voyage automatique, Relancer sans le tableau, Accepter automatiquement les quêtes sélectionnées, Assistance Eternals, Afficher la vitesse du personnage et Vitesse de roll. |
+| **Apparence** | Taille, texte et style de la flèche. |
 | **Barre principale** | Choisissez les boutons affichés dans la barre principale et leur ordre. Par défaut : Listes, Builds, Callboard, Démarrer, Partager et Quêtes. Vous pouvez aussi ajouter Routes, Exporter, Importer, Instance actuelle auto, Assistance Eternals, Aide et Réglages. Chaque personnage a sa propre barre. |
 | **Or** | Les compteurs d'or à afficher, et s'il faut les afficher dans la barre principale. |
+| **Aide** | L'aide intégrée, en cinq parties : À propos, Callboard, Routes, Builds et Réglages. Le bouton **?** l'ouvre directement. |
 
-Les changements de l'onglet **Général** s'appliquent tout de suite. Ceux des onglets
-**Apparence**, **Barre principale** et **Or** s'appliquent en cliquant sur **Appliquer** ;
-**Par défaut** remet ces trois onglets à leurs valeurs d'origine.
+Chaque changement s'applique tout de suite. Les onglets **Apparence**, **Barre principale** et
+**Or** ont un bouton **Par défaut** qui les remet à leurs valeurs d'origine. Le skin, les
+couleurs, l'échelle, l'opacité et le verrouillage des positions se règlent dans l'onglet
+**Apparence** d'EbonAPI : les fenêtres d'AutoCallboard les suivent, comme celles de tous les
+addons qui utilisent EbonAPI. Un nouveau skin s'applique au rechargement de l'interface.
 
 ## 💡 À savoir
 
 - **Les quêtes connues, les collections, les routes et l'apparence sont communes à tous vos
   personnages.** Les quêtes cochées, la collection chargée, la barre principale, la barre
-  d'accès rapide et la route chargée sont propres à chaque personnage.
+  d'accès rapide, la route chargée et sa relance automatique sont propres à chaque personnage.
 - **Le bouton Callboard est grisé en intérieur**, car le tableau ne peut pas y être invoqué.
 - **Si vous utilisiez une ancienne version**, les listes enregistrées par personnage passent
   sur votre compte à la connexion de chaque personnage, et les listes de l'ancien addon
@@ -322,9 +334,9 @@ Les changements de l'onglet **Général** s'appliquent tout de suite. Ceux des o
 ## 🌍 Langues
 
 Le français, l'anglais, l'allemand et l'espagnol sont disponibles au complet. AutoCallboard
-suit la langue de votre jeu, et vous pouvez la changer avec le bouton de langue des réglages :
+suit la langue de votre jeu, et vous pouvez la changer dans l'onglet **Général** d'EbonAPI :
 tout change instantanément, y compris les fenêtres déjà ouvertes. La langue est commune aux
-autres addons Ebonhold qui utilisent EbonAPI.
+autres addons Ebonhold qui utilisent [EbonAPI](https://github.com/Siphelis/EbonAPI).
 
 ## 📜 Licence et crédits
 
