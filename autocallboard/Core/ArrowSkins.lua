@@ -5,7 +5,7 @@ local MODEL_HALF_TURN = math.pi
 
 local MODEL_SCALE = 0.2144
 
-local type, tonumber, tostring, ipairs = type, tonumber, tostring, ipairs
+local type, tonumber = type, tonumber
 
 Core.ARROW_SKIN_DEFAULT = "sheet"
 
@@ -83,16 +83,6 @@ function Core.sanitizeArrowSkin(id)
   end
 
   return Core.ARROW_SKIN_DEFAULT
-end
-
-function Core.arrowSkinLabel(skin)
-  if type(skin) ~= "table" then
-    return ""
-  end
-
-  local L = AutoCallboardLocale
-
-  return L[skin.labelKey] or tostring(skin.id)
 end
 
 function Core.arrowModelScale(skin)

@@ -1,6 +1,5 @@
 local Core = AutoCallboardCore
 local Skin = AutoCallboardSkin
-local THEME = Skin.THEME
 local RT = AutoCallboardRuntime
 local IsUnder = RT.IsUnder
 
@@ -8,19 +7,19 @@ local LIST_WIDTH = 214
 local GROUP_OPEN_WIDTH = 202
 local GROUP_BAND_WIDTH = 30
 local PANEL_GAP = 4
-local WINDOW_EDGE = 10
-local TOP_STRIP = 22
-local PANEL_HEADER = 26
-local ROW_HEIGHT = 24
+local PANEL_TOP = 5
+local PANEL_HEADER_GAP = 3
+local PANEL_BOTTOM = 6
+local PANEL_INSET = 6
+local SCROLL_INSET = 5
+local SCROLL_ROOM = 10
 local ROW_GAP = 2
 local VISIBLE_ROWS = 10
-local SCROLLBAR_WIDTH = 18
 local ANIMATION_SECONDS = 0.3
 
 local DROP_LINE_HEIGHT = 2
 local DRAG_SOURCE_ALPHA = 0.4
 local DROP_REFUSED_BORDER = { 1, 0.25, 0.25, 1 }
-local DROP_REFUSED_FILL = { 0.35, 0.05, 0.05, 0.55 }
 
 local BAND_LABEL_TOP = 22
 local BAND_LABEL_BOTTOM = 22
@@ -28,24 +27,16 @@ local BAND_STACK_LINE = 11
 local BAND_SHORT_CHARS = 3
 local BAND_LABEL_BOTTOM_UP = true
 
-local ROWS_HEIGHT = VISIBLE_ROWS * (ROW_HEIGHT + ROW_GAP)
-local PANEL_HEIGHT = PANEL_HEADER + ROWS_HEIGHT + 6
-local WINDOW_HEIGHT = TOP_STRIP + PANEL_HEIGHT + WINDOW_EDGE
-local BAND_LABEL_SPAN = PANEL_HEIGHT - BAND_LABEL_TOP - BAND_LABEL_BOTTOM
+local rowHeight, panelHeader, panelHeight, bandLabelSpan
 
 local COLLAPSE_ALL = 0
 local LIST_KEY = 0
-
-RT.BROWSER_COLLAPSE_ALL = COLLAPSE_ALL
-RT.BROWSER_LIST_WIDTH = LIST_WIDTH
-RT.BROWSER_WINDOW_EDGE = WINDOW_EDGE
-RT.BROWSER_WINDOW_HEIGHT = WINDOW_HEIGHT
 
 local instances = {}
 
 local function StackedText(value)
   local chars = {}
-  local limit = math.floor(BAND_LABEL_SPAN / BAND_STACK_LINE)
+  local limit = math.floor(bandLabelSpan / BAND_STACK_LINE)
 
   for character in string.gmatch(tostring(value or ""), "[\1-\127\194-\244][\128-\191]*") do
     chars[#(chars) + 1] = character
@@ -122,7 +113,7 @@ local function ApplyBandLabel(band, name)
   band.label:ClearAllPoints()
 
   if mode == "rotate" or mode == "anim" then
-    band.label:SetWidth(BAND_LABEL_SPAN)
+    band.label:SetWidth(bandLabelSpan)
     band.label:SetHeight(14)
     band.label:SetJustifyH("CENTER")
     band.label:SetJustifyV("MIDDLE")
@@ -137,7 +128,7 @@ local function ApplyBandLabel(band, name)
   end
 
   band.label:SetWidth(GROUP_BAND_WIDTH - 6)
-  band.label:SetHeight(BAND_LABEL_SPAN)
+  band.label:SetHeight(bandLabelSpan)
   band.label:SetJustifyH("CENTER")
   band.label:SetJustifyV("MIDDLE")
   band.label:SetPoint("CENTER", band.labelHolder, "CENTER", 0, 0)
@@ -214,7 +205,7 @@ local BeginGroupDrag
 local EndDrag
 local SetOpen
 
-local function RefreshRowVisual(browser, row, hovered)
+local function RefreshRowVisual(browser, row)
   local entry = row.entry
   if not entry then
     return
@@ -223,7 +214,7 @@ local function RefreshRowVisual(browser, row, hovered)
   local selected, disabled = browser.spec.rowState(entry)
   local drag = browser.drag
 
-  Skin.PaintRow(row, selected, hovered and not drag, disabled)
+  Skin.PaintRow(row, selected, disabled)
 
   if drag then
     row:SetAlpha(drag.id == entry.id and DRAG_SOURCE_ALPHA or 1)
@@ -240,15 +231,30 @@ local function RefreshRowVisuals(browser)
 
     if panel and panel.rows then
       for j = 1, #(panel.rows) do
-        RefreshRowVisual(browser, panel.rows[j], false)
+        RefreshRowVisual(browser, panel.rows[j])
       end
     end
   end
 end
 
+local function Measure(panel)
+  if panelHeight then
+    return
+  end
+
+  rowHeight = panel.rows[1]:GetHeight()
+  panelHeader = PANEL_TOP + panel.closeButton:GetHeight() + PANEL_HEADER_GAP
+  panelHeight = panelHeader + VISIBLE_ROWS * (rowHeight + ROW_GAP) + PANEL_BOTTOM
+  bandLabelSpan = panelHeight - BAND_LABEL_TOP - BAND_LABEL_BOTTOM
+end
+
+local function RowRight(panel, scrolling)
+  return scrolling and -(panel.scrollUp:GetWidth() + SCROLL_ROOM) or -PANEL_INSET
+end
+
 local function CreateRow(browser, parent, name)
   local spec = browser.spec
-  local row = Skin.Row(parent, spec.names.row .. tostring(name), ROW_HEIGHT, "LeftButtonUp", "RightButtonUp")
+  local row = Skin.Row(parent, spec.names.row .. tostring(name), "LeftButtonUp", "RightButtonUp")
   row:RegisterForDrag("LeftButton")
 
   row:SetScript("OnDragStart", function(self)
@@ -266,24 +272,21 @@ local function CreateRow(browser, parent, name)
     end
     end)
 
-  row:SetScript("OnEnter", function(self)
+  row:HookScript("OnEnter", function(self)
     if browser.drag then
       return
     end
-
-    RefreshRowVisual(browser, self, true)
 
     if self.entry then
       spec.rowTooltip(self, self.entry)
     end
     end)
 
-  row:SetScript("OnLeave", function(self)
+  row:HookScript("OnLeave", function()
     if browser.drag then
       return
     end
 
-    RefreshRowVisual(browser, self, false)
     GameTooltip:Hide()
     end)
 
@@ -292,9 +295,7 @@ end
 
 local function CreatePanel(browser, name, isList)
   local spec = browser.spec
-  local panel = CreateFrame("Frame", name, browser.window)
-  panel:SetHeight(PANEL_HEIGHT)
-  Skin.Frame(panel, "soft")
+  local panel = Skin.Box(browser.window.content, { name = name })
 
   panel.title = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
   panel.title:SetJustifyH("LEFT")
@@ -306,10 +307,8 @@ local function CreatePanel(browser, name, isList)
 
   if spec.onAdd then
     panel.addButton = Skin.MakeButton(panel, {
-      width = 20,
-      height = 18,
       text = "+",
-      points = { { "TOPRIGHT", panel, "TOPRIGHT", -6, -5 } },
+      points = { { "TOPRIGHT", panel, "TOPRIGHT", -PANEL_INSET, -PANEL_TOP } },
       onClick = function()
         spec.onAdd(panel.groupId)
         end,
@@ -319,10 +318,8 @@ local function CreatePanel(browser, name, isList)
   end
 
   panel.closeButton = Skin.MakeButton(panel, {
-    width = 24,
-    height = 18,
     text = ">>",
-    points = { { "TOPLEFT", panel, "TOPLEFT", 6, -5 } },
+    points = { { "TOPLEFT", panel, "TOPLEFT", PANEL_INSET, -PANEL_TOP } },
     onClick = function()
       SetOpen(browser, COLLAPSE_ALL)
       end,
@@ -341,7 +338,7 @@ local function CreatePanel(browser, name, isList)
     panel.headerHit = CreateFrame("Button", nil, panel)
     panel.headerHit:SetPoint("TOPLEFT", panel.closeButton, "TOPRIGHT", 2, 0)
     panel.headerHit:SetPoint("BOTTOMRIGHT", panel.addButton or panel, panel.addButton and "BOTTOMLEFT" or "TOPRIGHT",
-      panel.addButton and -2 or -6, panel.addButton and 0 or -23)
+      panel.addButton and -2 or -PANEL_INSET, panel.addButton and 0 or -(PANEL_TOP + panel.closeButton:GetHeight()))
     panel.headerHit:RegisterForClicks("RightButtonUp")
     panel.headerHit:RegisterForDrag("LeftButton")
     panel.headerHit:SetScript("OnClick", function(self)
@@ -364,22 +361,23 @@ local function CreatePanel(browser, name, isList)
     Refresh(browser)
   end
 
-  panel.scrollUp = CreateFrame("Button", nil, panel)
-  panel.scrollUp:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -5, -(PANEL_HEADER))
-  Skin.ScrollButton(panel.scrollUp, "^")
-  panel.scrollUp:SetScript("OnClick", function() Step(-1) end)
+  panel.scrollUp = Skin.MakeButton(panel, {
+    text = "^",
+    onClick = function() Step(-1) end,
+  })
   panel.scrollUp:Hide()
 
-  panel.scrollDown = CreateFrame("Button", nil, panel)
-  panel.scrollDown:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -5, 6)
-  Skin.ScrollButton(panel.scrollDown, "v")
-  panel.scrollDown:SetScript("OnClick", function() Step(1) end)
+  panel.scrollDown = Skin.MakeButton(panel, {
+    text = "v",
+    points = { { "BOTTOMRIGHT", panel, "BOTTOMRIGHT", -SCROLL_INSET, PANEL_BOTTOM } },
+    onClick = function() Step(1) end,
+  })
   panel.scrollDown:Hide()
 
   panel.scrollText = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
   panel.scrollText:SetPoint("RIGHT", panel.scrollUp, "RIGHT", 0, 0)
   panel.scrollText:SetPoint("TOP", panel.scrollUp, "BOTTOM", 0, -4)
-  panel.scrollText:SetWidth(SCROLLBAR_WIDTH)
+  panel.scrollText:SetWidth(panel.scrollUp:GetWidth())
   panel.scrollText:SetJustifyH("CENTER")
   Skin.MutedText(panel.scrollText)
   panel.scrollText:Hide()
@@ -390,8 +388,6 @@ local function CreatePanel(browser, name, isList)
     end)
 
   panel.emptyLabel = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-  panel.emptyLabel:SetPoint("TOPLEFT", panel, "TOPLEFT", 8, -(PANEL_HEADER + 4))
-  panel.emptyLabel:SetPoint("RIGHT", panel, "RIGHT", -8, 0)
   panel.emptyLabel:SetJustifyH("LEFT")
   RT.Localized(panel.emptyLabel, spec.emptyKey)
   Skin.MutedText(panel.emptyLabel)
@@ -401,14 +397,13 @@ local function CreatePanel(browser, name, isList)
   panel.dropLayer:SetFrameLevel(panel:GetFrameLevel() + 10)
 
   panel.dropLine = panel.dropLayer:CreateTexture(nil, "OVERLAY")
-  panel.dropLine:SetTexture(Skin.WHITE8X8)
+  panel.dropLine:SetTexture(EbonAPI.Bricks.media("solid"))
   panel.dropLine:SetHeight(DROP_LINE_HEIGHT)
   panel.dropLine:Hide()
 
   panel.rows = {}
   for i = 1, VISIBLE_ROWS do
     local row = CreateRow(browser, panel, tostring(name) .. i)
-    row:SetPoint("TOPLEFT", panel, "TOPLEFT", 6, -(PANEL_HEADER + (i - 1) * (ROW_HEIGHT + ROW_GAP)))
     row:EnableMouseWheel(true)
     row:SetScript("OnMouseWheel", function(_, delta)
       Step(-delta)
@@ -416,17 +411,26 @@ local function CreatePanel(browser, name, isList)
     panel.rows[i] = row
   end
 
+  Measure(panel)
+  panel.spec.height = panelHeight
+  panel:SetHeight(panelHeight)
+  panel.scrollUp:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -SCROLL_INSET, -panelHeader)
+
+  for i = 1, VISIBLE_ROWS do
+    panel.rows[i]:SetPoint("TOPLEFT", panel, "TOPLEFT", PANEL_INSET, -(panelHeader + (i - 1) * (rowHeight + ROW_GAP)))
+  end
+
   return panel
 end
 
 local function CreateGroupBand(browser, index, isList)
   local spec = browser.spec
-  local band = CreateFrame("Button", spec.names.band .. tostring(index), browser.window)
+  local band = CreateFrame("Button", spec.names.band .. tostring(index), browser.window.content)
   band.isList = isList and true or false
   band:SetWidth(GROUP_BAND_WIDTH)
-  band:SetHeight(PANEL_HEIGHT)
+  band:SetHeight(panelHeight)
   band:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-  Skin.Frame(band, "soft")
+  local surface = Skin.Backdrop(band)
 
   if not isList and spec.moveGroup then
     band:RegisterForDrag("LeftButton")
@@ -440,19 +444,19 @@ local function CreateGroupBand(browser, index, isList)
       end)
   end
 
-  band.arrow = band:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  band.arrow = surface:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
   band.arrow:SetPoint("TOP", band, "TOP", 0, -6)
   band.arrow:SetText("<<")
-  Skin.ApplyColor(band.arrow, "SetTextColor", THEME.heading)
+  Skin.ApplyColor(band.arrow, "SetTextColor", "heading")
 
-  band.labelHolder = CreateFrame("Frame", nil, band)
+  band.labelHolder = CreateFrame("Frame", nil, surface)
   band.labelHolder:SetPoint("TOPLEFT", band, "TOPLEFT", 3, -BAND_LABEL_TOP)
   band.labelHolder:SetPoint("BOTTOMRIGHT", band, "BOTTOMRIGHT", -3, BAND_LABEL_BOTTOM)
 
   band.label = band.labelHolder:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
   band.label:SetJustifyH("CENTER")
 
-  band.count = band:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  band.count = surface:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
   band.count:SetPoint("BOTTOM", band, "BOTTOM", 0, 6)
   band.count:SetWidth(GROUP_BAND_WIDTH - 6)
   band.count:SetJustifyH("CENTER")
@@ -483,7 +487,7 @@ local function CreateGroupBand(browser, index, isList)
       return
     end
 
-    Skin.ApplyColor(self, "SetBackdropBorderColor", THEME.buttonHoverBorder)
+    Skin.Highlight(self.acbBox, "hover")
 
     if not self.isList and not self.group then
       return
@@ -511,7 +515,7 @@ local function CreateGroupBand(browser, index, isList)
       return
     end
 
-    Skin.Frame(self, "soft")
+    Skin.Highlight(self.acbBox, nil)
     GameTooltip:Hide()
     end)
 
@@ -558,7 +562,7 @@ local function LayoutPanels(browser)
   local groups = Groups(browser)
   local widths, openKey = ContainerWidths(browser)
   local listWidth = spec.hasList and widths[LIST_KEY] or 0
-  local total = listWidth + WINDOW_EDGE * 2
+  local total = listWidth
   local groupCount = #(groups)
 
   for i = 1, groupCount do
@@ -569,10 +573,10 @@ local function LayoutPanels(browser)
     total = total - PANEL_GAP
   end
 
-  window:SetWidth(math.max(total, spec.minWidth or 0))
-  window:SetHeight(WINDOW_HEIGHT)
+  Skin.SizeWindow(window, math.max(total, spec.minWidth or 0), panelHeight)
 
-  local offset = WINDOW_EDGE
+  local content = window.content
+  local offset = 0
 
   if spec.hasList then
     local listIsOpen = (openKey == LIST_KEY) and not animation
@@ -580,18 +584,18 @@ local function LayoutPanels(browser)
     if listIsOpen then
       browser.listPanel:ClearAllPoints()
       browser.listPanel:SetWidth(listWidth)
-      browser.listPanel:SetPoint("TOPRIGHT", window, "TOPRIGHT", -WINDOW_EDGE, -TOP_STRIP)
+      browser.listPanel:SetPoint("TOPRIGHT", content, "TOPRIGHT", 0, 0)
       browser.listPanel:Show()
       browser.listBand:Hide()
     else
       browser.listPanel:Hide()
       browser.listBand:ClearAllPoints()
       browser.listBand:SetWidth(listWidth)
-      browser.listBand:SetPoint("TOPRIGHT", window, "TOPRIGHT", -WINDOW_EDGE, -TOP_STRIP)
+      browser.listBand:SetPoint("TOPRIGHT", content, "TOPRIGHT", 0, 0)
       browser.listBand:Show()
     end
 
-    offset = WINDOW_EDGE + listWidth + PANEL_GAP
+    offset = listWidth + PANEL_GAP
   end
 
   for i = 1, groupCount do
@@ -601,14 +605,14 @@ local function LayoutPanels(browser)
     if group.id == openKey and not animation then
       browser.groupPanel:ClearAllPoints()
       browser.groupPanel:SetWidth(width)
-      browser.groupPanel:SetPoint("TOPRIGHT", window, "TOPRIGHT", -offset, -TOP_STRIP)
+      browser.groupPanel:SetPoint("TOPRIGHT", content, "TOPRIGHT", -offset, 0)
       browser.groupPanel:Show()
       browser.groupBands[i]:Hide()
     else
       local band = browser.groupBands[i]
       band:ClearAllPoints()
       band:SetWidth(width)
-      band:SetPoint("TOPRIGHT", window, "TOPRIGHT", -offset, -TOP_STRIP)
+      band:SetPoint("TOPRIGHT", content, "TOPRIGHT", -offset, 0)
       band:Show()
     end
 
@@ -644,7 +648,7 @@ local function FillPanel(browser, panel, entries, storedCount)
     panel.scrollText:Hide()
   end
 
-  local rowWidth = maxOffset > 0 and -(SCROLLBAR_WIDTH + 10) or -6
+  local rowWidth = RowRight(panel, maxOffset > 0)
 
   local shownRows = 0
 
@@ -653,7 +657,7 @@ local function FillPanel(browser, panel, entries, storedCount)
     local entry = entries[offset + i]
 
     row:ClearAllPoints()
-    row:SetPoint("TOPLEFT", panel, "TOPLEFT", 6, -(PANEL_HEADER + (i - 1) * (ROW_HEIGHT + ROW_GAP)))
+    row:SetPoint("TOPLEFT", panel, "TOPLEFT", PANEL_INSET, -(panelHeader + (i - 1) * (rowHeight + ROW_GAP)))
     row:SetPoint("RIGHT", panel, "RIGHT", rowWidth, 0)
 
     if entry then
@@ -670,9 +674,9 @@ local function FillPanel(browser, panel, entries, storedCount)
 
   if (storedCount or #(entries)) == 0 then
     panel.emptyLabel:ClearAllPoints()
-    panel.emptyLabel:SetPoint("TOPLEFT", panel, "TOPLEFT", 8,
-        -(PANEL_HEADER + shownRows * (ROW_HEIGHT + ROW_GAP) + 4))
-    panel.emptyLabel:SetPoint("RIGHT", panel, "RIGHT", -8, 0)
+    panel.emptyLabel:SetPoint("TOPLEFT", panel, "TOPLEFT", PANEL_INSET + 2,
+        -(panelHeader + shownRows * (rowHeight + ROW_GAP) + 4))
+    panel.emptyLabel:SetPoint("RIGHT", panel, "RIGHT", -(PANEL_INSET + 2), 0)
     panel.emptyLabel:Show()
   else
     panel.emptyLabel:Hide()
@@ -706,8 +710,7 @@ Refresh = function(browser)
 
     ApplyBandLabel(browser.listBand, spec.listTitle())
     browser.listBand.count:SetText(tostring(listStored))
-    Skin.ApplyColor(browser.listBand.label, "SetTextColor", THEME.text)
-    Skin.Frame(browser.listBand, "soft")
+    Skin.ApplyColor(browser.listBand.label, "SetTextColor", "text")
   end
 
   if window.newGroupButton then
@@ -734,8 +737,7 @@ Refresh = function(browser)
     band.groupId = group.id
     ApplyBandLabel(band, group.name)
     band.count:SetText(tostring(spec.count(group.id)))
-    Skin.ApplyColor(band.label, "SetTextColor", THEME.text)
-    Skin.Frame(band, "soft")
+    Skin.ApplyColor(band.label, "SetTextColor", "text")
   end
 
   if spec.afterRefresh then
@@ -754,7 +756,7 @@ local function ClearBandHighlights(browser)
     return
   end
 
-  Skin.Frame(browser.highlightedBand, "soft")
+  Skin.Highlight(browser.highlightedBand.acbBox, nil)
   browser.highlightedBand = nil
 end
 
@@ -798,7 +800,7 @@ end
 local function GapUnderCursor(browser, panel, depth)
   local entries = panel.entries or {}
   local offset = ScrollOffset(browser, panel.groupId)
-  local slot = math.floor((depth - PANEL_HEADER) / (ROW_HEIGHT + ROW_GAP) + 0.5)
+  local slot = math.floor((depth - panelHeader) / (rowHeight + ROW_GAP) + 0.5)
 
   if slot < 0 then
     slot = 0
@@ -820,19 +822,14 @@ local function GapUnderCursor(browser, panel, depth)
 end
 
 local function ShowDropFeedback(panel, gap, visibleSlot, refused)
-  local rowWidth = (panel.storedCount or 0) > VISIBLE_ROWS and -(SCROLLBAR_WIDTH + 10) or -6
+  local rowWidth = RowRight(panel, (panel.storedCount or 0) > VISIBLE_ROWS)
 
   panel.dropLine:ClearAllPoints()
-  panel.dropLine:SetPoint("TOPLEFT", panel, "TOPLEFT", 6,
-      -(PANEL_HEADER + visibleSlot * (ROW_HEIGHT + ROW_GAP)) + 1)
+  panel.dropLine:SetPoint("TOPLEFT", panel, "TOPLEFT", PANEL_INSET,
+      -(panelHeader + visibleSlot * (rowHeight + ROW_GAP)) + 1)
   panel.dropLine:SetPoint("RIGHT", panel, "RIGHT", rowWidth, 0)
 
-  if refused then
-    panel.dropLine:SetVertexColor(DROP_REFUSED_BORDER[1], DROP_REFUSED_BORDER[2],
-        DROP_REFUSED_BORDER[3], 1)
-  else
-    Skin.ApplyColor(panel.dropLine, "SetVertexColor", THEME.checkboxChecked)
-  end
+  Skin.ApplyColor(panel.dropLine, "SetVertexColor", refused and DROP_REFUSED_BORDER or "checked")
 
   panel.dropLine:Show()
 end
@@ -888,16 +885,16 @@ local function ShowGroupDropLine(browser, index)
   local window = browser.window
   local frame = GroupFrame(browser, index)
   local edge = frame and frame:GetRight()
-  local windowEdge = window:GetRight()
+  local windowEdge = window.content:GetRight()
 
   if not edge or not windowEdge then
     return
   end
 
   window.groupDropLine:ClearAllPoints()
-  window.groupDropLine:SetPoint("TOP", window, "TOPRIGHT",
-      (edge + PANEL_GAP / 2) - windowEdge, -TOP_STRIP)
-  window.groupDropLine:SetHeight(PANEL_HEIGHT)
+  window.groupDropLine:SetPoint("TOP", window.content, "TOPRIGHT",
+      (edge + PANEL_GAP / 2) - windowEdge, 0)
+  window.groupDropLine:SetHeight(panelHeight)
   window.groupDropLine:Show()
 end
 
@@ -966,13 +963,7 @@ local function TrackDrag(browser)
   if isBand then
     browser.highlightedBand = target
 
-    if refused then
-      Skin.ApplyColor(target, "SetBackdropColor", DROP_REFUSED_FILL)
-      Skin.ApplyColor(target, "SetBackdropBorderColor", DROP_REFUSED_BORDER)
-    else
-      Skin.ApplyColor(target, "SetBackdropColor", THEME.selection)
-      Skin.ApplyColor(target, "SetBackdropBorderColor", THEME.checkboxChecked)
-    end
+    Skin.Highlight(target.acbBox, refused and "refused" or "drop")
 
     drag.noop = not movingIn
     return
@@ -1114,7 +1105,15 @@ end
 
 local function Create(browser)
   local spec = browser.spec
-  local window = spec.createWindow(LIST_WIDTH + WINDOW_EDGE * 2, WINDOW_HEIGHT)
+  local newGroup = spec.newGroup
+  local window = spec.createWindow(LIST_WIDTH, LIST_WIDTH, newGroup and {
+    {
+      text = "+",
+      onClick = function() newGroup.onClick() end,
+      tipTitle = newGroup.tipTitle,
+      tipBody = newGroup.tipBody,
+    },
+  } or nil)
 
   browser.window = window
 
@@ -1123,21 +1122,13 @@ local function Create(browser)
   window.dropLayer:SetFrameLevel(window:GetFrameLevel() + 20)
 
   window.groupDropLine = window.dropLayer:CreateTexture(nil, "OVERLAY")
-  window.groupDropLine:SetTexture(Skin.WHITE8X8)
+  window.groupDropLine:SetTexture(EbonAPI.Bricks.media("solid"))
   window.groupDropLine:SetWidth(DROP_LINE_HEIGHT)
-  Skin.ApplyColor(window.groupDropLine, "SetVertexColor", THEME.checkboxChecked)
+  Skin.ApplyColor(window.groupDropLine, "SetVertexColor", "checked")
   window.groupDropLine:Hide()
 
-  if spec.newGroup then
-    window.newGroupButton = Skin.MakeButton(window, {
-      width = 20,
-      height = 18,
-      text = "+",
-      points = { { "TOPLEFT", window, "TOPLEFT", 6, -3 } },
-      onClick = spec.newGroup.onClick,
-      tipTitle = spec.newGroup.tipTitle,
-      tipBody = spec.newGroup.tipBody,
-    })
+  if newGroup then
+    window.newGroupButton = window.headButtons[1]
   end
 
   if spec.hasList then
@@ -1191,10 +1182,6 @@ function RT.BuildBrowser(spec)
 
   B.trackDrag = function()
     TrackDrag(B)
-  end
-
-  B.RefreshRowVisual = function(row, hovered)
-    return RefreshRowVisual(B, row, hovered)
   end
 
   B.Refresh = function()
@@ -1252,17 +1239,4 @@ function RT.IsAnyBrowserAnimating()
   end
 
   return false
-end
-
-function RT.RefreshBrowsers()
-  for i = 1, #(instances) do
-    instances[i].Refresh()
-  end
-end
-
-function RT.SetBandLabelMode(mode)
-  RT.bandLabelMode = mode
-  RT.RefreshBrowsers()
-
-  return RT.bandLabelResolved
 end

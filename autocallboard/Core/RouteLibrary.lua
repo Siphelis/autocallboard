@@ -263,14 +263,6 @@ local function SumDigests(library, slotOf, count)
   return digests
 end
 
-function Core.libraryDigest(library, category, bucket)
-  return SumDigests(library, function(hash, entry)
-    if entry.category == category and (bucket == nil or Core.libraryBucket(hash) == bucket) then
-      return 1
-    end
-  end, 1)[1]
-end
-
 function Core.libraryDigests(library)
   local slot = Shelf(type(library) == "table" and library.entries)
 

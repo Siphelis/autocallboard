@@ -326,10 +326,6 @@ end
 
 local minted = setmetatable({}, { __mode = "k" })
 
-function Core.isMintedRoute(route)
-  return minted[route] == true
-end
-
 function Core.copyRoute(route)
   if type(route) ~= "table" or not Core.isRouteCategory(route.category) then
     return nil
@@ -348,13 +344,8 @@ function Core.copyRoute(route)
   minted[copy] = true
 
   if minted[route] and #(copy.steps) == #(route.steps) then
-    if Core.inheritRouteHash then
-      Core.inheritRouteHash(route, copy)
-    end
-
-    if Core.inheritRouteFaction then
-      Core.inheritRouteFaction(route, copy)
-    end
+    Core.inheritRouteHash(route, copy)
+    Core.inheritRouteFaction(route, copy)
   end
 
   return copy
@@ -454,11 +445,12 @@ function Core.copyCharacterState(entry)
     openRouteCategory = tonumber(source.openRouteCategory),
     openLibraryCategory = tonumber(source.openLibraryCategory),
     echoBar = Core.copyEchoBar(source.echoBar),
-    toolbar = Core.copyToolbar and Core.copyToolbar(source.toolbar) or nil,
+    toolbar = Core.copyToolbar(source.toolbar),
     routeDraft = Core.copyRouteSteps(source.routeDraft),
     activeRouteId = tonumber(source.activeRouteId),
     routeWindowOpen = source.routeWindowOpen and true or false,
     routeCompact = source.routeCompact and true or false,
+    routeLoop = source.routeLoop and true or false,
     routeRecording = source.routeRecording and true or false,
     routePlaying = source.routePlaying and true or false,
     routeCursor = tonumber(source.routeCursor),
@@ -480,8 +472,6 @@ function Core.copyCharacterStateMap(states)
   return copy
 end
 
-local sameContainer = Core.sameContainer
-
 local Selections = Core.buildContainer({
   items = "savedSelections",
   groups = "groups",
@@ -494,13 +484,10 @@ local Selections = Core.buildContainer({
   maxGroups = function() return Core.MAX_GROUPS end,
 })
 
-Core.selectionContainer = Selections
-
 Core.selectionsInContainer = Selections.itemsIn
 Core.selectionCount = Selections.count
 Core.selectionsFull = Selections.full
 Core.peekNextSelectionName = Selections.peekNextName
-Core.findSelectionIndex = Selections.findIndex
 Core.findSelection = Selections.find
 Core.renameSelection = Selections.rename
 Core.deleteSelection = Selections.delete

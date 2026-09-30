@@ -1,13 +1,8 @@
 local L = AutoCallboardLocale
-local Skin = AutoCallboardSkin
 local RT = AutoCallboardRuntime
 
 function RT.RefreshLocalizedText()
-  for widget, key in pairs(RT.localizedWidgets) do
-    if widget.SetText then
-      widget:SetText(L[key] or key)
-    end
-  end
+  AutoCallboardSkin.RelabelWindows()
 
   for i = 1, #(RT.questTypeFilterOptions) do
     local option = RT.questTypeFilterOptions[i]
@@ -19,15 +14,9 @@ function RT.RefreshLocalizedText()
     end
   end
 
-  if RT.RefreshEternalLabels then
-    RT.RefreshEternalLabels()
-  end
+  RT.RefreshEternalLabels()
 
   RT.knownEntriesSignature = nil
-
-  if RT.languageButton then
-    RT.languageButton:SetText(RT.LanguageInitials(RT.GetLanguage()))
-  end
 
   local controlFrame = RT.controlFrame
   if controlFrame and controlFrame.questButton then
@@ -36,10 +25,6 @@ function RT.RefreshLocalizedText()
 
   RT.UpdateRollToggleButtons()
   RT.UpdateSummonStatus()
-
-  if RT.SyncRollSpeedControl then
-    RT.SyncRollSpeedControl()
-  end
 
   RT.RefreshQuestWindow()
 
@@ -52,48 +37,17 @@ function RT.RefreshLocalizedText()
   end
 
   RT.RefreshBindingNames()
-  RT.UpdateEchoBarControls()
-
-  if RT.IsHelpWindowShown() then
-    RT.ShowAddonHelp()
-  end
 
   RT.SyncQuestDataControls()
-  if RT.RefreshSettingsLanguage then RT.RefreshSettingsLanguage() end
+  RT.RefreshSettingsLanguage()
   RT.RefreshRouteWindow()
   RT.RefreshRouteArrowLabel()
-
-  if RT.RefreshUpdateNotice then
-    RT.RefreshUpdateNotice()
-  end
-end
-
-function RT.LanguageInitials(code)
-  return string.upper(string.sub(tostring(code or "enUS"), 1, 2))
+  RT.RefreshUpdateNotice()
 end
 
 local applied
 
-function RT.ApplyLanguage(code)
-  local previous = applied
-
-  applied = code
-
-  if not RT.SetLanguage(code) then
-    applied = previous
-    return false
-  end
-
-  RT.RefreshLocalizedText()
-
-  return true
-end
-
 function RT.InitLanguage()
-  if not RT.api then
-    return false
-  end
-
   applied = RT.GetLanguage()
 
   RT.api:On("LANGUAGE_CHANGED", function(_, code)
@@ -104,36 +58,4 @@ function RT.InitLanguage()
     applied = code
     RT.RefreshLocalizedText()
   end)
-
-  return true
-end
-
-function RT.ToggleLanguageMenu(anchor)
-  if not RT.languageMenu then
-    RT.languageMenu = Skin.Menu("AutoCallboardLanguageMenu")
-    RT.languageMenu:CloseWhenHidden(RT.questWindow)
-    RT.languageMenu:CloseWhenHidden(RT.controlFrame)
-  end
-
-  local menu = RT.languageMenu
-  if menu:IsShown() then
-    menu:Hide()
-    return
-  end
-
-  local languages = RT.GetAvailableLanguages()
-  local active = RT.GetLanguage()
-
-  menu:Reset()
-  for i = 1, #(languages) do
-    local code = languages[i].code
-    menu:AddItem(languages[i].name, {
-      checked = code == active,
-      onClick = function()
-        RT.ApplyLanguage(code)
-        end,
-    })
-  end
-
-  menu:OpenAt(anchor or RT.languageButton, "BOTTOMRIGHT", "TOPRIGHT", 0, 4)
 end

@@ -44,7 +44,6 @@ Core.routesInCategory = Routes.itemsIn
 Core.routeCount = Routes.count
 Core.routesFull = Routes.full
 Core.peekNextRouteName = Routes.peekNextName
-Core.findRouteIndex = Routes.findIndex
 Core.findRoute = Routes.find
 Core.renameRoute = Routes.rename
 Core.deleteRoute = Routes.delete
@@ -287,7 +286,7 @@ function Core.routeQuestLabel(questId, title, titles)
 
     if titles then
       live = titles[questId]
-    elseif type(Core.routeQuestTitleLookup) == "function" then
+    else
       live = Core.routeQuestTitleLookup(questId)
     end
 
@@ -387,32 +386,6 @@ function Core.routeDifficultySuffix(value)
   end
 
   return string.format(L.ROUTE_LINE_DIFFICULTY_SUFFIX, Core.difficultyLabel(tier))
-end
-
-function Core.routeLines(route)
-  local lines = {}
-
-  if type(route) ~= "table" or type(route.steps) ~= "table" then
-    return lines
-  end
-
-  for index = 1, #(route.steps) do
-    local step = route.steps[index]
-
-    table.insert(lines, { depth = 0, step = index, text = Core.routeStepLine(step) })
-
-    if step.actions then
-      for actionIndex = 1, #(step.actions) do
-        local text = Core.routeActionLine(step.actions[actionIndex])
-
-        if text ~= "" then
-          table.insert(lines, { depth = 1, step = index, action = actionIndex, text = text })
-        end
-      end
-    end
-  end
-
-  return lines
 end
 
 local QUEST_CHANGE_ORDER = { out = 1, ["in"] = 2, done = 3 }

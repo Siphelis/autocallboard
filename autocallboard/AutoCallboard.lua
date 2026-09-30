@@ -4,25 +4,22 @@ local L = AutoCallboardLocale
 
 local RT = AutoCallboardRuntime
 local Print = RT.Print
-local ResolveFramePath = RT.ResolveFramePath
 
-RT.api = EbonAPI and EbonAPI:NewAddon("AutoCallboard", 0, 5) or nil
+RT.api = EbonAPI:NewAddon("AutoCallboard", 0, 5, { icon = "Achievement_Quests_Completed_08" })
 
 local frame = CreateFrame("Frame")
 RT.eventFrame = frame
-if RT.api then RT.api:Track("Events", frame) end
+RT.api:Track("Scheduler", frame)
 local characterProfileKey
 local state = RT.state
 
 local Log = RT.Log
 
-RT.controlCollapsedWidth = 424
-RT.controlCollapsedHeight = 84
-RT.controlExpandedWidth = 640
-RT.controlExpandedHeight = 620
+RT.controlCollapsedWidth = 404
+RT.controlCollapsedHeight = 44
+RT.controlExpandedWidth = 620
+RT.controlExpandedHeight = 580
 RT.questPanelAnimationSeconds = 0.35
-RT.questSharePrefix = "AutoCallboard"
-RT.questShareSignalTimeout = 5
 RT.statusPollInterval = 0.25
 RT.summonVerifyPollInterval = 0.1
 RT.pendingCooldownPollInterval = 0.1
@@ -31,14 +28,8 @@ RT.rollStatePollInterval = 0.05
 RT.rollPendingPollInterval = 0
 
 local UpdateSummonStatus = RT.UpdateSummonStatus
-local StartCallboardFlow = RT.StartCallboardFlow
 local QueueCallboardFollowup = RT.QueueCallboardFollowup
 local MarkCallboardSummoned = RT.MarkCallboardSummoned
-local SetQuestStatus = RT.SetQuestStatus
-local StopRolling = RT.StopRolling
-local StartRolling = RT.StartRolling
-local RequireActiveCallboard = RT.RequireActiveCallboard
-local BypassRerollConfirm = RT.BypassRerollConfirm
 
 function RT.GetSummonSpellName()
   if not state then
@@ -76,7 +67,7 @@ local function ApplyState(nextState)
 
   RT.PositionMinimapButton()
 
-  RT.UpdateMinimapShownControl()
+  RT.RefreshOptions()
 end
 
 function RT.SaveQuestPanelExpanded(expanded)
@@ -118,33 +109,11 @@ local function SetUpCharacter()
   RT.ApplyCharacterState()
 end
 
-local function ClickReroll()
-  if BypassRerollConfirm() then
-    SetQuestStatus(L.REROLL_REQUESTED_SIMPLE)
-  else
-    SetQuestStatus(L.REROLL_FAILED_CHECK)
-  end
-end
-
-local function ClickObjective(index)
-  if not RequireActiveCallboard(L.ACTION_SELECT_QUEST) then
-    return
-  end
-
-  local frameName = state.objectivePrefix .. tostring(index) .. "." .. state.objectiveButtonField
-
-  if not ResolveFramePath(frameName) then
-    frameName = state.objectivePrefix .. tostring(index)
-  end
-
-  RT.ClickNamedFrame(frameName, string.format(L.OBJECTIVE_LABEL, index))
-end
-
 local function CommitStateChange()
   RT.TouchState()
   RT.RefreshQuestWindow()
   RT.PositionMinimapButton()
-  RT.UpdateMinimapShownControl()
+  RT.RefreshOptions()
 end
 
 function RT.SetField(field, value)
@@ -156,13 +125,9 @@ function RT.SetField(field, value)
   elseif field == "summonSpellID" then
     RT.ApplySummonButtonAttributes()
   elseif field == "travelEnabled" then
-    if RT.OnTravelEnabledChanged then
-      RT.OnTravelEnabledChanged()
-    end
+    RT.OnTravelEnabledChanged()
   elseif field == "travelAuto" then
-    if RT.OnTravelAutoChanged then
-      RT.OnTravelAutoChanged()
-    end
+    RT.OnTravelAutoChanged()
   elseif field == "autoCurrentInstanceQuest" then
     RT.currentInstanceQuestSignature = nil
 
@@ -187,55 +152,14 @@ local function HandleSlash(input)
 
   if parsed.kind == "version" then
     RT.ShowAddonHelp("about")
-  elseif parsed.kind == "run" then
-    if not RT.IsControlFrameShown() then
-      RT.ShowControlFrame(true)
-    end
-
-    StartCallboardFlow()
-  elseif parsed.kind == "settings" then
-    RT.ShowSettings()
-  elseif parsed.kind == "tools" then
-    RT.ShowSettings()
-  elseif parsed.kind == "routes" then
-    RT.ToggleRouteWindow()
-  elseif parsed.kind == "help" then
-    RT.ShowAddonHelp("about")
-  elseif parsed.kind == "show" then
-    RT.SaveControlFrameShown(true)
-    RT.ShowControlFrame(true)
-  elseif parsed.kind == "hide" then
-    RT.SaveControlFrameShown(false)
-    RT.ShowControlFrame(false)
-  elseif parsed.kind == "minimap" then
-    RT.SetMinimapShown(parsed.shown)
-  elseif parsed.kind == "reset" then
-    ApplyState(Core.resetSettingsPreservingQuestState(state))
-    RT.ApplyCharacterState()
-    RT.SetCallboardButtonText(state.targetName)
-    RT.ApplySummonButtonAttributes()
-    RT.PositionButton()
-    RT.ShowControlFrame(true)
   elseif parsed.kind == "set" then
     RT.SetField(parsed.field, parsed.value)
-  elseif parsed.kind == "reroll" then
-    ClickReroll()
-  elseif parsed.kind == "objective" then
-    ClickObjective(parsed.index)
-  elseif parsed.kind == "quests" then
-    RT.ShowQuestWindow()
-  elseif parsed.kind == "roll" then
-    StartRolling()
-  elseif parsed.kind == "stop" then
-    StopRolling(L.ROLL_STOPPED)
   elseif parsed.kind == "debug" then
     if RT.HandleDebugAction then
       RT.HandleDebugAction(parsed.action, parsed.value)
     else
       Print(L.DEBUG_MODULE_MISSING)
     end
-  elseif parsed.kind == "data" then
-    RT.ShowQuestDataWindow(parsed.action)
   else
     Print(parsed.message)
   end
@@ -250,7 +174,6 @@ local UpdateQuestPanelAnimation = RT.UpdateQuestPanelAnimation
 local UpdateBrowserAnimations = RT.UpdateBrowserAnimations
 local ProcessRolling = RT.ProcessRolling
 local RefreshQuestWindowIfNeeded = RT.RefreshQuestWindowIfNeeded
-local ProcessPendingAcceptedQuestShare = RT.ProcessPendingAcceptedQuestShare
 local SyncCallboardActiveFromCooldown = RT.SyncCallboardActiveFromCooldown
 local CheckPendingSummonAttempt = RT.CheckPendingSummonAttempt
 local SyncPendingSummonCooldown = RT.SyncPendingSummonCooldown
@@ -258,61 +181,18 @@ local IsSummonStatusBusy = RT.IsSummonStatusBusy
 
 local indoorTask = { fn = RT.RefreshCallboardButtonEnabled, every = 2 }
 
-local travelTask = {
-  fn = function()
-    if not RT.WatchTravelSuggestion then
-      return 5
-    end
-
-    return RT.WatchTravelSuggestion()
-  end,
-  every = 1,
-}
-
-local routeTask = {
-  fn = function()
-    if not RT.ProcessRoutePlayback then
-      return 5
-    end
-
-    return RT.ProcessRoutePlayback()
-  end,
-  every = 0.35,
-}
-
-local routeShareTask = {
-  fn = function(now)
-    if not RT.ProcessRouteShare then
-      return 5
-    end
-
-    return RT.ProcessRouteShare(now)
-  end,
-  every = 1,
-}
-
-local eternalsTask = {
-  fn = function()
-    if not RT.WatchEternalSequence then
-      return 5
-    end
-
-    return RT.WatchEternalSequence()
-  end,
-  every = 1,
-}
-
 local TASKS = {
-  { fn = RT.WatchCurrentObjectives, every = 0.5 },
   { fn = RT.WatchDifficultyChange, every = 0.5 },
-  { fn = RT.SyncOverlayFrameLevels, every = 0.5 },
-  { fn = RT.RefreshSpeedDisplay, every = 0.2 },
   indoorTask,
-  eternalsTask,
-  travelTask,
-  routeTask,
-  routeShareTask,
+  { fn = function() return RT.WatchEternalSequence() end, every = 1 },
+  { fn = function() return RT.WatchTravelSuggestion() end, every = 1 },
+  { fn = function() return RT.ProcessRoutePlayback() end, every = 0.35 },
 }
+
+RT.api:Tick("objectives", 0.5, RT.WatchCurrentObjectives)
+RT.api:Tick("overlays", 0.5, RT.SyncOverlayFrameLevels)
+RT.api:Tick("speed", 0.2, RT.RefreshSpeedDisplay)
+RT.api:Tick("routeShare", 1, function() RT.ProcessRouteShare() end)
 
 local function WakeIndoorCheck()
   indoorTask.nextAt = nil
@@ -350,7 +230,6 @@ frame:SetScript("OnUpdate", function()
   UpdateBrowserAnimations()
   ProcessRolling()
   RefreshQuestWindowIfNeeded(now)
-  ProcessPendingAcceptedQuestShare("poll")
   SyncCallboardActiveFromCooldown("cooldown inference")
   CheckPendingSummonAttempt()
   SyncPendingSummonCooldown()
@@ -388,12 +267,41 @@ end)
 
 local EVENTS = {}
 
+local function Dispatch(event, ...)
+  if RT.DebugEvent then
+    RT.DebugEvent(event, ...)
+  end
+
+  local handler = EVENTS[event]
+  if handler then
+    handler(...)
+  end
+end
+
+RT.api:TrackFunction("Events", Dispatch)
+
+local events = RT.NewEventRelay(Dispatch)
+RT.events = events
+
+local function CreateInterface()
+  if InCombatLockdown() then
+    RT.api:AfterCombat(CreateInterface)
+    return
+  end
+
+  RT.CreateCallboardButton()
+  RT.CreateMinimapButton()
+  RT.ApplyEchoBar()
+  RT.InitSettingsAccess()
+  RT.RestoreRouteWindow()
+end
+
 EVENTS.ADDON_LOADED = function(arg1)
   if arg1 ~= ADDON_NAME then
     return
   end
 
-  frame:UnregisterEvent("ADDON_LOADED")
+  events:Unlisten("ADDON_LOADED")
   EVENTS.ADDON_LOADED = nil
 
   local chosenLanguage = type(AutoCallboardDB) == "table" and AutoCallboardDB.language or nil
@@ -409,28 +317,21 @@ EVENTS.ADDON_LOADED = function(arg1)
   RT.PersistState(Core.migrateLegacyPresets(state, AutoCallboardPresetsDB))
   SetUpCharacter()
 
-  RT.InstallSharedQuestAutoAcceptHook()
   RT.InstallAbandonQuestHook()
   RT.InstallRouteRecorderHooks()
   RT.ResumeRouteRecording()
   RT.ResumeRoutePlayback()
   RT.InitAppearance()
-  RT.CreateCallboardButton()
-  RT.CreateMinimapButton()
+  RT.api:On("READY", CreateInterface)
   RT.RefreshBindingNames()
-  RT.ApplyEchoBar()
-  RT.InitSettingsAccess()
-  RT.RestoreRouteWindow()
   RT.InitVersionWatch()
   RT.InitRouteShare()
   RT.InitBuilds()
   RT.InitLanguage()
-  RT.InitQuestShare()
 
   RT.buildsRefreshAt = GetTime() + RT.buildsRefreshDelay
 
   SLASH_AUTOCALLBOARD1 = "/acb"
-  SLASH_AUTOCALLBOARD2 = "/autocallboard"
   SlashCmdList.AUTOCALLBOARD = HandleSlash
 
   Log("load", "AutoCallboard loaded")
@@ -453,7 +354,7 @@ end
 
 EVENTS.GOSSIP_SHOW = function()
   local npcName = GossipFrameNpcNameText and GossipFrameNpcNameText:GetText()
-  local npcBoard = RT.GetNpcBoardInfo and RT.GetNpcBoardInfo() or nil
+  local npcBoard = RT.GetNpcBoardInfo()
 
   if RT.IsObjectiveBoardName(npcName) or npcBoard then
     RT.MarkObjectiveBoardOpened("GOSSIP_SHOW:" .. tostring(npcName)
@@ -486,24 +387,26 @@ EVENTS.QUEST_DETAIL = function()
 
   local acceptUntil = RT.GetPendingAcceptUntil()
 
-  if state and state.autoAccept and acceptUntil and GetTime() <= acceptUntil then
-    RT.ClearPendingAcceptUntil()
-    RT.AcceptCurrentQuestOffer("QUEST_DETAIL")
-  else
-    RT.TryAutoAcceptSharedQuest("QUEST_DETAIL")
+  if not (state and state.autoAccept and acceptUntil and GetTime() <= acceptUntil) then
+    return
   end
+
+  if RT.IsQuestOfferFromPlayer() then
+    Log("quest", "auto accept skipped source=QUEST_DETAIL reason=offer from a player")
+    return
+  end
+
+  RT.ClearPendingAcceptUntil()
+  RT.AcceptCurrentQuestOffer("QUEST_DETAIL")
 end
 
 EVENTS.QUEST_ACCEPT_CONFIRM = function(_, title)
   RT.routeConfirmTitle = title
   RT.OnRouteDialogueOpened("QUEST_ACCEPT_CONFIRM", title)
-  RT.ConfirmSharedQuestAccept("QUEST_ACCEPT_CONFIRM")
 end
 
 local function CheckEternalQuest(source, force)
-  if RT.CheckEternalQuestStillActive then
-    RT.CheckEternalQuestStillActive(source, force)
-  end
+  RT.CheckEternalQuestStillActive(source, force)
 end
 
 EVENTS.QUEST_TURNED_IN = function(arg1)
@@ -525,6 +428,7 @@ EVENTS.QUEST_REMOVED = function()
 end
 
 EVENTS.QUEST_ACCEPTED = function(arg1, arg2)
+  RT.ClearPendingAcceptUntil()
   RT.TrackAcceptedQuest(arg1, arg2)
   RT.ResetSelectedQuestCheck()
   RT.CheckSelectedQuestProgress("QUEST_ACCEPTED")
@@ -532,10 +436,7 @@ end
 
 EVENTS.QUEST_LOG_UPDATE = function()
   RT.WatchRouteQuestLog()
-  RT.ProcessPendingAcceptedQuestShare("QUEST_LOG_UPDATE")
-  if RT.RefreshLastAcceptedQuest then
-    RT.RefreshLastAcceptedQuest()
-  end
+  RT.RefreshLastAcceptedQuest()
   RT.ResetSelectedQuestCheck()
   RT.CheckSelectedQuestProgress("QUEST_LOG_UPDATE")
   CheckEternalQuest("QUEST_LOG_UPDATE")
@@ -571,6 +472,7 @@ end
 
 EVENTS.ZONE_CHANGED_NEW_AREA = function()
   RT.InvalidateInstanceTarget()
+  RT.NoteInstanceVisit()
   RT.InvalidatePlayerMap()
   WakeIndoorCheck()
   RT.HookRouteCheckpointService()
@@ -586,34 +488,29 @@ end
 
 EVENTS.ZONE_CHANGED_INDOORS = EVENTS.ZONE_CHANGED
 
-frame:SetScript("OnEvent", function(_, event, arg1, arg2, arg3, arg4, arg5)
-  if RT.DebugEvent then
-    RT.DebugEvent(event, arg1, arg2, arg3, arg4, arg5)
-  end
-
-  local handler = EVENTS[event]
-  if handler then
-    handler(arg1, arg2, arg3, arg4, arg5)
+frame:SetScript("OnEvent", function(_, event, ...)
+  if RT.DebugEvent and not events:IsListening(event) then
+    RT.DebugEvent(event, ...)
   end
 end)
 
-frame:RegisterEvent("ADDON_LOADED")
-frame:RegisterEvent("PLAYER_LOGOUT")
-frame:RegisterEvent("QUEST_DETAIL")
-frame:RegisterEvent("QUEST_PROGRESS")
-frame:RegisterEvent("QUEST_COMPLETE")
-frame:RegisterEvent("QUEST_ACCEPT_CONFIRM")
-frame:RegisterEvent("QUEST_ACCEPTED")
-frame:RegisterEvent("QUEST_LOG_UPDATE")
-frame:RegisterEvent("QUEST_FINISHED")
-frame:RegisterEvent("GOSSIP_SHOW")
-pcall(frame.RegisterEvent, frame, "QUEST_GREETING")
-frame:RegisterEvent("GOSSIP_CLOSED")
-frame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
-frame:RegisterEvent("PLAYER_ENTERING_WORLD")
-frame:RegisterEvent("ZONE_CHANGED")
-pcall(frame.RegisterEvent, frame, "ZONE_CHANGED_INDOORS")
-pcall(frame.RegisterEvent, frame, "QUEST_TURNED_IN")
-pcall(frame.RegisterEvent, frame, "QUEST_REMOVED")
-pcall(frame.RegisterEvent, frame, "UNIT_SPELLCAST_SUCCEEDED")
-pcall(frame.RegisterEvent, frame, "SPELL_UPDATE_COOLDOWN")
+events:Listen("ADDON_LOADED")
+events:Listen("PLAYER_LOGOUT")
+events:Listen("QUEST_DETAIL")
+events:Listen("QUEST_PROGRESS")
+events:Listen("QUEST_COMPLETE")
+events:Listen("QUEST_ACCEPT_CONFIRM")
+events:Listen("QUEST_ACCEPTED")
+events:Listen("QUEST_LOG_UPDATE")
+events:Listen("QUEST_FINISHED")
+events:Listen("GOSSIP_SHOW")
+pcall(events.Listen, events, "QUEST_GREETING")
+events:Listen("GOSSIP_CLOSED")
+events:Listen("ZONE_CHANGED_NEW_AREA")
+events:Listen("PLAYER_ENTERING_WORLD")
+events:Listen("ZONE_CHANGED")
+pcall(events.Listen, events, "ZONE_CHANGED_INDOORS")
+pcall(events.Listen, events, "QUEST_TURNED_IN")
+pcall(events.Listen, events, "QUEST_REMOVED")
+pcall(events.Listen, events, "UNIT_SPELLCAST_SUCCEEDED")
+pcall(events.Listen, events, "SPELL_UPDATE_COOLDOWN")

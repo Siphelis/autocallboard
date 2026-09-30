@@ -4,16 +4,10 @@ RT.updateUrl = "https://github.com/Siphelis/autocallboard/releases/latest"
 RT.licenseUrl = "https://github.com/Siphelis/autocallboard/blob/main/LICENSE"
 
 local function RefreshNotice()
-  if RT.RefreshUpdateNotice then
-    RT.RefreshUpdateNotice()
-  end
+  RT.RefreshUpdateNotice()
 end
 
 function RT.GetAvailableUpdate()
-  if not RT.api then
-    return nil
-  end
-
   return RT.api:AvailableUpdate()
 end
 
@@ -34,13 +28,7 @@ local function OnUpdateAvailable(_, name)
 end
 
 function RT.InitVersionWatch()
-  if not RT.api then
-    return false
-  end
-
   RT.api:Version(RT.GetAddonVersion(), RT.updateUrl)
   RT.api:On("UPDATE_AVAILABLE", OnUpdateAvailable)
   RT.api:On("READY", RefreshNotice)
-
-  return true
 end

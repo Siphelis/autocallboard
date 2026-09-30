@@ -1,6 +1,5 @@
 local Core = AutoCallboardCore
 local Skin = AutoCallboardSkin
-local THEME = Skin.THEME
 local L = AutoCallboardLocale
 local RT = AutoCallboardRuntime
 local Error = RT.Error
@@ -15,10 +14,6 @@ local State = EbonAPI.State
 local CS = EbonAPI.CS
 
 function RT.SendEchoMessage(opcode, body)
-  if not RT.api then
-    return false
-  end
-
   return RT.api:SendServer(opcode, body)
 end
 
@@ -35,10 +30,6 @@ local function OnServerBuildActive(_, slot)
 end
 
 function RT.InitBuilds()
-  if not RT.api then
-    return
-  end
-
   RT.api:On("SERVER_BUILDS", OnServerBuilds)
   RT.api:On("SERVER_BUILD_ACTIVE", OnServerBuildActive)
 end
@@ -46,7 +37,7 @@ end
 function RT.RefreshBuildsWindowIfShown()
   local buildsWindow = RT.buildsWindow
 
-  if buildsWindow and buildsWindow:IsShown() and RT.RefreshBuildsWindow then
+  if buildsWindow and buildsWindow:IsShown() then
     RT.RefreshBuildsWindow()
   end
 end
@@ -70,10 +61,6 @@ function RT.RequestBuildsRefresh(source)
   end
 
   RT.lastBuildsRequestAt = now
-
-  if not RT.api then
-    return false
-  end
 
   RT.api:RequestServer(CS.REFRESH_PERKS, "", RT.buildsRefreshThrottle)
   local ok = RT.api:RequestServer(CS.REFRESH_BUILDS, "", RT.buildsRefreshThrottle)
@@ -130,7 +117,7 @@ function RT.SwitchToBuild(slot, source)
   return true
 end
 
-function RT.RefreshBuildRowVisual(row, hovered)
+function RT.RefreshBuildRowVisual(row)
   if not row.build then
     return
   end
@@ -139,7 +126,6 @@ function RT.RefreshBuildRowVisual(row, hovered)
 
   Skin.PaintRow(row,
       activeSlot and tonumber(row.build.slot) == activeSlot,
-      hovered,
       not RT.CanSwitchBuild())
 end
 
@@ -147,7 +133,7 @@ local function BuildTooltip(owner, build, extraKey)
   local _, activeSlot = State.activeBuild()
   local allowed, reason = RT.CanSwitchBuild()
 
-  Skin.OpenTip(owner, "ANCHOR_RIGHT", RT.BuildLabel(build))
+  EbonAPI.Bricks.tip(owner, RT.BuildLabel(build))
 
   if tonumber(build.slot) == activeSlot then
     GameTooltip:AddLine(L.BUILDS_ROW_ACTIVE, 0.8, 0.8, 0.8)
@@ -164,9 +150,12 @@ local function BuildTooltip(owner, build, extraKey)
   GameTooltip:Show()
 end
 
+local BUILDS_WIDTH = 196
+local BUILD_ROW_GAP = 2
+local BUILDS_FOOTER_GAP = 8
+
 function RT.CreateBuildRow(index)
-  local row = Skin.Row(RT.buildsWindow,
-      "AutoCallboardBuildRow" .. tostring(index), 24)
+  local row = Skin.Row(RT.buildsWindow.content, "AutoCallboardBuildRow" .. tostring(index))
 
   row:RegisterForDrag("LeftButton")
 
@@ -190,16 +179,13 @@ function RT.CreateBuildRow(index)
     RT.EndEchoAssign()
     end)
 
-  row:SetScript("OnEnter", function(self)
-    RT.RefreshBuildRowVisual(self, true)
-
+  row:HookScript("OnEnter", function(self)
     if self.build then
       BuildTooltip(self, self.build, "ECHO_BAR_DRAG_TIP")
     end
     end)
 
-  row:SetScript("OnLeave", function(self)
-    RT.RefreshBuildRowVisual(self, false)
+  row:HookScript("OnLeave", function()
     GameTooltip:Hide()
     end)
 
@@ -217,6 +203,10 @@ function RT.RefreshBuildsWindow()
   local count = #(builds)
   local rows = RT.buildRows
 
+  rows[1] = rows[1] or RT.CreateBuildRow(1)
+
+  local stride = rows[1]:GetHeight() + BUILD_ROW_GAP
+
   for i = 1, math.max(count, #(rows)) do
     local row = rows[i]
 
@@ -232,11 +222,11 @@ function RT.RefreshBuildsWindow()
         row.build = build
         row.title:SetText(RT.BuildLabel(build))
         row:ClearAllPoints()
-        local y = -(36 + (i - 1) * 26)
-        row:SetPoint("TOPLEFT", buildsWindow, "TOPLEFT", 12, y)
-        row:SetPoint("TOPRIGHT", buildsWindow, "TOPRIGHT", -12, y)
+        local y = -((i - 1) * stride)
+        row:SetPoint("TOPLEFT", buildsWindow.content, "TOPLEFT", 0, y)
+        row:SetPoint("TOPRIGHT", buildsWindow.content, "TOPRIGHT", 0, y)
         row:Show()
-        RT.RefreshBuildRowVisual(row, false)
+        RT.RefreshBuildRowVisual(row)
       else
         row.build = nil
         row:Hide()
@@ -252,45 +242,35 @@ function RT.RefreshBuildsWindow()
     end
   end
 
-  buildsWindow:SetHeight(36 + (math.max(count, 1) * 26) + 40)
+  Skin.SizeWindow(buildsWindow, BUILDS_WIDTH,
+    math.max(count, 1) * stride + BUILDS_FOOTER_GAP + buildsWindow.refreshButton:GetHeight())
 end
 
 function RT.CreateBuildsWindow()
+  local anchor = RT.controlFrame and RT.controlFrame.buildsButton
   local buildsWindow = Skin.Window("AutoCallboardBuildsWindow", {
-    width = 220,
-    height = 120,
+    width = BUILDS_WIDTH,
+    height = BUILDS_WIDTH / 2,
     titleKey = "BUILDS_WINDOW_TITLE",
-    titleFont = "GameFontNormalSmall",
-    titleAt = "TOPLEFT",
-    titleX = 12,
-    titleY = -10,
-    close = true,
+    point = anchor and { "TOPLEFT", anchor, "BOTTOMLEFT", 0, -6 } or { "CENTER", UIParent, "CENTER", 0, 0 },
   })
   RT.buildsWindow = buildsWindow
   RT.buildRows = RT.buildRows or {}
 
-  local anchor = RT.controlFrame and RT.controlFrame.buildsButton
-  if anchor then
-    buildsWindow:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -6)
-  else
-    buildsWindow:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
-  end
+  local content = buildsWindow.content
 
-  buildsWindow:Hide()
-
-  buildsWindow.emptyLabel = buildsWindow:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-  buildsWindow.emptyLabel:SetPoint("TOPLEFT", buildsWindow, "TOPLEFT", 12, -36)
-  buildsWindow.emptyLabel:SetPoint("RIGHT", buildsWindow, "RIGHT", -12, 0)
+  buildsWindow.emptyLabel = content:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  buildsWindow.emptyLabel:SetPoint("TOPLEFT", content, "TOPLEFT", 0, 0)
+  buildsWindow.emptyLabel:SetPoint("RIGHT", content, "RIGHT", 0, 0)
   buildsWindow.emptyLabel:SetJustifyH("LEFT")
   Localized(buildsWindow.emptyLabel, "BUILDS_WINDOW_EMPTY")
   Skin.MutedText(buildsWindow.emptyLabel)
 
-  buildsWindow.refreshButton = Skin.MakeButton(buildsWindow, {
-    height = 22,
+  buildsWindow.refreshButton = Skin.MakeButton(content, {
     textKey = "BUILDS_WINDOW_REFRESH_BUTTON",
     points = {
-      { "BOTTOMLEFT", buildsWindow, "BOTTOMLEFT", 12, 10 },
-      { "BOTTOMRIGHT", buildsWindow, "BOTTOMRIGHT", -12, 10 },
+      { "BOTTOMLEFT", content, "BOTTOMLEFT", 0, 0 },
+      { "BOTTOMRIGHT", content, "BOTTOMRIGHT", 0, 0 },
     },
     onClick = function()
       RT.lastBuildsRequestAt = nil
@@ -322,7 +302,6 @@ end
 
 local ECHO_SLOTS = Core.ECHO_BAR_SLOTS
 local ECHO_CELL_W = 96
-local ECHO_CELL_H = 22
 local ECHO_GAP = 2
 local ECHO_PAD = 2
 local ECHO_DOT = 18
@@ -337,7 +316,7 @@ local echoDropIndex
 local echoCombatWatched = false
 
 local function EchoBarState()
-  local entry = RT.EnsureCharacterState and RT.EnsureCharacterState()
+  local entry = RT.EnsureCharacterState()
 
   if not entry then
     return nil
@@ -360,12 +339,11 @@ local function BuildBySlot(slot)
   return builds.slots[slot]
 end
 
-local function PaintEchoCell(cell, hovered)
+local function PaintEchoCell(cell)
   local _, activeSlot = State.activeBuild()
 
   Skin.PaintRow(cell,
       cell.slot ~= nil and activeSlot == cell.slot,
-      hovered,
       not RT.CanSwitchBuild())
 end
 
@@ -375,13 +353,13 @@ local function SetEchoDropIndex(index)
   end
 
   if echoDropIndex and echoCells[echoDropIndex] then
-    PaintEchoCell(echoCells[echoDropIndex], false)
+    Skin.Highlight(echoCells[echoDropIndex], nil)
   end
 
   echoDropIndex = index
 
   if index then
-    PaintEchoCell(echoCells[index], true)
+    Skin.Highlight(echoCells[index], "drop")
   end
 end
 
@@ -483,8 +461,7 @@ function RT.EndEchoAssign()
 end
 
 local function PaintEchoDot(locked)
-  local color = locked and THEME.border or THEME.checkboxChecked
-  echoDotTexture:SetVertexColor(color[1], color[2], color[3], 1)
+  Skin.ApplyColor(echoDotTexture, "SetVertexColor", locked and "border" or "checked")
 end
 
 local function ApplyEchoLock(locked)
@@ -503,13 +480,14 @@ end
 
 local function LayoutEchoBar(orientation)
   local horizontal = orientation ~= "V"
+  local cellHeight = echoCells[1]:GetHeight()
 
   if horizontal then
     echoBar:SetWidth(ECHO_PAD * 2 + ECHO_SLOTS * ECHO_CELL_W + (ECHO_SLOTS - 1) * ECHO_GAP)
-    echoBar:SetHeight(ECHO_PAD * 2 + ECHO_CELL_H)
+    echoBar:SetHeight(ECHO_PAD * 2 + cellHeight)
   else
     echoBar:SetWidth(ECHO_PAD * 2 + ECHO_CELL_W)
-    echoBar:SetHeight(ECHO_PAD * 2 + ECHO_SLOTS * ECHO_CELL_H + (ECHO_SLOTS - 1) * ECHO_GAP)
+    echoBar:SetHeight(ECHO_PAD * 2 + ECHO_SLOTS * cellHeight + (ECHO_SLOTS - 1) * ECHO_GAP)
   end
 
   for i = 1, ECHO_SLOTS do
@@ -522,14 +500,13 @@ local function LayoutEchoBar(orientation)
           ECHO_PAD + (i - 1) * (ECHO_CELL_W + ECHO_GAP), -ECHO_PAD)
     else
       cell:SetPoint("TOPLEFT", echoBar, "TOPLEFT",
-          ECHO_PAD, -(ECHO_PAD + (i - 1) * (ECHO_CELL_H + ECHO_GAP)))
+          ECHO_PAD, -(ECHO_PAD + (i - 1) * (cellHeight + ECHO_GAP)))
     end
   end
 end
 
 local function CreateEchoCell(index)
-  local cell = Skin.Row(echoBar, "AutoCallboardEchoCell" .. tostring(index),
-      ECHO_CELL_H, "LeftButtonUp", "RightButtonUp")
+  local cell = Skin.Row(echoBar, "AutoCallboardEchoCell" .. tostring(index), "LeftButtonUp", "RightButtonUp")
 
   cell.index = index
   cell.title:SetJustifyH("CENTER")
@@ -573,12 +550,10 @@ local function CreateEchoCell(index)
     end
     end)
 
-  cell:SetScript("OnEnter", function(self)
+  cell:HookScript("OnEnter", function(self)
     if echoDrag then
       return
     end
-
-    PaintEchoCell(self, true)
 
     if self.slot then
       BuildTooltip(self, self.build or { slot = self.slot }, "ECHO_BAR_CLEAR_TIP")
@@ -589,11 +564,7 @@ local function CreateEchoCell(index)
     end
     end)
 
-  cell:SetScript("OnLeave", function(self)
-    if not echoDrag then
-      PaintEchoCell(self, false)
-    end
-
+  cell:HookScript("OnLeave", function()
     GameTooltip:Hide()
     end)
 
@@ -605,11 +576,10 @@ local function CreateEchoBar()
     return
   end
 
-  echoBar = CreateFrame("Frame", "AutoCallboardEchoBar", UIParent)
+  echoBar = Skin.Root(Skin.Box(UIParent, { name = "AutoCallboardEchoBar" }))
   echoBar:SetFrameStrata("MEDIUM")
   echoBar:SetClampedToScreen(true)
   echoBar:EnableMouse(true)
-  Skin.Frame(echoBar)
 
   echoCells = {}
   for i = 1, ECHO_SLOTS do
@@ -643,7 +613,7 @@ local function CreateEchoBar()
   echoDotButton:SetScript("OnDragStart", function()
     local bar = EchoBarState()
 
-    if bar and not bar.locked and not InCombatLockdown() and not RT.state.appearance.locked then
+    if bar and not bar.locked and not InCombatLockdown() and not RT.IsInterfaceLocked() then
       echoBar:StartMoving()
     end
     end)
@@ -674,17 +644,16 @@ local function CreateEchoBar()
 end
 
 local function WatchEchoCombat(enabled)
-  local frame = RT.eventFrame
+  local events = RT.events
 
-  if not frame or echoCombatWatched == enabled then
+  if not events or echoCombatWatched == enabled then
     return
   end
 
   echoCombatWatched = enabled
-  local method = enabled and frame.RegisterEvent or frame.UnregisterEvent
 
-  pcall(method, frame, "PLAYER_REGEN_DISABLED")
-  pcall(method, frame, "PLAYER_REGEN_ENABLED")
+  pcall(events.Watch, events, "PLAYER_REGEN_DISABLED", enabled)
+  pcall(events.Watch, events, "PLAYER_REGEN_ENABLED", enabled)
 end
 
 function RT.RefreshEchoBar()
@@ -713,7 +682,7 @@ function RT.RefreshEchoBar()
       cell.title:SetText("")
     end
 
-    PaintEchoCell(cell, echoDropIndex == i)
+    PaintEchoCell(cell)
   end
 end
 
@@ -758,7 +727,7 @@ function RT.SetEchoBarEnabled(enabled)
   bar.enabled = enabled and true or false
   RT.TouchState()
   RT.ApplyEchoBar()
-  RT.UpdateEchoBarControls()
+  RT.RefreshOptions()
 end
 
 function RT.ToggleEchoBarOrientation()
@@ -775,7 +744,7 @@ function RT.ToggleEchoBarOrientation()
     LayoutEchoBar(bar.orientation)
   end
 
-  RT.UpdateEchoBarControls()
+  RT.RefreshOptions()
 end
 
 function RT.TriggerEchoSlot(index)

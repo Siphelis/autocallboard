@@ -2,8 +2,8 @@ local Core = AutoCallboardCore or {}
 AutoCallboardCore = Core
 local L = AutoCallboardLocale
 
-local type, tonumber, tostring, pairs = type, tonumber, tostring, pairs
-local string, table, math = string, table, math
+local type, tonumber, pairs = type, tonumber, pairs
+local string = string
 
 local trim = Core.trim
 local normalizeMatchText = Core.normalizeMatchText
@@ -288,6 +288,33 @@ function Core.shouldHoldObjectiveChoices(isRolling, pauseReason, hasSelectedQues
   return isRolling == true and pauseReason == "quest_selected" and hasSelectedQuest == true
 end
 
-function Core.shouldPauseForAcceptedQuest(isRolling, questID)
-  return isRolling == true and (tonumber(questID) or 0) > 0
+local function listHasQuestKey(list, key)
+  if type(list) ~= "table" then
+    return false
+  end
+
+  for i = 1, #(list) do
+    if Core.questKey(list[i]) == key then
+      return true
+    end
+  end
+
+  return false
+end
+
+function Core.isBoardQuest(questID, objectives, active, known)
+  questID = math.floor(tonumber(questID) or 0)
+  if questID <= 0 then
+    return false
+  end
+
+  local key = "id:" .. tostring(questID)
+
+  return Core.questKey(active) == key
+      or listHasQuestKey(objectives, key)
+      or listHasQuestKey(known, key)
+end
+
+function Core.shouldPauseForAcceptedQuest(isRolling, questID, objectives, active, known)
+  return isRolling == true and Core.isBoardQuest(questID, objectives, active, known)
 end

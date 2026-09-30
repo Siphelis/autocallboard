@@ -1,6 +1,5 @@
 local Core = AutoCallboardCore
 local Skin = AutoCallboardSkin
-local THEME = Skin.THEME
 local L = AutoCallboardLocale
 local RT = AutoCallboardRuntime
 
@@ -8,10 +7,7 @@ local Localized = RT.Localized
 local RegisterSpecialFrame = RT.RegisterSpecialFrame
 local GetQuestTypeName = RT.GetQuestTypeName
 local FormatSeconds = RT.FormatSeconds
-local FormatMoney = RT.FormatMoney
-local GetGoldTrackerState = RT.GetGoldTrackerState
 local CaptureCurrentObjectives = RT.CaptureCurrentObjectives
-local GetCurrentObjectives = RT.GetCurrentObjectives
 local GetObjectivesService = RT.GetObjectivesService
 local CountDesiredQuests = RT.CountDesiredQuests
 local IsCallboardActive = RT.IsCallboardActive
@@ -25,20 +21,17 @@ local function SyncCheckbox(checkbox, value)
 
   value = value and true or false
 
-  local checked = checkbox.GetChecked and (checkbox:GetChecked() and true or false)
-
-  if checked == value and Skin.CheckboxPainted(checkbox) == value then
+  if (checkbox:GetChecked() and true or false) == value then
     return
   end
 
   checkbox:SetChecked(value)
-  Skin.SetCheckboxVisual(checkbox)
 end
 
 RT.SyncCheckbox = SyncCheckbox
 
 local KNOWN_ROWS = 8
-local QUEST_ROW_HEIGHT = 28
+local QUEST_ROW_GAP = 4
 local QUEST_WINDOW_WIDTH = 620
 local KNOWN_QUEST_ROW_WIDTH = 556
 
@@ -46,6 +39,11 @@ local MENU_ENTRIES_PER_LEVEL = 20
 
 local questWindow
 local knownQuestRows = {}
+
+local function QuestRowStride()
+  return knownQuestRows[1]:GetHeight() + QUEST_ROW_GAP
+end
+
 local questStatusText
 local knownScrollFrame
 local questSearchBox
@@ -246,10 +244,6 @@ function RT.SetKnownQuestTypeFilter(questType)
   RT.knownFilterRevision = (RT.knownFilterRevision or 0) + 1
   RT.SyncKnownQuestTypeButtons()
   SetKnownScrollOffset(0, true)
-end
-
-function RT.IsKnownShowAll()
-  return knownShowAll
 end
 
 function RT.SetKnownShowAll(value)
@@ -560,80 +554,6 @@ local function ShowQuestTooltip(owner, quest, sourceLabel)
   PositionTooltipNearCursor(owner)
 end
 
-function RT.UpdateAutoAcceptSharedControl()
-  SyncCheckbox(RT.autoAcceptSharedCheckbox, state and state.autoAcceptShared)
-end
-
-function RT.SyncRollSpeedControl()
-  local slider = RT.rollSpeedSlider
-  if not slider then
-    return
-  end
-
-  if slider._acbDragging then
-    slider._acbSyncedTooltip = nil
-    return
-  end
-
-  local delay = state and state.rerollDelay
-  local tooltip = L.ROLL_SPEED_TOOLTIP
-
-  if slider._acbSyncedTooltip == tooltip and slider._acbSyncedDelay == delay then
-    return
-  end
-
-  slider._acbSyncedTooltip = tooltip
-  slider._acbSyncedDelay = delay
-  slider._acbTooltip = tooltip
-
-  local preset = Core.nearestRollSpeedPreset(delay)
-  slider:SetDisplayValue(preset and preset.index or 1)
-end
-
-function RT.SyncTravelCheckbox()
-  SyncCheckbox(RT.travelCheckbox, state and state.travelEnabled)
-  SyncCheckbox(RT.travelAutoCheckbox, state and state.travelAuto)
-
-  local auto = RT.travelAutoCheckbox
-
-  if auto then
-    if state and state.travelEnabled then
-      auto:Enable()
-      auto:SetAlpha(1)
-    else
-      auto:Disable()
-      auto:SetAlpha(0.48)
-    end
-
-    if Skin.SetCheckboxVisual then
-      Skin.SetCheckboxVisual(auto)
-    end
-  end
-end
-
-function RT.UpdateAutoCurrentInstanceControl()
-  SyncCheckbox(RT.autoCurrentInstanceCheckbox, state and state.autoCurrentInstanceQuest)
-end
-
-function RT.UpdateEchoBarControls()
-  SyncCheckbox(RT.echoBarCheckbox, RT.IsEchoBarEnabled())
-
-  local button = RT.echoBarOrientationButton
-
-  if button then
-    button:SetText(RT.GetEchoBarOrientation() == "V" and "V" or "H")
-    RT.SetButtonEnabled(button, RT.IsEchoBarEnabled())
-  end
-end
-
-function RT.UpdateMinimapShownControl()
-  SyncCheckbox(RT.minimapShownCheckbox, state and state.minimap and state.minimap.shown)
-end
-
-function RT.UpdateRemoteRollControl()
-  SyncCheckbox(RT.remoteRollCheckbox, state and state.remoteRoll)
-end
-
 local function GetKnownMaxScrollOffset()
   local entries = RT.GetKnownQuestEntries()
 
@@ -711,7 +631,7 @@ UpdateQuestWindow = function()
     end
   elseif knownScrollFrame and FauxScrollFrame_Update and FauxScrollFrame_GetOffset then
     knownScrollFrame.offset = knownScrollOffset
-    FauxScrollFrame_Update(knownScrollFrame, displayCount, KNOWN_ROWS, QUEST_ROW_HEIGHT)
+    FauxScrollFrame_Update(knownScrollFrame, displayCount, KNOWN_ROWS, QuestRowStride())
     knownScrollOffset = FauxScrollFrame_GetOffset(knownScrollFrame)
   end
 
@@ -756,9 +676,6 @@ UpdateQuestWindow = function()
 
   RT.UpdateRollToggleButtonState(RT.startRollButton, service ~= nil)
   RT.UpdateRollToggleButtonState(RT.controlFrame and RT.controlFrame.startButton or nil, true)
-  RT.UpdateAutoAcceptSharedControl()
-  RT.UpdateAutoCurrentInstanceControl()
-  RT.SyncRollSpeedControl()
 
   if questStatusText then
     local summonSummary = ""
@@ -805,9 +722,6 @@ end
 local function EnsureQuestContextMenu()
   if not questContextMenu then
     questContextMenu = Skin.Menu("AutoCallboardQuestContextMenu")
-    questContextMenu:SetAutoClose(true)
-    questContextMenu:CloseWhenHidden(questWindow)
-    questContextMenu:SetClampedToScreen(true)
     RT.questContextMenu = questContextMenu
   end
 
@@ -904,67 +818,61 @@ local function ShowQuestContextMenu(row, quest)
   menu:OpenAt(row, "TOPLEFT", "BOTTOMLEFT", 8, -2)
 end
 
-RT.ShowQuestContextMenu = ShowQuestContextMenu
+local function OpenRowMenu(row, mouseButton)
+  if mouseButton == "RightButton" then
+    ShowQuestContextMenu(row, row.quest)
+  end
+end
+
+local function AnchorRowTitle(row, header)
+  row.title:ClearAllPoints()
+  row.title:SetPoint("LEFT", row, "LEFT", 6, 0)
+
+  if header then
+    row.title:SetPoint("RIGHT", row, "RIGHT", -6, 0)
+  else
+    row.title:SetPoint("RIGHT", row.checkbox, "LEFT", -8, 0)
+  end
+end
 
 local function MakeQuestRow(parent, width)
-  local row = CreateFrame("Frame", nil, parent)
+  local row = Skin.Row(parent, nil, "RightButtonUp")
   row:SetWidth(width)
-  row:SetHeight(24)
-  Skin.Frame(row, "soft")
-  row:EnableMouse(true)
-  row:SetScript("OnEnter", function(self)
+  row:HookScript("OnEnter", function(self)
     ShowQuestTooltip(self, self.quest, L.TOOLTIP_SOURCE_KNOWN_QUEST)
     end)
-  row:SetScript("OnLeave", function()
+  row:HookScript("OnLeave", function()
     GameTooltip:Hide()
     end)
-
-  row.title = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-  row.title:SetPoint("LEFT", row, "LEFT", 3, 0)
-  row.title:SetWidth(width - 36)
-  row.title:SetJustifyH("LEFT")
-  Skin.ApplyColor(row.title, "SetTextColor", THEME.gold)
+  row:HookScript("OnMouseUp", OpenRowMenu)
 
   row:EnableMouseWheel(true)
   row:SetScript("OnMouseWheel", function(_, delta)
     SetKnownScrollOffset(knownScrollOffset - delta)
     end)
-  row:SetScript("OnMouseUp", function(self, mouseButton)
-    if mouseButton == "RightButton" then
-      ShowQuestContextMenu(self, self.quest)
-    end
-    end)
 
-  do
-    row.checkbox = CreateFrame("CheckButton", nil, row)
-    row.checkbox:SetPoint("RIGHT", row, "RIGHT", -6, 0)
-    Skin.Checkbox(row.checkbox)
-    row.checkbox:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-    row.checkbox:SetScript("OnClick", function(self, mouseButton)
-      if mouseButton == "RightButton" then
-        SyncCheckbox(self, row.key ~= nil and state.desiredQuests[row.key] == true)
-        ShowQuestContextMenu(row, row.quest)
-        return
-      end
-
+  row.checkbox = Skin.Checkbox(row, {
+    onClick = function()
       if row.key then
         RT.ToggleDesiredQuest(row.key)
       end
-      Skin.SetCheckboxVisual(self)
-      end)
-    row.checkbox:SetScript("OnEnter", function(self)
-      Skin.SetCheckboxVisual(self, "hover")
-      ShowQuestTooltip(self, row.quest, L.TOOLTIP_SOURCE_KNOWN_QUEST)
-      end)
-    row.checkbox:SetScript("OnLeave", function(self)
-      Skin.SetCheckboxVisual(self)
-      GameTooltip:Hide()
-      end)
-    row.checkbox:EnableMouseWheel(true)
-    row.checkbox:SetScript("OnMouseWheel", function(_, delta)
-      SetKnownScrollOffset(knownScrollOffset - delta)
-      end)
-  end
+    end,
+  })
+  row.checkbox:SetPoint("RIGHT", row, "RIGHT", -6, 0)
+  AnchorRowTitle(row)
+  row.checkbox:HookScript("OnMouseUp", function(_, mouseButton)
+    OpenRowMenu(row, mouseButton)
+    end)
+  row.checkbox:HookScript("OnEnter", function(self)
+    ShowQuestTooltip(self, row.quest, L.TOOLTIP_SOURCE_KNOWN_QUEST)
+    end)
+  row.checkbox:HookScript("OnLeave", function()
+    GameTooltip:Hide()
+    end)
+  row.checkbox:EnableMouseWheel(true)
+  row.checkbox:SetScript("OnMouseWheel", function(_, delta)
+    SetKnownScrollOffset(knownScrollOffset - delta)
+    end)
 
   return row
 end
@@ -1002,9 +910,9 @@ ConfigureKnownQuestRow = function(row, entry)
     row._acbRowWanted = nil
     row.quest = nil
     row.key = nil
-    row.title:SetWidth(KNOWN_QUEST_ROW_WIDTH - 12)
+    AnchorRowTitle(row, true)
     row.title:SetText("[" .. tostring(entry.title or L.QUEST_TYPE_OTHER) .. "]")
-    Skin.ApplyColor(row.title, "SetTextColor", THEME.heading)
+    row:SetTextKey("heading")
     if row.checkbox then
       row.checkbox:SetChecked(false)
       row.checkbox:Hide()
@@ -1029,141 +937,14 @@ ConfigureKnownQuestRow = function(row, entry)
   row._acbRowWanted = wanted
   row.quest = quest
   row.key = quest.key
-  row.title:SetWidth(KNOWN_QUEST_ROW_WIDTH - 36)
+  AnchorRowTitle(row)
   row.title:SetText(QuestLabel(quest))
-  Skin.ApplyColor(row.title, "SetTextColor", wanted and THEME.good or THEME.gold)
+  row:SetTextKey(nil)
   if row.checkbox then
-    row.checkbox:SetChecked(wanted)
-    Skin.SetCheckboxVisual(row.checkbox)
+    SyncCheckbox(row.checkbox, wanted)
     row.checkbox:Show()
   end
   row:Show()
-end
-
-local function CreateQuestSettings(questWindow)
-  RT.autoCurrentInstanceCheckbox = Skin.SettingCheckbox(questWindow, {
-    point = { "TOPRIGHT", questWindow, "TOPRIGHT", -24, -52 },
-    labelKey = "AUTO_CURRENT_INSTANCE_LABEL",
-    tipKey = "AUTO_CURRENT_INSTANCE_TOOLTIP",
-    onClick = function(self)
-      local enabled = self:GetChecked() and true or false
-      RT.SetField("autoCurrentInstanceQuest", enabled)
-      if enabled then
-        RT.ShowAutoCurrentInstanceWarning()
-      end
-      end,
-  })
-  RT.UpdateAutoCurrentInstanceControl()
-
-  RT.echoBarCheckbox = Skin.SettingCheckbox(questWindow, {
-    point = { "TOPLEFT", questWindow, "TOPLEFT", 190, -52 },
-    labelKey = "ECHO_BAR_LABEL",
-    tipKey = "ECHO_BAR_TOOLTIP",
-    onClick = function(self)
-      RT.SetEchoBarEnabled(self:GetChecked() and true or false)
-      end,
-  })
-
-  RT.echoBarOrientationButton = Skin.MakeButton(questWindow, {
-    width = 22,
-    height = 20,
-    text = "H",
-    points = { { "LEFT", RT.echoBarCheckbox, "RIGHT", 8, 0 } },
-    tipTitle = "ECHO_BAR_ORIENTATION_LABEL",
-    tipBody = "ECHO_BAR_ORIENTATION_TOOLTIP",
-    onClick = function()
-      RT.ToggleEchoBarOrientation()
-      end,
-  })
-  RT.UpdateEchoBarControls()
-
-  RT.autoAcceptSharedCheckbox = Skin.SettingCheckbox(questWindow, {
-    point = { "TOPRIGHT", questWindow, "TOPRIGHT", -24, -84 },
-    labelKey = "AUTO_ACCEPT_SHARED_LABEL",
-    tipKey = "AUTO_ACCEPT_SHARED_TOOLTIP",
-    onClick = function(self)
-      RT.SetField("autoAcceptShared", self:GetChecked() and true or false)
-      end,
-  })
-  RT.UpdateAutoAcceptSharedControl()
-
-  RT.minimapShownCheckbox = Skin.SettingCheckbox(questWindow, {
-    point = { "TOPRIGHT", questWindow, "TOPRIGHT", -24, -112 },
-    labelKey = "MINIMAP_BUTTON_LABEL",
-    tipKey = "MINIMAP_BUTTON_TOOLTIP",
-    onClick = function(self)
-      RT.SetMinimapShown(self:GetChecked() and true or false)
-      end,
-  })
-  RT.UpdateMinimapShownControl()
-
-  RT.travelCheckbox = Skin.SettingCheckbox(questWindow, {
-    point = { "TOPRIGHT", questWindow, "TOPRIGHT", -24, -140 },
-    labelKey = "TRAVEL_LABEL",
-    tipKey = "TRAVEL_TOOLTIP",
-    onClick = function(self)
-      RT.SetTravelEnabled(self:GetChecked() and true or false)
-      end,
-  })
-
-  RT.travelAutoCheckbox = Skin.SettingCheckbox(questWindow, {
-    point = { "TOPRIGHT", questWindow, "TOPRIGHT", -24, -168 },
-    labelKey = "TRAVEL_AUTO_LABEL",
-    tipKey = "TRAVEL_AUTO_TOOLTIP",
-    onClick = function(self)
-      RT.SetTravelAutoEnabled(self:GetChecked() and true or false)
-      end,
-  })
-  RT.SyncTravelCheckbox()
-
-  RT.remoteRollCheckbox = Skin.SettingCheckbox(questWindow, {
-    point = { "TOPRIGHT", questWindow, "TOPRIGHT", -24, -196 },
-    labelKey = "REMOTE_ROLL_LABEL",
-    tipKey = "REMOTE_ROLL_TOOLTIP",
-    onClick = function(self)
-      RT.SetField("remoteRoll", self:GetChecked() and true or false)
-      end,
-  })
-  RT.UpdateRemoteRollControl()
-end
-
-local function CreateRollSpeedSlider(questWindow)
-  local rollSpeedPresets = Core.rollSpeedPresetList()
-
-  local function RollSpeedPresetAt(value)
-    local index = math.floor((tonumber(value) or 1) + 0.5)
-    if index < 1 then
-      index = 1
-    elseif index > #(rollSpeedPresets) then
-      index = #(rollSpeedPresets)
-    end
-    return rollSpeedPresets[index]
-  end
-
-  RT.rollSpeedSlider = Skin.Slider(questWindow, {
-    min = 1,
-    max = #(rollSpeedPresets),
-    step = 1,
-    width = 180,
-    title = L.ROLL_SPEED_LABEL,
-    tooltip = L.ROLL_SPEED_TOOLTIP,
-    format = function(value)
-      local preset = RollSpeedPresetAt(value)
-      return string.format("%s  -  %s",
-          L.ROLL_SPEED_PRESET_NAMES[preset.key] or preset.key,
-          string.format(L.ROLL_SPEED_FORMAT, tostring(preset.delay), tostring(preset.timeout)))
-      end,
-    onCommit = function(value)
-      local preset = RollSpeedPresetAt(value)
-      if state and state.rerollDelay == preset.delay and state.rerollTimeout == preset.timeout then
-        return
-      end
-      RT.SetRollSpeed(preset.delay, preset.timeout, preset.key)
-      end,
-  })
-  RT.rollSpeedSlider:SetPoint("BOTTOMLEFT", questWindow, "BOTTOMLEFT", 24, 106)
-  Localized(RT.rollSpeedSlider.titleText, "ROLL_SPEED_LABEL")
-  RT.SyncRollSpeedControl()
 end
 
 local function CreateQuestSearch(questWindow)
@@ -1172,12 +953,14 @@ local function CreateQuestSearch(questWindow)
   Localized(searchLabel, "SEARCH_LABEL")
   Skin.MutedText(searchLabel)
 
-  questSearchBox = CreateFrame("EditBox", "AutoCallboardQuestSearchBox", questWindow, "InputBoxTemplate")
+  questSearchBox = CreateFrame("EditBox", "AutoCallboardQuestSearchBox", questWindow)
+  questSearchBox:SetFontObject(GameFontHighlightSmall)
   questSearchBox:SetWidth(250)
-  questSearchBox:SetHeight(24)
+  questSearchBox:SetHeight(20)
+  questSearchBox:SetTextInsets(6, 6, 0, 0)
   questSearchBox:SetAutoFocus(false)
   questSearchBox:SetPoint("LEFT", searchLabel, "RIGHT", 12, 0)
-  Skin.EditBox(questSearchBox)
+  Skin.Field(questSearchBox)
   questSearchBox:SetScript("OnTextChanged", function(self)
     questSearchText = self:GetText() or ""
     SetKnownScrollOffset(0, true)
@@ -1190,8 +973,6 @@ local function CreateQuestSearch(questWindow)
     end)
 
   local clearSearchButton = Skin.MakeButton(questWindow, {
-    width = 54,
-    height = 22,
     textKey = "BUTTON_CLEAR",
     points = { { "LEFT", questSearchBox, "RIGHT", 10, 0 } },
     onClick = function()
@@ -1200,7 +981,11 @@ local function CreateQuestSearch(questWindow)
       end,
   })
 
-  knownShowAllCheckbox = CreateFrame("CheckButton", nil, questWindow)
+  knownShowAllCheckbox = Skin.Checkbox(questWindow, {
+    onClick = function(self)
+      RT.SetKnownShowAll(self:GetChecked() and true or false)
+    end,
+  })
   knownShowAllCheckbox:SetPoint("LEFT", clearSearchButton, "RIGHT", 16, 0)
 
   local showAllLabel = questWindow:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
@@ -1208,11 +993,7 @@ local function CreateQuestSearch(questWindow)
   Localized(showAllLabel, "KNOWN_SHOW_ALL_LABEL")
   Skin.MutedText(showAllLabel)
 
-  Skin.Checkbox(knownShowAllCheckbox)
-  Skin.HoverTip(knownShowAllCheckbox, "KNOWN_SHOW_ALL_LABEL", "KNOWN_SHOW_ALL_TOOLTIP", "checkbox")
-  knownShowAllCheckbox:SetScript("OnClick", function(self)
-    RT.SetKnownShowAll(self:GetChecked() and true or false)
-    end)
+  Skin.HoverTip(knownShowAllCheckbox, "KNOWN_SHOW_ALL_LABEL", "KNOWN_SHOW_ALL_TOOLTIP")
   RT.knownShowAllCheckbox = knownShowAllCheckbox
   SyncCheckbox(knownShowAllCheckbox, knownShowAll)
 end
@@ -1227,26 +1008,17 @@ local function CreateQuestFilters(questWindow)
   RT.knownQuestTypeButtons = {}
   for i = 1, #(RT.questTypeFilterOptions) do
     local option = RT.questTypeFilterOptions[i]
-    local checkbox = CreateFrame("CheckButton", nil, questWindow)
+    local checkbox = Skin.Checkbox(questWindow, {
+      onClick = function(self)
+        RT.SetKnownQuestTypeFilter(self._acbQuestType)
+      end,
+    })
     if i == 1 then
       checkbox:SetPoint("LEFT", categoryLabel, "RIGHT", 14, 0)
     else
       checkbox:SetPoint("LEFT", previousCategoryLabel, "RIGHT", 18, 0)
     end
     checkbox._acbQuestType = option.questType
-    Skin.Checkbox(checkbox)
-    checkbox:SetScript("OnClick", function(self)
-      RT.SetKnownQuestTypeFilter(self._acbQuestType)
-    end)
-    checkbox:HookScript("OnClick", function(self)
-      Skin.SetCheckboxVisual(self)
-    end)
-    checkbox:SetScript("OnEnter", function(self)
-      Skin.SetCheckboxVisual(self, "hover")
-    end)
-    checkbox:SetScript("OnLeave", function(self)
-      Skin.SetCheckboxVisual(self)
-    end)
 
     local checkboxLabel = questWindow:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     checkboxLabel:SetPoint("LEFT", checkbox, "RIGHT", 6, 0)
@@ -1282,14 +1054,14 @@ local function CreateKnownQuestList(questWindow)
       SetKnownScrollOffset(value)
       end)
 
-    if knownScrollBar._acbUpButton then
-      knownScrollBar._acbUpButton:SetScript("OnClick", function()
+    if knownScrollBar.acbUpButton then
+      knownScrollBar.acbUpButton:SetScript("OnClick", function()
         SetKnownScrollOffset(knownScrollOffset - 1)
         end)
     end
 
-    if knownScrollBar._acbDownButton then
-      knownScrollBar._acbDownButton:SetScript("OnClick", function()
+    if knownScrollBar.acbDownButton then
+      knownScrollBar.acbDownButton:SetScript("OnClick", function()
         SetKnownScrollOffset(knownScrollOffset + 1)
         end)
     end
@@ -1303,61 +1075,39 @@ local function CreateKnownQuestList(questWindow)
 
   for i = 1, KNOWN_ROWS do
     knownQuestRows[i] = MakeQuestRow(questWindow, KNOWN_QUEST_ROW_WIDTH)
-    knownQuestRows[i]:SetPoint("TOPLEFT", RT.knownPageText, "BOTTOMLEFT", 0, -10 - ((i - 1) * QUEST_ROW_HEIGHT))
+    knownQuestRows[i]:SetPoint("TOPLEFT", RT.knownPageText, "BOTTOMLEFT", 0, -10 - ((i - 1) * QuestRowStride()))
   end
 
   RT.knownQuestRows = knownQuestRows
 end
 
 local function CreateQuestToolbar(questWindow)
-  local questToolbarWidth = 72 + 8 + 54 + 8 + 66 + 8 + 66
+  local toolbar = Skin.ButtonRow(questWindow, { point = { "BOTTOM", questWindow, "BOTTOM", 0, 54 } })
 
-  RT.startRollButton = CreateFrame("Button", nil, questWindow, "SecureActionButtonTemplate,UIPanelButtonTemplate")
-  RT.startRollButton:SetWidth(72)
-  RT.startRollButton:SetHeight(24)
-  RT.startRollButton:SetText(L.BUTTON_START)
-  RT.startRollButton:SetPoint("BOTTOMLEFT", questWindow, "BOTTOM", -(questToolbarWidth / 2), 54)
-  Skin.Button(RT.startRollButton)
+  RT.startRollButton = Skin.MakeButton(toolbar, {
+    secure = true,
+    text = L.BUTTON_START,
+  })
   RT.ConfigureStartButton(RT.startRollButton)
   RT.UpdateRollToggleButtonState(RT.startRollButton, RT.IsQuestRollStartAvailable())
 
-  RT.shareQuestButton = Skin.MakeButton(questWindow, {
-    width = 54,
-    height = 24,
+  RT.shareQuestButton = Skin.MakeButton(toolbar, {
     textKey = "BUTTON_SHARE",
-    points = { { "LEFT", RT.startRollButton, "RIGHT", 8, 0 } },
     onClick = function()
       RT.ShareAcceptedQuest("quest window button")
       end,
-    tipTitle = "BUTTON_SHARE",
-    tipBody = "SHARE_BUTTON_TOOLTIP",
+    tipKey = "SHARE_BUTTON_TOOLTIP",
   })
   RT.UpdateShareButtonState()
 
-  local exportDataButton = Skin.MakeButton(questWindow, {
-    width = 66,
-    height = 24,
+  Skin.MakeButton(toolbar, {
     textKey = "BUTTON_EXPORT",
-    points = { { "LEFT", RT.shareQuestButton, "RIGHT", 8, 0 } },
     onClick = function() RT.ShowQuestDataWindow("export") end,
   })
 
-  Skin.MakeButton(questWindow, {
-    width = 66,
-    height = 24,
+  Skin.MakeButton(toolbar, {
     textKey = "BUTTON_IMPORT",
-    points = { { "LEFT", exportDataButton, "RIGHT", 8, 0 } },
     onClick = function() RT.ShowQuestDataWindow("import") end,
-  })
-
-  RT.languageButton = Skin.MakeButton(questWindow, {
-    width = 46,
-    height = 24,
-    text = RT.LanguageInitials(RT.GetLanguage()),
-    points = { { "BOTTOMRIGHT", questWindow, "BOTTOMRIGHT", -24, 54 } },
-    onClick = function(self) RT.ToggleLanguageMenu(self) end,
-    tipTitle = "LANGUAGE_LABEL",
-    tipBody = "LANGUAGE_TOOLTIP",
   })
 
   RT.questGoldText = questWindow:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
@@ -1375,20 +1125,21 @@ local function CreateQuestToolbar(questWindow)
 end
 
 function RT.CreateQuestWindow()
-  questWindow = CreateFrame("Frame", "AutoCallboardQuestWindow", RT.controlFrame or UIParent)
+  questWindow = Skin.Box(RT.controlFrame and RT.controlFrame.content or UIParent, {
+    name = "AutoCallboardQuestWindow",
+    width = QUEST_WINDOW_WIDTH,
+    height = 526,
+  })
   RT.questWindow = questWindow
   RegisterSpecialFrame("AutoCallboardQuestWindow")
-  questWindow:SetWidth(QUEST_WINDOW_WIDTH)
-  questWindow:SetHeight(526)
-  questWindow:SetPoint("TOPLEFT", RT.controlFrame or UIParent, "TOPLEFT", RT.controlFrame and 10 or 0, RT.controlFrame and -82 or 0)
+  questWindow:SetPoint("TOPLEFT", RT.controlFrame and RT.controlFrame.content or UIParent, "TOPLEFT", 0, RT.controlFrame and -52 or 0)
   if RT.controlFrame and questWindow.SetFrameLevel then
     questWindow:SetFrameLevel(RT.controlFrame:GetFrameLevel() + 1)
   end
   RT.SyncOverlayFrameLevels()
   questWindow:EnableMouse(true)
   questWindow:SetClampedToScreen(true)
-  Skin.Frame(questWindow)
-  questWindow:SetScript("OnHide", function()
+  questWindow:HookScript("OnHide", function()
     if questSearchBox and questSearchBox.ClearFocus then
       questSearchBox:ClearFocus()
     end
@@ -1403,15 +1154,12 @@ function RT.CreateQuestWindow()
   Localized(title, "QUEST_WINDOW_TITLE")
   Skin.HeadingText(title)
 
-  CreateQuestSettings(questWindow)
-  CreateRollSpeedSlider(questWindow)
   CreateQuestSearch(questWindow)
   CreateQuestFilters(questWindow)
   CreateKnownQuestList(questWindow)
   CreateQuestToolbar(questWindow)
 
   RT.questWindowCreating = true
-  RT.AttachSettingsControls()
   RT.LayoutMainToolbar()
   questWindow:Hide()
   RT.questWindowCreating = nil

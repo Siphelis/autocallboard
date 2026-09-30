@@ -1,5 +1,4 @@
 local Skin = AutoCallboardSkin
-local THEME = Skin.THEME
 local L = AutoCallboardLocale
 local RT = AutoCallboardRuntime
 
@@ -15,11 +14,11 @@ local UpdateSummonStatus = RT.UpdateSummonStatus
 local state = RT.state
 
 local ADDON_TITLE = RT.ADDON_TITLE
+local GEAR_TEXTURE = "Interface\\WorldMap\\Gear_64Grey"
 
 local controlFrame
 local button
 local minimapButton
-local minimapText
 local summonStatusText
 local preClickCooldownRemaining = 0
 local preClickWasActive = false
@@ -36,15 +35,18 @@ local function SetButtonEnabled(target, enabled)
     return
   end
 
-  if enabled then
-    target:Enable()
-    target:SetAlpha(1)
-  else
-    target:Disable()
-    target:SetAlpha(0.48)
+  enabled = enabled and true or false
+  target:SetDisabledState(not enabled)
+
+  if not (target.secure and InCombatLockdown()) then
+    if enabled then
+      target:Enable()
+    else
+      target:Disable()
+    end
   end
 
-  Skin.SetButtonVisual(target)
+  Skin.RefreshButtonIcon(target)
 end
 
 RT.SetButtonEnabled = SetButtonEnabled
@@ -65,9 +67,7 @@ function RT.RefreshUpdateNotice()
     return false
   end
 
-  if RT.LayoutMainToolbar then
-    RT.LayoutMainToolbar()
-  end
+  RT.LayoutMainToolbar()
 
   return controlFrame.updateButton:IsShown() and true or false
 end
@@ -147,14 +147,14 @@ local function UpdateRollToggleButtonState(target, canStart)
   end
 
   if RT.IsRolling() then
-    target._acbRollState = "stop"
+    Skin.SetButtonSelected(target, true)
     target:SetText(L.BUTTON_STOP)
     SetButtonEnabled(target, true)
     RefreshRollButtonMacroState(target)
     return
   end
 
-  target._acbRollState = nil
+  Skin.SetButtonSelected(target, false)
   target:SetText(L.BUTTON_START)
   SetButtonEnabled(target, canStart)
   RefreshRollButtonMacroState(target)
@@ -242,78 +242,11 @@ function RT.SetControlFrameSize(width, height)
   local centerX = controlFrame:GetCenter()
   local top = controlFrame:GetTop()
 
-  controlFrame:SetWidth(width)
-  controlFrame:SetHeight(height)
+  Skin.SizeWindow(controlFrame, width, height)
 
   if centerX and top then
     controlFrame:ClearAllPoints()
     controlFrame:SetPoint("TOP", UIParent, "BOTTOMLEFT", centerX, top)
-  end
-end
-
-function RT.PositionControlHeader()
-  if not controlFrame or not button then
-    return
-  end
-
-  local listsButton = controlFrame.listsButton
-  local buildsButton = controlFrame.buildsButton
-  local frameWidth = controlFrame:GetWidth()
-  local leftOffset = 10
-  local buttonRowWidth = button:GetWidth() or 88
-
-  if listsButton then
-    buttonRowWidth = buttonRowWidth + 5 + (listsButton:GetWidth() or 50)
-  end
-
-  if buildsButton then
-    buttonRowWidth = buttonRowWidth + 5 + (buildsButton:GetWidth() or 56)
-  end
-
-  if controlFrame.startButton then
-    buttonRowWidth = buttonRowWidth + 5 + (controlFrame.startButton:GetWidth() or 72)
-  end
-
-  if controlFrame.shareButton then
-    buttonRowWidth = buttonRowWidth + 4 + (controlFrame.shareButton:GetWidth() or 54)
-  end
-
-  if controlFrame.questButton then
-    buttonRowWidth = buttonRowWidth + 4 + (controlFrame.questButton:GetWidth() or 50)
-  end
-
-  if frameWidth and frameWidth > buttonRowWidth then
-    leftOffset = (frameWidth - buttonRowWidth) / 2
-  end
-
-  if controlFrame.title then
-    controlFrame.title:ClearAllPoints()
-    controlFrame.title:SetPoint("TOP", controlFrame, "TOP", 0, -8)
-  end
-
-  local rowAnchor = button
-
-  if listsButton then
-    listsButton:ClearAllPoints()
-    listsButton:SetPoint("TOPLEFT", controlFrame, "TOPLEFT", leftOffset, -30)
-
-    if buildsButton then
-      buildsButton:ClearAllPoints()
-      buildsButton:SetPoint("LEFT", listsButton, "RIGHT", 5, 0)
-    end
-
-    button:ClearAllPoints()
-    button:SetPoint("LEFT", buildsButton or listsButton, "RIGHT", 5, 0)
-    rowAnchor = listsButton
-  else
-    button:ClearAllPoints()
-    button:SetPoint("TOPLEFT", controlFrame, "TOPLEFT", leftOffset, -30)
-  end
-
-  if summonStatusText then
-    summonStatusText:ClearAllPoints()
-    summonStatusText:SetPoint("TOPLEFT", rowAnchor, "BOTTOMLEFT", 0, -5)
-    summonStatusText:SetWidth(math.max(180, (frameWidth or RT.controlCollapsedWidth) - 20))
   end
 end
 
@@ -325,8 +258,7 @@ function RT.AnimateControlFrameSize(width, height, onComplete)
     return
   end
 
-  local startWidth = controlFrame:GetWidth()
-  local startHeight = controlFrame:GetHeight()
+  local startWidth, startHeight = Skin.WindowSize(controlFrame)
   local startedAt = GetTime()
 
   if RT.questPanelAnimation then
@@ -409,6 +341,7 @@ function RT.SetQuestPanelExpanded(expanded)
     RT.AnimateControlFrameSize(RT.controlExpandedWidth, RT.controlExpandedHeight, function()
         if RT.questWindow then
           RT.questWindow:Show()
+          RT.UpdateQuestWindow()
         end
 
         RT.questPanelChanging = false
@@ -437,50 +370,20 @@ function RT.ToggleQuestPanel()
   RT.SetQuestPanelExpanded(not RT.IsQuestWindowShown())
 end
 
-local function SaveButtonPosition()
-  if not controlFrame or not state then
-    return
+local function SavedButtonPoint()
+  local saved = state.button
+
+  if type(saved) ~= "table" or not saved.point then
+    return nil
   end
 
-  RT.SavePoint(controlFrame, state.button)
-end
-
-local function PositionButton()
-  RT.RestorePoint(controlFrame, state.button)
-end
-
-local function SaveMinimapPosition(angle)
-  if not state then
-    return
-  end
-
-  state.minimap.angle = angle
-
-  if not state.minimap.shown then
-    state.minimap.shown = true
-    RT.UpdateMinimapShownControl()
-  end
+  return { saved.point, UIParent, saved.relativePoint or saved.point, saved.x or 0, saved.y or 0 }
 end
 
 PositionMinimapButton = function()
-  if not minimapButton or not state then
-    return
+  if minimapButton then
+    minimapButton:Refresh()
   end
-
-  if not state.minimap.shown then
-    minimapButton:Hide()
-    return
-  end
-
-  local parent = Minimap or UIParent
-  local angle = math.rad(state.minimap.angle or 225)
-  local radius = 82
-  local x = math.cos(angle) * radius
-  local y = math.sin(angle) * radius
-
-  minimapButton:ClearAllPoints()
-  minimapButton:SetPoint("CENTER", parent, "CENTER", x, y)
-  minimapButton:Show()
 end
 
 function RT.SetMinimapShown(shown)
@@ -490,24 +393,13 @@ function RT.SetMinimapShown(shown)
 
   state.minimap.shown = shown and true or false
   PositionMinimapButton()
-  RT.UpdateMinimapShownControl()
+  RT.RefreshOptions()
 end
 
-local function UpdateMinimapDragPosition()
-  if not minimapButton or not Minimap or not GetCursorPosition then
-    return
-  end
-
-  local scale = Minimap:GetEffectiveScale() or 1
-  local cursorX, cursorY = GetCursorPosition()
-  local centerX, centerY = Minimap:GetCenter()
-
-  cursorX = cursorX / scale
-  cursorY = cursorY / scale
-
-  local angle = math.deg(math.atan2(cursorY - centerY, cursorX - centerX))
-  SaveMinimapPosition(angle)
-  PositionMinimapButton()
+local function MinimapTip(lines)
+  lines:Add(L.MINIMAP_TOOLTIP_LEFT_CLICK, "text")
+  lines:Add(L.MINIMAP_TOOLTIP_RIGHT_CLICK, "text")
+  lines:Add(L.MINIMAP_TOOLTIP_DRAG, "muted")
 end
 
 local function CreateMinimapButton()
@@ -516,87 +408,53 @@ local function CreateMinimapButton()
     return
   end
 
-  minimapButton = CreateFrame("Button", "AutoCallboardMinimapButton", Minimap or UIParent)
-  minimapButton:SetWidth(28)
-  minimapButton:SetHeight(28)
-  minimapButton:SetFrameStrata("MEDIUM")
-  minimapButton:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-  minimapButton:RegisterForDrag("LeftButton")
-  Skin.StripButtonChrome(minimapButton)
-  local disc = minimapButton:CreateTexture(nil, "BACKGROUND")
-  disc:SetAllPoints(minimapButton)
-  disc:SetTexture("Interface\\Buttons\\UI-RadioButton")
-  disc:SetTexCoord(0.25, 0.5, 0, 1)
-  Skin.ApplyColor(disc, "SetVertexColor", THEME.heading)
-  minimapText = minimapButton:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-  minimapText:SetPoint("CENTER", minimapButton, "CENTER", 0, 0)
-  minimapText:SetText("ACB")
-  minimapText:SetFont(Skin.BUTTON_FONT, 8)
-  Skin.ApplyColor(minimapText, "SetTextColor", THEME.buttonText)
+  minimapButton = Skin.Named(RT.api:MinimapButton({
+    text = function() return L.ADDON_NAME_TOOLTIP end,
+    tip = MinimapTip,
+    hidden = function() return not state.minimap.shown end,
+    angle = state.minimap.angle,
+    onClick = function(_, mouseButton)
+      if mouseButton == "RightButton" then
+        RT.ShowSettings()
+        return
+      end
 
-  minimapButton:SetScript("OnDragStart", function()
-    if not state.appearance.locked then minimapButton:SetScript("OnUpdate", UpdateMinimapDragPosition) end
-    end)
-  minimapButton:SetScript("OnDragStop", function()
-    minimapButton:SetScript("OnUpdate", nil)
-    UpdateMinimapDragPosition()
-    end)
-  minimapButton:SetScript("OnClick", function(_, mouseButton)
-    if mouseButton == "RightButton" then
-      RT.ShowSettings()
-      return
-    end
-
-    if controlFrame and controlFrame:IsShown() then
-      controlFrame:Hide()
-    elseif controlFrame then
-      RT.SaveControlFrameShown(true)
-      controlFrame:Show()
-    end
-    end)
-  minimapButton:SetScript("OnEnter", function(self)
-    Skin.ApplyColor(disc, "SetVertexColor", THEME.buttonHoverBorder)
-    Skin.OpenTip(self, "ANCHOR_LEFT", "ADDON_NAME_TOOLTIP")
-    GameTooltip:AddLine(L.MINIMAP_TOOLTIP_LEFT_CLICK, 1, 1, 1)
-    GameTooltip:AddLine(L.MINIMAP_TOOLTIP_RIGHT_CLICK, 1, 1, 1)
-    GameTooltip:AddLine(L.MINIMAP_TOOLTIP_DRAG, 0.8, 0.8, 0.8)
-    GameTooltip:Show()
-    end)
-  minimapButton:SetScript("OnLeave", function(self)
-    Skin.ApplyColor(disc, "SetVertexColor", THEME.heading)
-    GameTooltip:Hide()
-    end)
-
-  PositionMinimapButton()
+      if controlFrame and controlFrame:IsShown() then
+        controlFrame:Hide()
+      elseif controlFrame then
+        RT.SaveControlFrameShown(true)
+        controlFrame:Show()
+      end
+    end,
+  }), "AutoCallboardMinimapButton")
 end
 
 local function StartMovingButton(self)
-  if IsShiftKeyDown() and not InCombatLockdown() and not state.appearance.locked then
+  if IsShiftKeyDown() and not InCombatLockdown() and not RT.IsInterfaceLocked() then
     controlFrame:StartMoving()
   end
 end
 
 local function StopMovingButton(self)
-  controlFrame:StopMovingOrSizing()
-  SaveButtonPosition()
+  local stop = controlFrame:GetScript("OnDragStop")
+
+  if stop then
+    stop(controlFrame)
+  end
 end
 
-local function MakeActionButton(name, text, width, height, point, relativeTo, relativePoint, x, y, onClick, template)
-  local actionButton = CreateFrame("Button", name, controlFrame, template or "UIPanelButtonTemplate")
-  actionButton:SetWidth(width)
-  actionButton:SetHeight(height)
-  actionButton:SetText(text)
-  actionButton:SetPoint(point, relativeTo, relativePoint, x, y)
+local function MakeActionButton(name, text, point, relativeTo, relativePoint, x, y, onClick, secure, tipKey)
+  local actionButton = Skin.MakeButton(controlFrame.content, {
+    name = name,
+    secure = secure,
+    text = text,
+    tipKey = tipKey,
+    point = { point, relativeTo, relativePoint, x, y },
+    onClick = onClick,
+  })
   actionButton:RegisterForDrag("LeftButton")
-  if template and template:find("SecureActionButtonTemplate", 1, true) then
-    actionButton:RegisterForClicks("AnyUp")
-  end
-  if onClick then
-    actionButton:SetScript("OnClick", onClick)
-  end
   actionButton:SetScript("OnDragStart", StartMovingButton)
   actionButton:SetScript("OnDragStop", StopMovingButton)
-  Skin.Button(actionButton)
 
   return actionButton
 end
@@ -628,29 +486,27 @@ ApplySummonButtonAttributes = function()
 end
 
 local function CreateControlFrame()
-  controlFrame = CreateFrame("Frame", "AutoCallboardFrame", UIParent)
+  controlFrame = Skin.Window("AutoCallboardFrame", {
+    title = ADDON_TITLE,
+    noEsc = true,
+    movable = true,
+    point = SavedButtonPoint(),
+    width = RT.controlCollapsedWidth,
+    height = RT.controlCollapsedHeight,
+    buttons = {
+      { text = "?", onClick = function() RT.ShowAddonHelp("about") end, tipTitle = "UI_HELP" },
+      { icon = GEAR_TEXTURE, onClick = function() RT.ShowSettings() end, tipTitle = "UI_SETTINGS" },
+    },
+  })
   RT.controlFrame = controlFrame
-  controlFrame:SetWidth(RT.controlCollapsedWidth)
-  controlFrame:SetHeight(RT.controlCollapsedHeight)
-  controlFrame:SetFrameStrata("HIGH")
+  controlFrame.helpButton = controlFrame.headButtons[1]
+  controlFrame.settingsButton = controlFrame.headButtons[2]
   RT.SyncOverlayFrameLevels()
-  controlFrame:SetMovable(true)
-  controlFrame:EnableMouse(true)
-  controlFrame:RegisterForDrag("LeftButton")
-  controlFrame:SetClampedToScreen(true)
-  Skin.Frame(controlFrame)
-  controlFrame:SetScript("OnDragStart", function(self)
-    if not InCombatLockdown() and not state.appearance.locked then self:StartMoving() end
-    end)
-  controlFrame:SetScript("OnDragStop", function(self)
-    self:StopMovingOrSizing()
-    SaveButtonPosition()
-    end)
-  controlFrame:SetScript("OnShow", function()
+  controlFrame:HookScript("OnShow", function()
     RT.SaveControlFrameShown(true)
     RT.SyncOverlayFrameLevels()
     end)
-  controlFrame:SetScript("OnHide", function()
+  controlFrame:HookScript("OnHide", function()
     RT.SaveControlFrameShown(false)
 
     if RT.IsQuestWindowShown() then
@@ -662,8 +518,6 @@ local function CreateControlFrame()
       RT.HideDebugWindow()
     end
 
-    RT.HideHelpWindow()
-
     if RT.listsWindow and RT.listsWindow:IsShown() then
       RT.listsWindow:Hide()
     end
@@ -671,38 +525,19 @@ local function CreateControlFrame()
 end
 
 local function CreateHeaderButtons()
-  controlFrame.closeButton = CreateFrame("Button", nil, controlFrame)
-  controlFrame.closeButton:SetPoint("TOPRIGHT", controlFrame, "TOPRIGHT", -4, -4)
-  Skin.CloseButton(controlFrame.closeButton)
-  controlFrame.closeButton:SetScript("OnClick", function()
+  controlFrame.closeButton.onClick = function()
     if RT.IsQuestWindowShown() then
       RT.SetQuestPanelExpanded(false)
     else
       controlFrame:Hide()
     end
-    end)
+  end
 
-  controlFrame.helpButton = CreateFrame("Button", nil, controlFrame)
-  controlFrame.helpButton:SetPoint("RIGHT", controlFrame.closeButton, "LEFT", -4, 0)
-  Skin.HelpButton(controlFrame.helpButton)
-  controlFrame.helpButton:SetScript("OnClick", function()
-    RT.ShowAddonHelp("about")
-    end)
-
-  controlFrame.settingsButton = CreateFrame("Button", nil, controlFrame)
-  controlFrame.settingsButton:SetPoint("RIGHT", controlFrame.helpButton, "LEFT", -4, 0)
-  Skin.GearButton(controlFrame.settingsButton, "UI_SETTINGS")
-  controlFrame.settingsButton:SetScript("OnClick", function()
-    RT.ShowSettings()
-    end)
-
-  controlFrame.updateButton = Skin.MakeButton(controlFrame, {
+  controlFrame.updateButton = Skin.MakeButton(controlFrame.content, {
     name = "AutoCallboardUpdateButton",
-    height = 24,
     textKey = "UPDATE_BUTTON",
     onClick = function() RT.OpenUpdatePage() end,
-    tipTitle = "UPDATE_BUTTON",
-    tipExtra = function()
+    tip = function()
       local version, installed = RT.GetAvailableUpdate()
       local tip = RT.LinkTip()
 
@@ -716,23 +551,16 @@ local function CreateHeaderButtons()
       end,
   })
   controlFrame.updateButton:Hide()
-
-  local title = controlFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-  title:SetPoint("TOPLEFT", controlFrame, "TOPLEFT", 10, -8)
-  title:SetText(ADDON_TITLE)
-  Skin.TitleText(title)
-  controlFrame.title = title
 end
 
 local function CreateSummonButton(anchor)
-  button = CreateFrame("Button", "AutoCallboardButton", controlFrame, "SecureActionButtonTemplate,UIPanelButtonTemplate")
-  button:SetWidth(88)
-  button:SetHeight(24)
-  button:SetText(state.targetName)
-  button:SetPoint("LEFT", anchor, "RIGHT", 5, 0)
-  button:RegisterForClicks("AnyUp")
+  button = Skin.MakeButton(controlFrame.content, {
+    name = "AutoCallboardButton",
+    secure = true,
+    text = state.targetName,
+    point = { "LEFT", anchor, "RIGHT", 5, 0 },
+  })
   button:RegisterForDrag("LeftButton")
-  Skin.Button(button)
   ApplySummonButtonAttributes()
   button:SetScript("PreClick", function()
     preClickCooldownRemaining = GetSummonCooldownRemaining()
@@ -767,7 +595,7 @@ local function CreateSummonButton(anchor)
     end)
   button:SetScript("OnDragStart", StartMovingButton)
   button:SetScript("OnDragStop", StopMovingButton)
-  Skin.HoverTip(button, "ADDON_NAME_TOOLTIP", nil, "button", function()
+  Skin.HoverTip(button, "ADDON_NAME_TOOLTIP", nil, function()
     if RT.IsSummonBlockedIndoors() then
       GameTooltip:AddLine(L.SUMMON_BLOCKED_INDOORS, 1, 0.3, 0.3)
     else
@@ -775,33 +603,26 @@ local function CreateSummonButton(anchor)
     end
     GameTooltip:AddLine(L.SUMMON_BUTTON_DRAG_HINT, 0.8, 0.8, 0.8)
     end)
-
-  PositionButton()
 end
 
 local function CreateToolbar()
-  local listsButton = Skin.MakeButton(controlFrame, {
+  local content = controlFrame.content
+  local listsButton = Skin.MakeButton(content, {
     name = "AutoCallboardListsButton",
-    width = 50,
-    height = 24,
     textKey = "BUTTON_LISTS",
-    points = { { "TOPLEFT", controlFrame, "TOPLEFT", 10, -30 } },
+    points = { { "TOPLEFT", content, "TOPLEFT", 0, 0 } },
     onClick = RT.ToggleListsWindow,
-    tipTitle = "BUTTON_LISTS",
-    tipBody = "LISTS_BUTTON_TOOLTIP",
+    tipKey = "LISTS_BUTTON_TOOLTIP",
   })
   controlFrame.listsButton = listsButton
 
-  local buildsButton = Skin.MakeButton(controlFrame, {
+  local buildsButton = Skin.MakeButton(content, {
     name = "AutoCallboardBuildsButton",
-    width = 56,
-    height = 24,
     textKey = "BUTTON_BUILDS",
     points = { { "LEFT", listsButton, "RIGHT", 5, 0 } },
     onClick = function() RT.ToggleBuildsWindow() end,
-    tipTitle = "BUTTON_BUILDS",
-    tipBody = "BUILDS_BUTTON_TOOLTIP",
-    tipExtra = function()
+    tipKey = "BUILDS_BUTTON_TOOLTIP",
+    tip = function()
       local activeBuild = EbonAPI.State.activeBuild()
       if activeBuild then
         GameTooltip:AddLine(string.format(L.BUILDS_BUTTON_ACTIVE, RT.BuildLabel(activeBuild)), 1, 1, 1)
@@ -812,15 +633,13 @@ local function CreateToolbar()
 
   CreateSummonButton(controlFrame.buildsButton or listsButton)
 
-  local mainStartButton = MakeActionButton("AutoCallboardStartButton", L.BUTTON_START, 72, 24, "LEFT", button, "RIGHT", 5, 0, nil, "SecureActionButtonTemplate,UIPanelButtonTemplate")
+  local mainStartButton = MakeActionButton("AutoCallboardStartButton", L.BUTTON_START, "LEFT", button, "RIGHT", 5, 0, nil, true)
   controlFrame.startButton = mainStartButton
   RT.ConfigureStartButton(mainStartButton)
   UpdateRollToggleButtonState(mainStartButton, true)
   controlFrame.shareButton = MakeActionButton(
       "AutoCallboardShareButton",
       L.BUTTON_SHARE,
-      54,
-      24,
       "LEFT",
       mainStartButton,
       "RIGHT",
@@ -828,15 +647,14 @@ local function CreateToolbar()
       0,
       function()
         RT.ShareAcceptedQuest("main button")
-      end
+      end,
+      nil,
+      "SHARE_BUTTON_TOOLTIP"
     )
   Localized(controlFrame.shareButton, "BUTTON_SHARE")
-  Skin.HoverTip(controlFrame.shareButton, "BUTTON_SHARE", "SHARE_BUTTON_TOOLTIP")
   controlFrame.questButton = MakeActionButton(
       "AutoCallboardQuestsButton",
       L.BUTTON_QUESTS,
-      50,
-      24,
       "LEFT",
       controlFrame.shareButton,
       "RIGHT",
@@ -852,13 +670,12 @@ local function CreateCallboardButton()
   CreateHeaderButtons()
   CreateToolbar()
 
-  summonStatusText = controlFrame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+  summonStatusText = controlFrame.content:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
   RT.summonStatusText = summonStatusText
   summonStatusText:SetPoint("TOPLEFT", button, "BOTTOMLEFT", 0, -5)
   summonStatusText:SetWidth(256)
   summonStatusText:SetJustifyH("LEFT")
   Skin.MutedText(summonStatusText)
-  RT.PositionControlHeader(false)
   UpdateSummonStatus()
 
   if state.buttonShown then
@@ -872,7 +689,6 @@ local function CreateCallboardButton()
   end
 end
 
-RT.PositionButton = PositionButton
 RT.CreateCallboardButton = CreateCallboardButton
 RT.CreateMinimapButton = CreateMinimapButton
 
@@ -888,20 +704,4 @@ RT.SetCallboardButtonText = function(text)
   if button then
     button:SetText(text)
   end
-end
-
-RT.ShowControlFrame = function(shown)
-  if not controlFrame then
-    return
-  end
-
-  if shown then
-    controlFrame:Show()
-  else
-    controlFrame:Hide()
-  end
-end
-
-RT.IsControlFrameShown = function()
-  return controlFrame ~= nil and controlFrame:IsShown()
 end

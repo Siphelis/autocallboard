@@ -1,10 +1,8 @@
 local Core = AutoCallboardCore
 
-local DEFAULT = { background = 0x050505, accent = 0xB048F8, scale = 1, opacity = 0.96,
-  locked = false, goldTotal = true, goldLast = true, goldCurrent = true, goldSession = false, goldMain = false,
+local DEFAULT = { goldTotal = true, goldLast = true, goldCurrent = true, goldSession = false, goldMain = false,
   arrowScale = 1, arrowFont = 10, arrowSkin = "sheet" }
-local LIMIT = { background = {0, 0xFFFFFF}, accent = {0, 0xFFFFFF}, scale = {0.2, 1.4}, opacity = {0.25, 1},
-  arrowScale = {0.25, 2} }
+local LIMIT = { arrowScale = {0.25, 2} }
 local ARROW_FONT_SIZES = { 8, 9, 10, 11, 12, 14, 16, 18, 20 }
 
 Core.ARROW_FONT_SIZES = ARROW_FONT_SIZES
@@ -23,11 +21,9 @@ function Core.copyAppearance(source)
     local value, limit = source[key], LIMIT[key]
     if type(value) ~= type(default) or (limit and (value ~= value or value < limit[1] or value > limit[2])) then value = default end
     if key == 'arrowSkin' then
-      value = Core.sanitizeArrowSkin and Core.sanitizeArrowSkin(value) or default
+      value = Core.sanitizeArrowSkin(value) or default
     elseif key == 'arrowFont' then
       if not Core.isArrowFontSize(value) then value = default end
-    elseif key == 'background' or key == 'accent' then
-      value = math.floor(value)
     end
     result[key] = value
   end

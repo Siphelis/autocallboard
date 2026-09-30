@@ -425,8 +425,6 @@ end
 local function EnsureContextMenu()
   if not RT.listsContextMenu then
     RT.listsContextMenu = Skin.Menu("AutoCallboardListsContextMenu")
-    RT.listsContextMenu:SetAutoClose(true)
-    RT.listsContextMenu:CloseWhenHidden(RT.listsWindow)
   end
 
   return RT.listsContextMenu
@@ -461,7 +459,7 @@ function RT.ShowGroupContextMenu(anchor, group)
 end
 
 local function RowTooltip(row, entry)
-  Skin.OpenTip(row, "ANCHOR_RIGHT", entry.name)
+  EbonAPI.Bricks.tip(row, entry.name or "")
 
   if entry.id == nil then
     GameTooltip:AddLine(L.LISTS_ROW_CLEAR_ENTRY, 1, 1, 1)
@@ -519,7 +517,7 @@ local browser = RT.BuildBrowser({
   count = function(groupId) return Core.selectionCount(AccountProfile(), groupId) end,
   rowText = function(entry)
     if entry.difficulty then
-      return entry.name .. " " .. Skin.AccentCode() .. "[" .. Core.difficultyLabel(entry.difficulty) .. "]|r"
+      return entry.name .. " " .. EbonAPI.Palette.code("heading") .. "[" .. Core.difficultyLabel(entry.difficulty) .. "]|r"
     end
 
     return entry.name
@@ -574,34 +572,24 @@ local browser = RT.BuildBrowser({
     enabled = function() return not Core.groupsFull(AccountProfile()) end,
   },
   onAnimating = function(flag) RT.listsAnimating = flag end,
-  createWindow = function(width, height)
-    local window = CreateFrame("Frame", "AutoCallboardListsWindow", UIParent)
+  createWindow = function(width, height, buttons)
+    local window = Skin.Window("AutoCallboardListsWindow", {
+      width = width,
+      height = height,
+      titleKey = "BUTTON_LISTS",
+      strata = "HIGH",
+      buttons = buttons,
+      point = { "TOPRIGHT", RT.controlFrame, "TOPLEFT", -8, 0 },
+    })
     RT.listsWindow = window
-    window:SetWidth(width)
-    window:SetHeight(height)
-    window:SetFrameStrata("HIGH")
-    if window.SetToplevel then
-      window:SetToplevel(true)
-    end
-    window:EnableMouse(true)
-    Skin.Frame(window)
-    RT.RegisterSpecialFrame("AutoCallboardListsWindow")
-    window:SetPoint("TOPRIGHT", RT.controlFrame, "TOPLEFT", -8, 0)
-
-    window.closeButton = CreateFrame("Button", nil, window)
-    window.closeButton:SetPoint("TOPRIGHT", window, "TOPRIGHT", -4, -3)
-    Skin.CloseButton(window.closeButton, window)
 
     return window
   end,
 })
 
-RT.listsBrowser = browser
 RT.CreateListsWindow = browser.Create
 RT.RefreshListsWindow = browser.Refresh
 RT.ToggleListsWindow = browser.Toggle
 RT.SetOpenGroup = browser.SetOpen
-RT.UpdateListsAnimation = browser.UpdateAnimation
 RT.IsListsAnimating = browser.IsAnimating
 RT.IsDraggingSelection = browser.IsDragging
-RT.RefreshListRowVisual = browser.RefreshRowVisual

@@ -16,9 +16,50 @@ function RT.InvalidateInstanceTarget()
   RT.instanceTargetRetryAt = nil
 end
 
+local function CurrentInstanceVisit()
+  local ok, inInstance, instanceType = pcall(IsInInstance)
+
+  if not ok then
+    return nil
+  end
+
+  if not inInstance then
+    return "none"
+  end
+
+  local infoOk, instanceName, infoInstanceType = pcall(GetInstanceInfo)
+
+  if not infoOk or type(instanceName) ~= "string" or instanceName == "" then
+    return nil
+  end
+
+  if not instanceType or instanceType == "" then
+    instanceType = infoInstanceType
+  end
+
+  local questType = Core.currentInstanceQuestType(instanceType)
+
+  if questType == 0 then
+    return nil
+  end
+
+  return questType .. ":" .. instanceName
+end
+
+function RT.NoteInstanceVisit()
+  local visit = CurrentInstanceVisit()
+
+  if not visit or visit == RT.instanceVisit then
+    return
+  end
+
+  Log("instance", "visit ", tostring(RT.instanceVisit), " -> ", visit, ", anchors and abandons cleared")
+  RT.instanceVisit = visit
+  RT.ClearVisitExclusions()
+end
+
 local function GetCurrentMapFileName()
   local mapIsBrowsed = WorldMapFrame
-      and RT.FrameIsVisibleOrShown
       and RT.FrameIsVisibleOrShown(WorldMapFrame)
 
   if mapIsBrowsed then
@@ -132,8 +173,7 @@ function RT.GetCurrentInstanceQuestTarget()
   end
 
   if target then
-    RT.instanceTargetSignature = tostring(target.questType) .. ":"
-        .. tostring(target.name) .. ":" .. table.concat(target.aliases or {}, ",")
+    RT.instanceTargetSignature = tostring(target.questType) .. ":" .. tostring(target.name)
   else
     RT.instanceTargetSignature = "none:" .. tostring(reason)
   end

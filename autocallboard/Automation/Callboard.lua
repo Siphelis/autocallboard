@@ -18,7 +18,6 @@ local pendingAcceptUntil
 local UpdateSummonStatus
 local TargetCallboard
 local QueueCallboardFollowup
-local StartCallboardFlow
 
 local Log = RT.Log
 
@@ -34,11 +33,11 @@ local function IsCallboardActive()
     return true
   end
 
-  if RT.GetNpcBoardInfo and RT.GetNpcBoardInfo() then
+  if RT.GetNpcBoardInfo() then
     return true
   end
 
-  if RT.IsCallboardUiPresent and RT.IsCallboardUiPresent() then
+  if RT.IsCallboardUiPresent() then
     return true
   end
 
@@ -117,7 +116,7 @@ SyncCallboardActiveFromCooldown = function(source)
     RT.nextCooldownInferenceAt = now + 0.5
   end
 
-  if RT.StartCallboardTimersFromCooldown and RT.StartCallboardTimersFromCooldown(source) then
+  if RT.StartCallboardTimersFromCooldown(source) then
     return SecondsRemaining(callboardActiveUntil) > 0
   end
 
@@ -156,7 +155,7 @@ function RT.StartCallboardTimersFromCooldown(source)
     Log("summon", "synced timers from spell cooldown source=", source, " active=", activeRemaining, " cooldown=", cooldownRemaining)
   end
 
-  if source ~= "cooldown inference" and activeRemaining > 0 and RT.ResumeRollingAfterCallboardActive and RT.IsCallboardDataAvailable and RT.IsCallboardDataAvailable() then
+  if source ~= "cooldown inference" and activeRemaining > 0 and RT.IsCallboardDataAvailable() then
     RT.ResumeRollingAfterCallboardActive(source)
   end
 
@@ -252,7 +251,7 @@ local function MarkCallboardSummoned(source)
   fallbackCooldownUntil = now + state.summonCooldown
   Log("summon", "started fallback timer ", source, " active=", state.summonDuration, " cooldown=", state.summonCooldown)
 
-  if RT.ResumeRollingAfterCallboardActive and RT.IsCallboardDataAvailable and RT.IsCallboardDataAvailable() then
+  if RT.IsCallboardDataAvailable() then
     RT.ResumeRollingAfterCallboardActive(source)
   end
 end
@@ -278,7 +277,7 @@ function RT.CheckPendingSummonAttempt()
   RT.nextSummonVerifyCheckAt = now + RT.summonVerifyPollInterval
   local source = tostring(RT.pendingSummonSource)
 
-  if RT.IsCallboardUiPresent and RT.IsCallboardUiPresent() then
+  if RT.IsCallboardUiPresent() then
     MarkCallboardSummoned(source .. " ui verified")
     QueueCallboardFollowup(source .. " ui verified")
     return
@@ -424,8 +423,7 @@ function RT.IsCallboardDataAvailable()
     return true
   end
 
-  if RT.GetNpcBoardInfo
-      and RT.GetNpcBoardInfo()
+  if RT.GetNpcBoardInfo()
       and RT.HasCurrentObjectiveData() then
     return true
   end
@@ -444,7 +442,7 @@ function RT.CanReadObjectiveChoices()
 end
 
 function RT.IsBoardSessionOpen()
-  local npcBoard = RT.GetNpcBoardInfo and RT.GetNpcBoardInfo() or nil
+  local npcBoard = RT.GetNpcBoardInfo()
   local uiOpen = RT.IsCallboardUiPresent()
   local sessionOpen = RT.objectiveBoardAccessOpen
       and SecondsRemaining(RT.objectiveBoardReadyUntil) > 0
@@ -751,39 +749,6 @@ QueueCallboardFollowup = function(source)
   RT.pendingInteractSource = source
 end
 
-StartCallboardFlow = function()
-  if IsCallboardActive() then
-    RT.ResumeRollingAfterCallboardActive("slash active")
-    QueueCallboardFollowup("slash active")
-
-    return
-  end
-
-  local targeted, targetName = TargetCallboard()
-  if targeted then
-    Log("summon", "opening summoned callboard ", targetName)
-    QueueCallboardFollowup("slash summoned callboard")
-
-    UpdateSummonStatus()
-    return
-  end
-
-  if GetSummonCooldownRemaining() > 0 then
-    UpdateSummonStatus()
-    return
-  end
-
-  if not IsSummonSpellUsable() then
-    Log("summon", "spell not usable")
-    UpdateSummonStatus()
-    return
-  end
-
-  Log("summon", "summon needs the secure button (tainted slash path)")
-  RT.Error(L.SUMMON_NEEDS_BUTTON)
-  UpdateSummonStatus()
-end
-
 function RT.GetCallboardActiveRemaining()
   return SecondsRemaining(callboardActiveUntil)
 end
@@ -818,7 +783,6 @@ RT.GetCurrentObjectives = GetCurrentObjectives
 RT.GetActiveObjective = GetActiveObjective
 RT.SyncCallboardActiveFromCooldown = SyncCallboardActiveFromCooldown
 RT.TargetCallboard = TargetCallboard
-RT.StartCallboardFlow = StartCallboardFlow
 RT.QueueCallboardFollowup = QueueCallboardFollowup
 RT.MarkCallboardSummoned = MarkCallboardSummoned
 

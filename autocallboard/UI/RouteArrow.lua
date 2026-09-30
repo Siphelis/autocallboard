@@ -1,6 +1,5 @@
 local Core = AutoCallboardCore
 local Skin = AutoCallboardSkin
-local THEME = Skin.THEME
 local L = AutoCallboardLocale
 local RT = AutoCallboardRuntime
 
@@ -23,9 +22,6 @@ local WIDGET_W = 176
 local BASE_FONT = 10
 local LINE_PAD = 6
 local TEXT_GAP = 2
-local BASELINE_HEIGHT = 768
-local MIN_SCALE = 1
-local MAX_SCALE = 2.2
 local REFRESH_INTERVAL = 0.05
 local ARRIVED_YARDS = 12
 local ARRIVED_FLYING_YARDS = 45
@@ -46,45 +42,6 @@ end
 
 RT.CurrentArrowSkin = CurrentSkin
 
-function RT.ScreenPixelHeight()
-  local resolution = GetCVar and GetCVar("gxResolution")
-  local height = resolution and tonumber(string.match(tostring(resolution), "%d+%s*[xX]%s*(%d+)"))
-
-  if height and height > 0 then
-    return height
-  end
-
-  if GetScreenHeight and UIParent and UIParent.GetEffectiveScale then
-    local scaled = GetScreenHeight() * (UIParent:GetEffectiveScale() or 1)
-
-    if scaled and scaled > 0 then
-      return scaled
-    end
-  end
-
-  return BASELINE_HEIGHT
-end
-
-function RT.RouteArrowScale(pixelHeight)
-  local height = tonumber(pixelHeight) or RT.ScreenPixelHeight()
-
-  if height <= 0 then
-    return MIN_SCALE
-  end
-
-  local factor = height / BASELINE_HEIGHT
-
-  if factor < MIN_SCALE then
-    return MIN_SCALE
-  end
-
-  if factor > MAX_SCALE then
-    return MAX_SCALE
-  end
-
-  return factor
-end
-
 function RT.LayoutRouteArrow()
   if not arrowFrame then
     return false
@@ -104,7 +61,7 @@ function RT.LayoutRouteArrow()
   arrowFrame.shape:SetScale(arrowScale)
 
   for _, text in ipairs({ arrowFrame.status, arrowFrame.label }) do
-    text:SetFont(Skin.BUTTON_FONT, font, "OUTLINE")
+    Skin.Font(text, font)
     text:SetWidth(width)
     text:SetHeight(line)
   end
@@ -241,7 +198,7 @@ function RT.HideRouteArrowShape()
 end
 
 function RT.ShowRouteArrowTile(skin)
-  if not arrowFrame or type(skin) ~= "table" or not RT.BuildArrowTile then
+  if not arrowFrame or type(skin) ~= "table" then
     return nil
   end
 
@@ -432,10 +389,8 @@ function RT.CreateRouteArrow()
 end
 
 function RT.RefreshRouteArrowLock()
-  local appearance = RT.state and RT.state.appearance
-
   if arrowFrame then
-    arrowFrame:EnableMouse(not (appearance and appearance.locked))
+    arrowFrame:EnableMouse(not RT.IsInterfaceLocked())
   end
 end
 

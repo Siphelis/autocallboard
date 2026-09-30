@@ -1,7 +1,7 @@
 local Core = AutoCallboardCore or {}
 AutoCallboardCore = Core
 
-local type, tonumber, tostring, pairs, ipairs, pcall, error = type, tonumber, tostring, pairs, ipairs, pcall, error
+local type, tonumber, tostring, ipairs, pcall, error = type, tonumber, tostring, ipairs, pcall, error
 local string, table, math = string, table, math
 
 Core.ROUTE_CODE_PREFIX = "ACB1"

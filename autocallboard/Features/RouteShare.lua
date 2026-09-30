@@ -67,9 +67,7 @@ function RT.RouteShareDelay(low, high)
 end
 
 local function RefreshLibrary()
-  if RT.RefreshRouteLibrary then
-    RT.RefreshRouteLibrary()
-  end
+  RT.RefreshRouteLibrary()
 end
 
 local function HeldRoutes(category)
@@ -103,15 +101,11 @@ function RT.RefreshHeldLibraryEntries()
 end
 
 local function Say(op, body)
-  if not RT.api then
-    return false
-  end
-
   return RT.api:Say(op, body or "")
 end
 
 local function Whisper(target, payload)
-  if not target or target == "" or not RT.api then
+  if not target or target == "" then
     return false
   end
 
@@ -119,10 +113,6 @@ local function Whisper(target, payload)
 end
 
 local function SendStream(target, op, id, data)
-  if not RT.api then
-    return false
-  end
-
   return RT.api:WhisperStream(PREFIX, target, op, id, data)
 end
 
@@ -457,9 +447,7 @@ function RT.ImportLibraryRoute(code, hash)
   RT.TouchState()
   Log("share", "imported ", hash, " from the library")
 
-  if RT.RefreshRouteWindow then
-    RT.RefreshRouteWindow()
-  end
+  RT.RefreshRouteWindow()
 
   RefreshLibrary()
 
@@ -557,10 +545,7 @@ function RT.ShareRoute(id, shared)
 
   RT.TouchState()
   RefreshLibrary()
-
-  if RT.RefreshRouteWindow then
-    RT.RefreshRouteWindow()
-  end
+  RT.RefreshRouteWindow()
 
   return true
 end
@@ -637,10 +622,6 @@ end
 function RT.InitRouteShare()
   local api = RT.api
 
-  if not api then
-    return false
-  end
-
   api:OnChannel("H", OnChannelHello)
   api:OnChannel("S", OnChannelServed)
   api:OnChannel("N", OnChannelNew)
@@ -649,8 +630,6 @@ function RT.InitRouteShare()
   api:OnWhisperStream(PREFIX, "E", OnEntriesStream)
   api:OnWhisperStream(PREFIX, "C", OnCodeStream, OnCodePart)
   api:On("PEER_OFFLINE", OnPeerOffline)
-
-  return true
 end
 
 local function Expire(now)
@@ -694,7 +673,7 @@ function RT.ProcessRouteShare(now)
 
   RT.SyncSharedRoutes()
 
-  if RT.api and RT.api:IsChannelJoined() and not share.helloSent then
+  if RT.api:IsChannelJoined() and not share.helloSent then
     share.helloAt = share.helloAt or now + HELLO_DELAY
 
     if now >= share.helloAt and SendHello(now) then

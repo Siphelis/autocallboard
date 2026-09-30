@@ -9,7 +9,6 @@ local Log = RT.Log
 local BUTTON_NAME = "AutoCallboardTravelButton"
 
 local button
-local buttonText
 local suggestion
 local suggestionQuestKey
 local requestedAt
@@ -451,7 +450,7 @@ local function UpdateButton()
     return
   end
 
-  buttonText:SetText(string.format(L.TRAVEL_BUTTON_FORMAT, Core.travelCheckpointLabel(suggestion)))
+  button:SetText(string.format(L.TRAVEL_BUTTON_FORMAT, Core.travelCheckpointLabel(suggestion)))
   button:Show()
 end
 
@@ -460,28 +459,15 @@ local function CreateButton()
     return button
   end
 
-  button = CreateFrame("Button", BUTTON_NAME, UIParent)
-  button:SetWidth(190)
-  button:SetHeight(24)
-  button:SetPoint("TOPLEFT", RT.controlFrame, "BOTTOMLEFT", 0, -4)
-  button:EnableMouse(true)
-  button:RegisterForClicks("LeftButtonUp")
-
-  if button.SetBackdrop then
-    button:SetBackdrop(Skin.BACKDROP)
-  end
-
-  Skin.Frame(button)
-
-  buttonText = button:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-  buttonText:SetPoint("CENTER", button, "CENTER", 0, 0)
-  Skin.HeadingText(buttonText)
-
-  Skin.HoverTip(button, "TRAVEL_BUTTON_LABEL", "TRAVEL_BUTTON_TOOLTIP")
-
-  button:SetScript("OnClick", function()
-    RT.TravelToSuggestion("button")
-    end)
+  button = Skin.Root(Skin.MakeButton(UIParent, {
+    name = BUTTON_NAME,
+    point = { "TOPLEFT", RT.controlFrame, "BOTTOMLEFT", 0, -4 },
+    onClick = function()
+      RT.TravelToSuggestion("button")
+    end,
+    tipTitle = "TRAVEL_BUTTON_LABEL",
+    tipBody = "TRAVEL_BUTTON_TOOLTIP",
+  }))
 
   button:Hide()
 
@@ -544,7 +530,7 @@ function MaybeAutoTravel(questKey)
 end
 
 function RT.ResetTravelAutoBaseline()
-  local objective = RT.GetActiveObjective and RT.GetActiveObjective() or nil
+  local objective = RT.GetActiveObjective()
 
   autoQuestKey = ActiveQuestKey(objective)
 end
@@ -569,7 +555,7 @@ function RT.RefreshTravelSuggestion(source, skipAuto)
     return nil
   end
 
-  local objective = RT.GetActiveObjective and RT.GetActiveObjective() or nil
+  local objective = RT.GetActiveObjective()
 
   if not objective then
     if autoQuestKey ~= nil then
@@ -677,12 +663,10 @@ function RT.OnTravelEnabledChanged()
 
   RT.ResetTravelAutoBaseline()
   RT.RefreshTravelSuggestion("toggle")
-  RT.UpdateTravelControls()
 end
 
 function RT.OnTravelAutoChanged()
   RT.ResetTravelAutoBaseline()
-  RT.UpdateTravelControls()
   Log("travel", "auto travel ", tostring(RT.IsTravelAutoEnabled()))
 end
 
@@ -692,12 +676,6 @@ end
 
 function RT.SetTravelAutoEnabled(enabled)
   RT.SetField("travelAuto", enabled and true or false)
-end
-
-function RT.UpdateTravelControls()
-  if RT.SyncTravelCheckbox then
-    RT.SyncTravelCheckbox()
-  end
 end
 
 function RT.WatchTravelSuggestion()

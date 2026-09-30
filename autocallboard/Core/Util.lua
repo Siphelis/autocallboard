@@ -8,8 +8,6 @@ local ADDON_PREFIX = "|cffb58cffACB:|r "
 
 RT.ADDON_TITLE = ADDON_TITLE
 
-RT.localizedWidgets = RT.localizedWidgets or setmetatable({}, { __mode = "k" })
-
 local registeredSpecialFrames = {}
 
 local function Print(message)
@@ -32,10 +30,7 @@ local function Localized(widget, key)
     return widget
   end
 
-  widget:SetText(L[key] or key)
-  RT.localizedWidgets[widget] = key
-
-  return widget
+  return RT.api:Localized(widget, key)
 end
 
 local function GetQuestTypeName(questType)
@@ -52,15 +47,7 @@ local function GetAddonVersion()
 end
 
 local function LinkMethod()
-  if type(EbonholdOpenURL) == "function" then
-    return "open"
-  end
-
-  if type(CopyToClipboard) == "function" then
-    return "copy"
-  end
-
-  return nil
+  return RT.api:LinkMethod()
 end
 
 local function OpenLink(url)
@@ -68,15 +55,7 @@ local function OpenLink(url)
     return nil
   end
 
-  local method = LinkMethod()
-
-  if method == "open" then
-    EbonholdOpenURL(url)
-  elseif method == "copy" then
-    CopyToClipboard(url)
-  end
-
-  return method
+  return RT.api:OpenLink(url)
 end
 
 local function LinkTip()
@@ -119,14 +98,6 @@ local function FormatMoney(copper)
   table.insert(parts, tostring(coin) .. "c")
 
   return table.concat(parts, " ")
-end
-
-local function SecondsRemaining(untilTime)
-  if not untilTime then
-    return 0
-  end
-
-  return math.max(0, untilTime - GetTime())
 end
 
 local function FormatSeconds(value)
@@ -375,8 +346,6 @@ function RT.Silent(fn, ...)
   return first, second
 end
 
-local Silent = RT.Silent
-
 local function ClickNamedFrame(frameName, label)
   local target = ResolveFramePath(frameName)
 
@@ -466,6 +435,53 @@ function RT.IsUnder(frame, x, y)
       and x >= left and x <= right and y >= bottom and y <= top
 end
 
+local function NewEventRelay(dispatch)
+  local relay = { listeners = {}, active = {} }
+
+  function relay:Listen(event)
+    local listener = self.listeners[event]
+
+    if not listener then
+      listener = function(...)
+        dispatch(event, ...)
+      end
+      self.listeners[event] = listener
+    end
+
+    local added = RT.api:OnEvent(event, listener)
+    self.active[event] = true
+
+    return added
+  end
+
+  function relay:Unlisten(event)
+    local listener = self.listeners[event]
+
+    if not listener then
+      return false
+    end
+
+    self.active[event] = nil
+
+    return RT.api:OffEvent(event, listener)
+  end
+
+  function relay:Watch(event, enabled)
+    if enabled then
+      return self:Listen(event)
+    end
+
+    return self:Unlisten(event)
+  end
+
+  function relay:IsListening(event)
+    return self.active[event] == true
+  end
+
+  return relay
+end
+
+RT.NewEventRelay = NewEventRelay
 RT.Print = Print
 RT.Error = Error
 RT.Localized = Localized
@@ -476,7 +492,7 @@ RT.OpenLink = OpenLink
 RT.LinkTip = LinkTip
 RT.NormalizeCopper = NormalizeCopper
 RT.FormatMoney = FormatMoney
-RT.SecondsRemaining = SecondsRemaining
+RT.SecondsRemaining = EbonAPI.Format.secondsRemaining
 RT.FormatSeconds = FormatSeconds
 RT.RegisterSpecialFrame = RegisterSpecialFrame
 RT.ResolveFramePath = ResolveFramePath

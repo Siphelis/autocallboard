@@ -1,6 +1,7 @@
 local Core = AutoCallboardCore or {}
 AutoCallboardCore = Core
 local L = AutoCallboardLocale
+local Lib = EbonAPI.Lib
 
 local type, tonumber, tostring, pairs, ipairs = type, tonumber, tostring, pairs, ipairs
 local string, table, math = string, table, math
@@ -15,7 +16,6 @@ local DEFAULTS = {
   objectivePrefix = "ObjectiveFrame",
   objectiveButtonField = "selectBtn",
   autoAccept = true,
-  autoAcceptShared = false,
   autoCurrentInstanceQuest = false,
   travelEnabled = true,
   travelAuto = false,
@@ -64,7 +64,7 @@ local function trim(value)
     return ""
   end
 
-  return (value:match("^%s*(.-)%s*$"))
+  return Lib.trim(value)
 end
 
 local function truncateLetters(value, limit)
@@ -137,7 +137,7 @@ local function stripColorCodes(value)
     return ""
   end
 
-  return (value:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
+  return Lib.stripColor(value)
 end
 
 local function normalizeMatchText(value)
@@ -340,23 +340,7 @@ function Core.nearestRollSpeedPreset(delay)
 end
 
 local function copyDefaults()
-  local state = {}
-
-  for key, value in pairs(DEFAULTS) do
-    if type(value) == "table" then
-      local nested = {}
-
-      for nestedKey, nestedValue in pairs(value) do
-        nested[nestedKey] = nestedValue
-      end
-
-      state[key] = nested
-    else
-      state[key] = value
-    end
-  end
-
-  return state
+  return Lib.copyDeep(DEFAULTS)
 end
 
 function Core.defaultState()
@@ -433,12 +417,6 @@ function Core.mergeState(saved, adopt)
 
   if type(saved.rerollTimeout) == "number" then
     state.rerollTimeout = Core.clampRollTimeout(saved.rerollTimeout)
-  end
-
-  if type(saved.autoAcceptShared) == "boolean" then
-    state.autoAcceptShared = saved.autoAcceptShared
-  elseif type(saved.autoAcceptSharedBoard) == "boolean" then
-    state.autoAcceptShared = saved.autoAcceptSharedBoard
   end
 
   for key, copier in pairs(MERGE_COLLECTION) do
@@ -952,9 +930,7 @@ function Core.captureKnownQuests(existing, objectives, rollCount, adopt)
         entry.seen = (entry.seen or 0) + 1
         entry.lastSeenRoll = rollCount or entry.lastSeenRoll or 0
 
-        if Core.onKnownQuestTouched then
-          Core.onKnownQuestTouched(entry)
-        end
+        Core.onKnownQuestTouched(entry)
       else
         local created = buildQuestEntry(
           objective, key, title, zoneOrSort, questType, 1, rollCount or 0)
@@ -987,88 +963,6 @@ function Core.isObjectiveChoiceList(objectives)
   end
 
   return true
-end
-
-function Core.normalizeSharedQuestPlayerName(name)
-  local normalized = string.lower(trim(name))
-  normalized = string.gsub(normalized, "%-.*$", "")
-  return normalized
-end
-
-function Core.normalizeSharedQuestTitle(title)
-  return string.gsub(string.lower(trim(title)), "%s+", " ")
-end
-
-function Core.buildSharedQuestAnnouncement(questID, title)
-  questID = math.floor(tonumber(questID) or 0)
-  title = string.gsub(trim(title), "[\r\n\t]", " ")
-  title = string.sub(title, 1, 200)
-
-  if questID <= 0 or title == "" then
-    return nil
-  end
-
-  return "SHARE\t" .. tostring(questID) .. "\t" .. title
-end
-
-function Core.parseSharedQuestAnnouncement(message)
-  if type(message) ~= "string" then
-    return nil
-  end
-
-  local questID, title = string.match(message, "^SHARE\t(%d+)\t(.+)$")
-  questID = math.floor(tonumber(questID) or 0)
-  title = trim(title)
-
-  if questID <= 0 or title == "" then
-    return nil
-  end
-
-  return questID, title
-end
-
-function Core.consumeSharedQuestOffer(offers, title, sourceName, now)
-  local remaining = {}
-  local matched
-  local wantedTitle = Core.normalizeSharedQuestTitle(title)
-  local wantedSender = Core.normalizeSharedQuestPlayerName(sourceName)
-  now = tonumber(now) or 0
-
-  if type(offers) ~= "table" then
-    return remaining, nil
-  end
-
-  for i = 1, #(offers) do
-    local offer = offers[i]
-    if type(offer) == "table" then
-      local expiresAt = tonumber(offer.expiresAt) or 0
-      local isFresh = expiresAt <= 0 or now <= expiresAt
-      local isMatch = not matched
-        and isFresh
-        and wantedTitle ~= ""
-        and wantedSender ~= ""
-        and Core.normalizeSharedQuestTitle(offer.title) == wantedTitle
-        and Core.normalizeSharedQuestPlayerName(offer.sender) == wantedSender
-
-      if isMatch then
-        matched = {
-          questID = tonumber(offer.questID) or 0,
-          title = trim(offer.title),
-          sender = trim(offer.sender),
-          expiresAt = expiresAt,
-        }
-      elseif isFresh then
-        table.insert(remaining, {
-          questID = tonumber(offer.questID) or 0,
-          title = trim(offer.title),
-          sender = trim(offer.sender),
-          expiresAt = expiresAt,
-        })
-      end
-    end
-  end
-
-  return remaining, matched
 end
 
 AutoCallboardCore = Core

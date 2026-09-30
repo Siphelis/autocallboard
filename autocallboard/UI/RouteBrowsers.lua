@@ -32,7 +32,7 @@ local function OpenCategoryField(field)
 end
 
 local function BrowserWindow(name, titleKey, point, relativePoint, x)
-  return function(width, height)
+  return function(width, height, buttons)
     if not RT.routeWindow then
       RT.CreateRouteWindow()
     end
@@ -41,14 +41,10 @@ local function BrowserWindow(name, titleKey, point, relativePoint, x)
       width = width,
       height = height,
       titleKey = titleKey,
-      titleFont = "GameFontNormalSmall",
-      titleAt = "TOPLEFT",
-      titleX = 12,
-      titleY = -6,
-      close = true,
+      buttons = buttons,
+      point = { point, RT.routeWindow, relativePoint, x, 0 },
     })
 
-    window:SetPoint(point, RT.routeWindow, relativePoint, x, 0)
     RT.routeWindow:HookScript("OnHide", function()
       window:Hide()
       end)
@@ -62,7 +58,7 @@ local function AccountProfile()
 end
 
 local function RouteTooltip(row, route)
-  Skin.OpenTip(row, "ANCHOR_RIGHT", route.name)
+  EbonAPI.Bricks.tip(row, route.name or "")
   GameTooltip:AddLine(string.format(L.ROUTES_ROW_STEPS, #(route.steps)), 1, 1, 1)
 
   local playable, faction = Core.canPlayRoute(route, RT.PlayerFaction())
@@ -104,7 +100,7 @@ local routesBrowser = RT.BuildBrowser({
   rowTooltip = RouteTooltip,
   onRowClick = function(row, route, mouseButton)
     if mouseButton == "RightButton" then
-      RT.ShowRouteMenu(row, route, RT.routesBrowser.Window())
+      RT.ShowRouteMenu(row, route)
     else
       RT.ToggleLoadedRoute(route.id)
     end
@@ -211,7 +207,7 @@ local libraryBrowser = RT.BuildBrowser({
   rowTooltip = function(row, item)
     local state = LibraryState(item)
 
-    Skin.OpenTip(row, "ANCHOR_RIGHT", item.entry.name)
+    EbonAPI.Bricks.tip(row, item.entry.name or "")
     GameTooltip:AddLine(state == "available" and L.LIBRARY_ROW_HINT
       or state == "owned" and L.LIBRARY_ROW_OWNED
       or L.LIBRARY_ROW_UNAVAILABLE, 1, 1, 1)

@@ -56,14 +56,14 @@ end
 
 local pending
 local button
-local statusText
 local pendingConfig
 local pendingHide
-local eventFrame
+local events
 local sequenceWatched = false
-local combatWatched = false
+local combatQueued = false
 local nextQuestCheckAt
 local StopPending
+local FlushAfterCombat
 
 local function Log(message)
   local append = RT.AppendDebugLog
@@ -79,6 +79,18 @@ local function IsEnabled()
   end
 
   return AutoCallboardEternalsDB.enabled ~= false
+end
+
+RT.IsEternalsEnabled = IsEnabled
+
+function RT.SetEternalsEnabled(enabled)
+  AutoCallboardEternalsDB.enabled = enabled and true or false
+
+  if not enabled then
+    StopPending("desactive")
+  end
+
+  RT.RefreshOptions()
 end
 
 local function GetBinding()
@@ -129,31 +141,21 @@ local function CreateButton()
     return button
   end
 
-  button = CreateFrame("Button", BUTTON_NAME, UIParent, "SecureActionButtonTemplate")
-  button:SetWidth(150)
-  button:SetHeight(34)
-  button:SetPoint("CENTER", UIParent, "CENTER", 0, -150)
+  button = AutoCallboardSkin.Root(AutoCallboardSkin.MakeButton(UIParent, {
+    name = BUTTON_NAME,
+    secure = true,
+    point = { "CENTER", UIParent, "CENTER", 0, -150 },
+  }))
   button:SetMovable(true)
-  button:EnableMouse(true)
   button:RegisterForDrag("LeftButton")
   button:RegisterForClicks("LeftButtonUp")
   button:SetAttribute("type", "item")
 
-  if button.SetBackdrop then
-    button:SetBackdrop(AutoCallboardSkin.BACKDROP)
-    button:SetBackdropColor(0.09, 0.05, 0.14, 0.92)
-    button:SetBackdropBorderColor(0.71, 0.55, 1, 1)
-  end
-
-  statusText = button:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-  statusText:SetPoint("CENTER", button, "CENTER", 0, 0)
-  statusText:SetTextColor(0.85, 0.78, 1, 1)
-
   button:SetScript("OnDragStart", function()
-    if not InCombatLockdown() and not RT.state.appearance.locked then button:StartMoving() end
+    if not InCombatLockdown() and not RT.IsInterfaceLocked() then button:StartMoving() end
   end)
   button:SetScript("OnDragStop", function() button:StopMovingOrSizing() end)
-  button:SetScript("OnMouseUp", function(_, mouseButton)
+  button:HookScript("OnMouseUp", function(_, mouseButton)
     if mouseButton == "RightButton" then
       StopPending("fermeture manuelle")
     end
@@ -182,33 +184,29 @@ local function ApplyBinding()
   end
 end
 
-local function WatchCombatEnd(enabled)
-  if not eventFrame or combatWatched == enabled then
+local function WaitCombatEnd()
+  if combatQueued then
     return
   end
 
-  combatWatched = enabled
-  local method = enabled and eventFrame.RegisterEvent or eventFrame.UnregisterEvent
-
-  method(eventFrame, "PLAYER_REGEN_ENABLED")
+  combatQueued = true
+  RT.api:AfterCombat(FlushAfterCombat)
 end
 
 local function WatchSequenceEvents(enabled)
-  if not eventFrame or sequenceWatched == enabled then
+  if not events or sequenceWatched == enabled then
     return
   end
 
   sequenceWatched = enabled
-  local method = enabled and eventFrame.RegisterEvent or eventFrame.UnregisterEvent
-
-  method(eventFrame, "BAG_UPDATE")
-  pcall(method, eventFrame, "UNIT_SPELLCAST_SUCCEEDED")
+  events:Watch("BAG_UPDATE", enabled)
+  pcall(events.Watch, events, "UNIT_SPELLCAST_SUCCEEDED", enabled)
 end
 
 local function HideButton()
   if InCombatLockdown and InCombatLockdown() then
     pendingHide = true
-    WatchCombatEnd(true)
+    WaitCombatEnd()
     Log("masquage reporte (combat)")
     return false
   end
@@ -228,7 +226,7 @@ local function ConfigureButton(entry, step)
 
   if InCombatLockdown and InCombatLockdown() then
     pendingConfig = { entry = entry, step = step }
-    WatchCombatEnd(true)
+    WaitCombatEnd()
     Log("config reportee (combat) element=" .. EntryLabel(entry) .. " step=" .. tostring(step))
     Error(string.format(L.ETERNALS_CONVERSION_WAITING_COMBAT, EntryItemName(entry)))
     return false
@@ -241,9 +239,7 @@ local function ConfigureButton(entry, step)
   button:SetAttribute("type", "item")
   button:SetAttribute("item", ItemUseName(itemID))
 
-  if statusText then
-    statusText:SetText(string.format(L.ETERNALS_BUTTON_STATUS, GetBinding(), EntryLabel(entry), step))
-  end
+  button:SetText(string.format(L.ETERNALS_BUTTON_STATUS, GetBinding(), EntryLabel(entry), step))
 
   button:Show()
   ApplyBinding()
@@ -251,6 +247,20 @@ local function ConfigureButton(entry, step)
   Log("bouton arme element=" .. EntryLabel(entry) .. " step=" .. tostring(step) .. " item=" .. tostring(itemID))
 
   return true
+end
+
+FlushAfterCombat = function()
+  combatQueued = false
+
+  local config = pendingConfig
+  pendingConfig = nil
+
+  if config and pending then
+    pendingHide = nil
+    ConfigureButton(config.entry, config.step)
+  elseif pendingHide and HideButton() then
+    WatchSequenceEvents(false)
+  end
 end
 
 StopPending = function(reason)
@@ -268,7 +278,6 @@ StopPending = function(reason)
 
   if HideButton() then
     WatchSequenceEvents(false)
-    WatchCombatEnd(false)
   end
 end
 
@@ -315,13 +324,13 @@ local function MatchSpell(spellName, spellID)
 end
 
 function RT.RefreshEternalLabels()
-  if pending and statusText then
-    statusText:SetText(string.format(L.ETERNALS_BUTTON_STATUS, GetBinding(), EntryLabel(pending.entry), pending.step))
+  if pending and button then
+    button:SetText(string.format(L.ETERNALS_BUTTON_STATUS, GetBinding(), EntryLabel(pending.entry), pending.step))
   end
 end
 
 local function FindQuestInLog(questID, title, preferredIndex)
-  if questID > 0 and RT.FindQuestLogIndexByID then
+  if questID > 0 then
     local index = RT.FindQuestLogIndexByID(questID, preferredIndex)
     if index then
       return index
@@ -329,7 +338,7 @@ local function FindQuestInLog(questID, title, preferredIndex)
   end
 
   local normalized = Core.normalizeMatchText(title or "")
-  if normalized == "" or not GetNumQuestLogEntries or not RT.GetQuestLogEntryInfo then
+  if normalized == "" or not GetNumQuestLogEntries then
     return nil
   end
 
@@ -407,7 +416,7 @@ function RT.HandleEternalQuest()
 
   local text = accepted.title or ""
 
-  if text == "" and accepted.questLogIndex and RT.GetQuestLogEntryInfo then
+  if text == "" and accepted.questLogIndex then
     local info = RT.GetQuestLogEntryInfo(accepted.questLogIndex)
     if type(info) == "table" then
       text = info.title or ""
@@ -447,32 +456,29 @@ function RT.HandleEternalQuest()
   Log("eternals: close hint shown")
 end
 
-eventFrame = CreateFrame("Frame")
-
-eventFrame:SetScript("OnEvent", function(_, event, arg1, arg2, arg3, arg4, arg5)
+local function OnEvent(event, arg1, arg2, arg3, arg4, arg5)
   if event == "ADDON_LOADED" then
     if arg1 == "AutoCallboard" then
-      eventFrame:UnregisterEvent("ADDON_LOADED")
+      events:Unlisten("ADDON_LOADED")
 
       if type(AutoCallboardEternalsDB) ~= "table" then
         AutoCallboardEternalsDB = { enabled = true, binding = DEFAULT_BINDING }
       end
 
-      CreateButton()
+      RT.api:On("READY", function()
+        if InCombatLockdown() then
+          RT.api:AfterCombat(CreateButton)
+        else
+          CreateButton()
+        end
+      end)
 
       SLASH_AUTOCALLBOARDETERNALS1 = "/acbe"
       SlashCmdList.AUTOCALLBOARDETERNALS = function(input)
         local command = string.lower(input or "")
         command = command:gsub("^%s+", ""):gsub("%s+$", "")
 
-        if command == "on" then
-          AutoCallboardEternalsDB.enabled = true
-        elseif command == "off" then
-          AutoCallboardEternalsDB.enabled = false
-          StopPending("desactive")
-        elseif command == "stop" then
-          StopPending("arret manuel")
-        elseif string.find(command, "^bind ") then
+        if string.find(command, "^bind ") then
           local key = string.upper(command:gsub("^bind%s+", ""))
           if key ~= "" then
             AutoCallboardEternalsDB.binding = key
@@ -480,35 +486,10 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1, arg2, arg3, arg4, arg5)
               ConfigureButton(pending.entry, pending.step)
             end
           end
-        elseif command == "reset" then
-          if button then
-            button:ClearAllPoints()
-            button:SetPoint("CENTER", UIParent, "CENTER", 0, -150)
-          end
         else
-          Print(string.format(L.ETERNALS_STATUS, IsEnabled() and L.STATE_ACTIVE or L.STATE_INACTIVE, GetBinding()))
-          Print(L.ETERNALS_USAGE)
-          Print(L.ETERNALS_CLOSE_HINT)
+          Print(L.CORE_UNKNOWN_COMMAND)
         end
       end
-    end
-
-    return
-  end
-
-  if event == "PLAYER_REGEN_ENABLED" then
-    local config = pendingConfig
-    pendingConfig = nil
-
-    if config and pending then
-      pendingHide = nil
-      ConfigureButton(config.entry, config.step)
-    elseif pendingHide and HideButton() then
-      WatchSequenceEvents(false)
-    end
-
-    if not pending and not pendingHide and not pendingConfig then
-      WatchCombatEnd(false)
     end
 
     return
@@ -556,6 +537,7 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1, arg2, arg3, arg4, arg5)
 
     return
   end
-end)
+end
 
-eventFrame:RegisterEvent("ADDON_LOADED")
+events = RT.NewEventRelay(OnEvent)
+events:Listen("ADDON_LOADED")

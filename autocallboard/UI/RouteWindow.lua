@@ -4,34 +4,25 @@ local L = AutoCallboardLocale
 local RT = AutoCallboardRuntime
 local Error = RT.Error
 
-local WINDOW_WIDTH = 320
-local ROW_HEIGHT = 20
+local CONTENT_WIDTH = 300
 local ROW_GAP = 2
 local VISIBLE_ROWS = 16
-local TOP_STRIP = 26
-local TOOLBAR_HEIGHT = 26
-local EDGE = 10
+local TOOLBAR_GAP = 6
+local GROUP_GAP = 8
+local ROW_RIGHT = 4
+local EMPTY_GAP = 4
 local INDENT = 12
-
-local BODY_TOP = TOP_STRIP + TOOLBAR_HEIGHT
-local BODY_HEIGHT = VISIBLE_ROWS * (ROW_HEIGHT + ROW_GAP)
-local WINDOW_HEIGHT = BODY_TOP + BODY_HEIGHT + EDGE
 
 local WINDOW_NAME = "AutoCallboardRouteWindow"
 
-local COMPACT_WIDTH = 260
-local COMPACT_HEIGHT = TOP_STRIP + ROW_HEIGHT + EDGE
+local COMPACT_WIDTH = 240
 local COMPACT_STRATA = "FULLSCREEN_DIALOG"
 local FULL_STRATA = "HIGH"
-
-local TRANSPORT_WIDTH = 26
-local TRANSPORT_HEIGHT = 20
-local TRANSPORT_GAP = 4
-local BROWSER_BUTTON_WIDTH = 90
 local ICON_RECORD = [[Interface\AddOns\AutoCallboard\Media\Record]]
 local ICON_PLAY = [[Interface\AddOns\AutoCallboard\Media\Play]]
 local ICON_SKIP = [[Interface\AddOns\AutoCallboard\Media\Skip]]
 local ICON_STOP = [[Interface\AddOns\AutoCallboard\Media\Stop]]
+local ICON_LOOP = [[Interface\AddOns\AutoCallboard\Media\Loop]]
 local RECORD_RED = { 0.86, 0.16, 0.16, 1 }
 
 local RECORD_TIP = { tipTitle = "ROUTE_BUTTON_RECORD", tipBody = "ROUTE_BUTTON_RECORD_TOOLTIP" }
@@ -40,7 +31,7 @@ local PLAY_TIP = { tipTitle = "ROUTE_BUTTON_PLAY", tipBody = "ROUTE_BUTTON_PLAY_
 local PLAY_STOP_TIP = { tipTitle = "ROUTE_BUTTON_PLAY_STOP", tipBody = "ROUTE_BUTTON_PLAY_STOP_TOOLTIP" }
 local SKIP_TIP = { tipTitle = "ROUTE_BUTTON_SKIP", tipBody = "ROUTE_BUTTON_SKIP_TOOLTIP" }
 
-RT.ROUTE_ICONS = { record = ICON_RECORD, play = ICON_PLAY, skip = ICON_SKIP, stop = ICON_STOP }
+RT.ROUTE_ICONS = { record = ICON_RECORD, play = ICON_PLAY, skip = ICON_SKIP, stop = ICON_STOP, loop = ICON_LOOP }
 
 local routeWindow
 local rows = {}
@@ -298,13 +289,10 @@ local function RequestOverwriteRoute(route)
   })
 end
 
-local function EnsureMenu(owner)
+local function EnsureMenu()
   if not RT.routeContextMenu then
     RT.routeContextMenu = Skin.Menu("AutoCallboardRouteContextMenu")
-    RT.routeContextMenu:SetAutoClose(true)
   end
-
-  RT.routeContextMenu:CloseWhenHidden(owner or routeWindow)
 
   return RT.routeContextMenu
 end
@@ -430,8 +418,8 @@ BuildRouteMenu = function(menu, route)
   menu:Layout()
 end
 
-function RT.ShowRouteMenu(row, route, owner)
-  local menu = EnsureMenu(owner)
+function RT.ShowRouteMenu(row, route)
+  local menu = EnsureMenu()
   BuildRouteMenu(menu, route)
   menu:OpenAt(row, "TOPLEFT", "TOPRIGHT", 4, 2)
 end
@@ -545,15 +533,12 @@ local function Scroll(delta)
 end
 
 local function CreateRow(index)
-  local row = Skin.Row(routeWindow, "AutoCallboardRouteRow" .. index, ROW_HEIGHT,
-      "LeftButtonUp", "RightButtonUp")
+  local row = Skin.Row(routeWindow.content, "AutoCallboardRouteRow" .. index, "LeftButtonUp", "RightButtonUp")
 
   row:SetScript("OnClick", OnRowClick)
-  row:SetScript("OnEnter", function(self)
-    Skin.PaintRow(self, self.selected, true)
-
+  row:HookScript("OnEnter", function(self)
     if self.entry and self.entry.text and self.entry.text ~= "" then
-      Skin.OpenTip(self, "ANCHOR_RIGHT", self.entry.text)
+      EbonAPI.Bricks.tip(self, self.entry.text)
 
       if self.entry.kind == "step" or self.entry.kind == "action" then
         GameTooltip:AddLine(L.ROUTE_ROW_PLAY_HINT, 1, 1, 1)
@@ -562,8 +547,7 @@ local function CreateRow(index)
       GameTooltip:Show()
     end
     end)
-  row:SetScript("OnLeave", function(self)
-    Skin.PaintRow(self, self.selected, false)
+  row:HookScript("OnLeave", function()
     GameTooltip:Hide()
     end)
   row:EnableMouseWheel(true)
@@ -573,6 +557,18 @@ local function CreateRow(index)
 end
 
 local Toggle = RT.ShowIf
+
+local function BodyTop()
+  return math.max(routeWindow.transport:GetHeight(), routeWindow.browsers:GetHeight()) + TOOLBAR_GAP
+end
+
+local function RowStride()
+  return rows[1]:GetHeight() + ROW_GAP
+end
+
+local function ContentWidth()
+  return math.max(CONTENT_WIDTH, routeWindow.transport:GetWidth() + GROUP_GAP + routeWindow.browsers:GetWidth())
+end
 
 local function CompactLine()
   if RT.IsPlayingRoute() then
@@ -620,9 +616,9 @@ local function RefreshCompact()
   row.selected = false
   row.title:SetText(line)
   row:ClearAllPoints()
-  row:SetPoint("TOPLEFT", routeWindow, "TOPLEFT", EDGE, -TOP_STRIP)
-  row:SetPoint("RIGHT", routeWindow, "RIGHT", -EDGE, 0)
-  Skin.PaintRow(row, false, false)
+  row:SetPoint("TOPLEFT", routeWindow.content, "TOPLEFT", 0, 0)
+  row:SetPoint("RIGHT", routeWindow.content, "RIGHT", 0, 0)
+  Skin.PaintRow(row, false)
   row:Show()
 
   Toggle(routeWindow.emptyLabel, false)
@@ -630,19 +626,17 @@ local function RefreshCompact()
   Toggle(routeWindow.scrollDown, false)
   Toggle(routeWindow.playButton, false)
   Toggle(routeWindow.skipButton, false)
+  Toggle(routeWindow.loopButton, false)
   Toggle(routeWindow.routesButton, false)
   Toggle(routeWindow.libraryButton, false)
   Toggle(routeWindow.recordButton, false)
 
-  routeWindow:SetWidth(COMPACT_WIDTH)
-  routeWindow:SetHeight(COMPACT_HEIGHT)
+  Skin.SizeWindow(routeWindow, COMPACT_WIDTH, row:GetHeight())
   routeWindow:SetFrameStrata(COMPACT_STRATA)
 end
 
 function RT.RefreshRouteWindow()
-  if RT.RefreshRouteBrowsers then
-    RT.RefreshRouteBrowsers()
-  end
+  RT.RefreshRouteBrowsers()
 
   if not routeWindow or not routeWindow:IsShown() then
     return
@@ -657,14 +651,19 @@ function RT.RefreshRouteWindow()
     return
   end
 
-  routeWindow:SetWidth(WINDOW_WIDTH)
-  routeWindow:SetHeight(WINDOW_HEIGHT)
   routeWindow:SetFrameStrata(FULL_STRATA)
   Toggle(routeWindow.playButton, true)
   Toggle(routeWindow.skipButton, true)
+  Toggle(routeWindow.loopButton, true)
   Toggle(routeWindow.routesButton, true)
   Toggle(routeWindow.libraryButton, true)
   Toggle(routeWindow.recordButton, true)
+  routeWindow.transport:Layout()
+  routeWindow.browsers:Layout()
+
+  local bodyTop, stride = BodyTop(), RowStride()
+
+  Skin.SizeWindow(routeWindow, ContentWidth(), bodyTop + VISIBLE_ROWS * stride)
 
   entries = BuildEntries()
 
@@ -702,10 +701,9 @@ function RT.RefreshRouteWindow()
       row.selected = current or entry.kind == "route"
       row.title:SetText(RowText(entry, current))
       row:ClearAllPoints()
-      row:SetPoint("TOPLEFT", routeWindow, "TOPLEFT", EDGE + entry.depth * INDENT,
-        -(BODY_TOP + (i - 1) * (ROW_HEIGHT + ROW_GAP)))
-      row:SetPoint("RIGHT", routeWindow, "RIGHT", -(EDGE + 4), 0)
-      Skin.PaintRow(row, row.selected, false)
+      row:SetPoint("TOPLEFT", routeWindow.content, "TOPLEFT", entry.depth * INDENT, -(bodyTop + (i - 1) * stride))
+      row:SetPoint("RIGHT", routeWindow.content, "RIGHT", -ROW_RIGHT, 0)
+      Skin.PaintRow(row, row.selected)
       row:Show()
     end
   end
@@ -722,106 +720,100 @@ function RT.RefreshRouteWindow()
   SetTransport(routeWindow.playButton, playing, ICON_PLAY, nil, PLAY_TIP, PLAY_STOP_TIP,
     playing or (not recording and activeId ~= nil))
   RT.SetButtonEnabled(routeWindow.skipButton, currentBlock ~= nil)
+  Skin.SetButtonSelected(routeWindow.loopButton, RT.IsRouteLooping())
 end
 
 function RT.CreateRouteWindow()
   routeWindow = Skin.Window(WINDOW_NAME, {
-    width = WINDOW_WIDTH,
-    height = WINDOW_HEIGHT,
+    width = CONTENT_WIDTH,
+    height = CONTENT_WIDTH,
     titleKey = "ROUTE_WINDOW_TITLE",
-    titleFont = "GameFontNormalSmall",
-    titleAt = "TOPLEFT",
-    titleX = 12,
-    titleY = -9,
-    close = true,
     noEsc = true,
     movable = true,
+    point = { "CENTER", UIParent, "CENTER", 0, 0 },
+    buttons = {
+      {
+        onClick = function()
+          RT.SetRouteWindowCompact(not RT.IsRouteWindowCompact())
+          end,
+        tipTitle = "ROUTE_BUTTON_COMPACT",
+        tipBody = "ROUTE_BUTTON_COMPACT_TOOLTIP",
+      },
+    },
   })
 
   RT.routeWindow = routeWindow
+  local content = routeWindow.content
 
   routeWindow.closeButton:HookScript("OnClick", function()
     RT.SetRouteWindowOpen(false)
     end)
 
-  routeWindow.compactButton = Skin.MakeButton(routeWindow, {
-    width = 22,
-    height = 18,
-    textKey = "ROUTE_BUTTON_COMPACT",
-    points = { { "TOPRIGHT", routeWindow, "TOPRIGHT", -26, -5 } },
-    onClick = function()
-      RT.SetRouteWindowCompact(not RT.IsRouteWindowCompact())
-      end,
-    tipTitle = "ROUTE_BUTTON_COMPACT",
-    tipBody = "ROUTE_BUTTON_COMPACT_TOOLTIP",
-  })
+  routeWindow.compactButton = routeWindow.headButtons[1]
+  routeWindow.compactButton:SetText(L.ROUTE_BUTTON_COMPACT)
 
-  routeWindow.recordButton = Skin.MakeButton(routeWindow, {
-    width = TRANSPORT_WIDTH,
-    height = TRANSPORT_HEIGHT,
+  routeWindow.transport = Skin.ButtonRow(content, { point = { "TOPLEFT", content, "TOPLEFT", 0, 0 } })
+  routeWindow.browsers = Skin.ButtonRow(content, { point = { "TOPRIGHT", content, "TOPRIGHT", 0, 0 } })
+
+  routeWindow.recordButton = Skin.MakeButton(routeWindow.transport, {
     icon = ICON_RECORD,
     iconColor = RECORD_RED,
-    points = { { "TOPLEFT", routeWindow, "TOPLEFT", EDGE, -TOP_STRIP } },
     onClick = ToggleRecording,
     tipTitle = RECORD_TIP.tipTitle,
     tipBody = RECORD_TIP.tipBody,
   })
 
-  routeWindow.playButton = Skin.MakeButton(routeWindow, {
-    width = TRANSPORT_WIDTH,
-    height = TRANSPORT_HEIGHT,
+  routeWindow.playButton = Skin.MakeButton(routeWindow.transport, {
     icon = ICON_PLAY,
-    points = { { "LEFT", routeWindow.recordButton, "RIGHT", TRANSPORT_GAP, 0 } },
     onClick = function() RT.ToggleRoutePlayback() end,
     tipTitle = PLAY_TIP.tipTitle,
     tipBody = PLAY_TIP.tipBody,
   })
 
-  routeWindow.skipButton = Skin.MakeButton(routeWindow, {
-    width = TRANSPORT_WIDTH,
-    height = TRANSPORT_HEIGHT,
+  routeWindow.skipButton = Skin.MakeButton(routeWindow.transport, {
     icon = ICON_SKIP,
-    points = { { "LEFT", routeWindow.playButton, "RIGHT", TRANSPORT_GAP, 0 } },
     onClick = function() RT.SkipRouteBlock() end,
     tipTitle = SKIP_TIP.tipTitle,
     tipBody = SKIP_TIP.tipBody,
   })
 
-  routeWindow.libraryButton = Skin.MakeButton(routeWindow, {
-    width = BROWSER_BUTTON_WIDTH,
-    height = TRANSPORT_HEIGHT,
+  routeWindow.loopButton = Skin.MakeButton(routeWindow.transport, {
+    icon = ICON_LOOP,
+    onClick = function() RT.SetRouteLooping(not RT.IsRouteLooping()) end,
+    tipTitle = "ROUTE_BUTTON_LOOP",
+    tipBody = "ROUTE_BUTTON_LOOP_TOOLTIP",
+  })
+
+  routeWindow.routesButton = Skin.MakeButton(routeWindow.browsers, {
+    textKey = "ROUTES_BROWSER_TITLE",
+    onClick = function() RT.ToggleRoutesWindow() end,
+    tipKey = "ROUTES_BUTTON_TOOLTIP",
+  })
+
+  routeWindow.libraryButton = Skin.MakeButton(routeWindow.browsers, {
     textKey = "LIBRARY_BUTTON",
-    points = { { "TOPRIGHT", routeWindow, "TOPRIGHT", -EDGE, -TOP_STRIP } },
     onClick = function() RT.ToggleLibraryWindow() end,
     tipTitle = "LIBRARY_WINDOW_TITLE",
     tipBody = "LIBRARY_BUTTON_TOOLTIP",
   })
 
-  routeWindow.routesButton = Skin.MakeButton(routeWindow, {
-    width = BROWSER_BUTTON_WIDTH,
-    height = TRANSPORT_HEIGHT,
-    textKey = "ROUTES_BROWSER_TITLE",
-    points = { { "RIGHT", routeWindow.libraryButton, "LEFT", -TRANSPORT_GAP, 0 } },
-    onClick = function() RT.ToggleRoutesWindow() end,
-    tipTitle = "ROUTES_BROWSER_TITLE",
-    tipBody = "ROUTES_BUTTON_TOOLTIP",
+  routeWindow.scrollUp = Skin.MakeButton(content, {
+    text = "^",
+    points = { { "TOPRIGHT", content, "TOPRIGHT", 0, -BodyTop() } },
+    onClick = function() Scroll(-1) end,
   })
-
-  routeWindow.scrollUp = CreateFrame("Button", nil, routeWindow)
-  routeWindow.scrollUp:SetPoint("TOPRIGHT", routeWindow, "TOPRIGHT", -5, -BODY_TOP)
-  Skin.ScrollButton(routeWindow.scrollUp, "^")
-  routeWindow.scrollUp:SetScript("OnClick", function() Scroll(-1) end)
   routeWindow.scrollUp:Hide()
 
-  routeWindow.scrollDown = CreateFrame("Button", nil, routeWindow)
-  routeWindow.scrollDown:SetPoint("BOTTOMRIGHT", routeWindow, "BOTTOMRIGHT", -5, EDGE)
-  Skin.ScrollButton(routeWindow.scrollDown, "v")
-  routeWindow.scrollDown:SetScript("OnClick", function() Scroll(1) end)
+  routeWindow.scrollDown = Skin.MakeButton(content, {
+    text = "v",
+    points = { { "BOTTOMRIGHT", content, "BOTTOMRIGHT", 0, 0 } },
+    onClick = function() Scroll(1) end,
+  })
   routeWindow.scrollDown:Hide()
 
-  routeWindow.emptyLabel = routeWindow:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-  routeWindow.emptyLabel:SetPoint("TOPLEFT", routeWindow, "TOPLEFT", EDGE, -(BODY_TOP + 4))
-  routeWindow.emptyLabel:SetPoint("RIGHT", routeWindow, "RIGHT", -EDGE, 0)
+  routeWindow.emptyLabel = content:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  routeWindow.emptyLabel:SetPoint("TOPLEFT", content, "TOPLEFT", 0, -(BodyTop() + EMPTY_GAP))
+  routeWindow.emptyLabel:SetPoint("RIGHT", content, "RIGHT", 0, 0)
   routeWindow.emptyLabel:SetJustifyH("LEFT")
   RT.Localized(routeWindow.emptyLabel, "ROUTE_WINDOW_EMPTY")
   Skin.MutedText(routeWindow.emptyLabel)
@@ -834,7 +826,6 @@ function RT.CreateRouteWindow()
     rows[i]:Hide()
   end
 
-  routeWindow:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
   routeWindow:Hide()
 
   return routeWindow

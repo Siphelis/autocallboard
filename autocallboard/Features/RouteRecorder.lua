@@ -5,9 +5,7 @@ local L = AutoCallboardLocale
 local Log = RT.Log
 
 local function Refresh()
-  if RT.RefreshRouteWindow then
-    RT.RefreshRouteWindow()
-  end
+  RT.RefreshRouteWindow()
 end
 
 local REOPEN_GRACE = 1.5
@@ -427,8 +425,6 @@ local function AppendAction(action)
   return copy
 end
 
-RT.RecordRouteAction = AppendAction
-
 function RT.RecordRouteTravel(checkpointId)
   if not RT.IsRecordingRoute() then
     return nil
@@ -668,11 +664,9 @@ function RT.InstallRouteRecorderHooks()
     end
   end)
 
-  if type(RT.NoteQuestAbandoned) == "function" then
-    hooksecurefunc(RT, "NoteQuestAbandoned", function(title)
-      Expect("out", { title = title })
-    end)
-  end
+  hooksecurefunc(RT, "NoteQuestAbandoned", function(title)
+    Expect("out", { title = title })
+  end)
 
   RT.HookRouteCheckpointService()
 end
@@ -855,16 +849,10 @@ function RT.StartRoutePlayback(source, routeId, from)
     return false
   end
 
-  local alreadyPlaying = RT.IsPlayingRoute()
-
   RT.SetRoutePlaying(true)
   RT.WatchRouteQuestLog(true)
   RT.BeginRoutePlaybackRun(route, from)
   Log("route", "playback from ", tostring(from or 1), " source=", tostring(source), " route=", tostring(route.name))
-
-  if not alreadyPlaying then
-  end
-
   Refresh()
 
   return true
@@ -934,19 +922,19 @@ function RT.SetRouteWindowOpen(open)
 end
 
 function RT.IsRouteWindowCompact()
-  local entry = CharacterState()
-
-  return entry and entry.routeCompact and true or false
+  return CharacterFlag("routeCompact")
 end
 
 function RT.SetRouteWindowCompact(compact)
-  local entry = CharacterState()
+  SetCharacterFlag("routeCompact", compact)
+  Refresh()
+end
 
-  if not entry then
-    return
-  end
+function RT.IsRouteLooping()
+  return CharacterFlag("routeLoop")
+end
 
-  entry.routeCompact = compact and true or false
-  RT.TouchState()
+function RT.SetRouteLooping(loop)
+  SetCharacterFlag("routeLoop", loop)
   Refresh()
 end

@@ -351,19 +351,3 @@ function Core.restoreQuestState(savedState, questBackup)
 
   return state
 end
-
-function Core.resetSettingsPreservingQuestState(currentState)
-  local current = Core.mergeState(currentState)
-  local reset = Core.defaultState()
-
-  reset.knownQuests = Core.copyQuestList(current.knownQuests)
-  reset.desiredQuests = Core.copyDesiredMap(current.desiredQuests)
-  reset.characterProfiles = Core.copyCharacterProfiles(current.characterProfiles)
-  reset.accountProfile = Core.copyAccountProfile(current.accountProfile)
-  reset.routeLibrary = Core.copyRouteLibrary(current.routeLibrary)
-  reset.characterState = Core.copyCharacterStateMap(current.characterState)
-  reset.migratedCharacters = Core.copyDesiredMap(current.migratedCharacters)
-  reset.accountListSeeded = current.accountListSeeded == true
-
-  return reset
-end

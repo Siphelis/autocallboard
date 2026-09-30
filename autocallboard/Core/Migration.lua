@@ -92,10 +92,7 @@ function RT.SetActiveSelectionId(id)
   if entry and entry.activeSelectionId ~= id then
     entry.activeSelectionId = id
     RT.TouchState()
-
-    if RT.RefreshQuestWindow then
-      RT.RefreshQuestWindow()
-    end
+    RT.RefreshQuestWindow()
   end
 end
 
@@ -124,11 +121,7 @@ local function FinishMigration(key, characterProfile, idMap, groupId)
   state.characterState[key] = Core.buildMigratedCharacterState(characterProfile, idMap, groupId)
   MarkMigrated(key)
   RT.ApplyCharacterState()
-
-  if RT.RefreshListsWindow then
-    RT.RefreshListsWindow()
-  end
-
+  RT.RefreshListsWindow()
   RT.RefreshQuestWindow()
 end
 
@@ -163,11 +156,7 @@ local function DiscardCharacterSelections(key, characterProfile)
   state.characterState[key] = { desiredQuests = {}, activeSelectionId = nil, openGroupId = nil }
   MarkMigrated(key)
   RT.ApplyCharacterState()
-
-  if RT.RefreshListsWindow then
-    RT.RefreshListsWindow()
-  end
-
+  RT.RefreshListsWindow()
   RT.RefreshQuestWindow()
   Log("migration", "discarded ", Core.characterSelectionCount(characterProfile), " collection(s) from ", key)
 end

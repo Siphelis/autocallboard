@@ -1,6 +1,5 @@
 local Core = AutoCallboardCore
 local Skin = AutoCallboardSkin
-local L = AutoCallboardLocale
 local RT = AutoCallboardRuntime
 
 local WINDOW_NAME = "AutoCallboardArrowGallery"
@@ -8,9 +7,7 @@ local COLUMNS = 5
 local TILE_W = 112
 local TILE_H = 124
 local TILE_GAP = 8
-local EDGE = 14
-local HEADER = 46
-local FOOTER = 32
+local FOOTER = 22
 local PREVIEW_W = 100
 local PREVIEW_H = 90
 local PREVIEW_TOP = 6
@@ -30,7 +27,6 @@ local function ApplySkin(id)
   appearance.arrowSkin = Core.sanitizeArrowSkin(id)
   RT.TouchState()
   RT.OnArrowSkinChanged()
-  RT.SyncArrowSkinSetting()
   RT.RefreshArrowGallery()
 end
 
@@ -42,6 +38,7 @@ function RT.BuildArrowTile(parent, skin, options)
   local top = options.bare and 0 or PREVIEW_TOP
 
   local tile = CreateFrame("Button", options.name, parent)
+  local surface = tile
 
   if options.bare then
     tile:SetWidth(boxWidth)
@@ -50,13 +47,14 @@ function RT.BuildArrowTile(parent, skin, options)
   else
     tile:SetWidth(TILE_W)
     tile:SetHeight(TILE_H)
-    Skin.Frame(tile, "soft")
+    surface = Skin.Backdrop(tile)
   end
 
   tile.skin = skin
 
   if skin.kind == "model" then
     tile.model = CreateFrame("PlayerModel", nil, tile)
+    tile.model:SetFrameLevel(surface:GetFrameLevel() + 1)
     tile.model:SetWidth(boxWidth)
     tile.model:SetHeight(boxHeight)
     tile.model:SetPoint("TOP", tile, "TOP", 0, -top)
@@ -70,16 +68,16 @@ function RT.BuildArrowTile(parent, skin, options)
     RT.DressArrowModel(tile.model, skin)
   else
     local width, height = RT.ArrowSheetSize(boxWidth)
-    tile.texture = tile:CreateTexture(nil, "ARTWORK")
+    tile.texture = surface:CreateTexture(nil, "ARTWORK")
     tile.texture:SetTexture(RT.ArrowSheetTexture())
     tile.texture:SetWidth(width)
     tile.texture:SetHeight(height)
     tile.texture:SetPoint("CENTER", tile, "TOP", 0, -(top + boxHeight / 2))
-    Skin.ApplyColor(tile.texture, "SetVertexColor", Skin.THEME.checkboxChecked)
+    Skin.ApplyColor(tile.texture, "SetVertexColor", "checked")
   end
 
   if not options.bare then
-    tile.label = tile:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    tile.label = surface:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     tile.label:SetPoint("BOTTOMLEFT", tile, "BOTTOMLEFT", 4, 6)
     tile.label:SetPoint("BOTTOMRIGHT", tile, "BOTTOMRIGHT", -4, 6)
     tile.label:SetJustifyH("CENTER")
@@ -92,10 +90,10 @@ function RT.BuildArrowTile(parent, skin, options)
       options.pick(self.skin.id)
       end)
     tile:SetScript("OnEnter", function(self)
-      Skin.PaintRow(self, self.selected, true)
+      Skin.Highlight(self.acbBox, "hover")
       end)
     tile:SetScript("OnLeave", function(self)
-      Skin.PaintRow(self, self.selected, false)
+      Skin.Highlight(self.acbBox, self.selected and "drop" or nil)
       end)
   end
 
@@ -125,7 +123,7 @@ end
 local function BuildTile(index)
   local skin = Core.arrowSkinAt(index)
 
-  local tile = RT.BuildArrowTile(gallery, skin, {
+  local tile = RT.BuildArrowTile(gallery.content, skin, {
     name = WINDOW_NAME .. "Tile" .. index,
     pick = ApplySkin,
   })
@@ -133,9 +131,9 @@ local function BuildTile(index)
   local column = math.fmod(index - 1, COLUMNS)
   local row = math.floor((index - 1) / COLUMNS)
 
-  tile:SetPoint("TOPLEFT", gallery, "TOPLEFT",
-    EDGE + column * (TILE_W + TILE_GAP),
-    -(HEADER + row * (TILE_H + TILE_GAP)))
+  tile:SetPoint("TOPLEFT", gallery.content, "TOPLEFT",
+    column * (TILE_W + TILE_GAP),
+    -(row * (TILE_H + TILE_GAP)))
 
   return tile
 end
@@ -151,7 +149,7 @@ function RT.RefreshArrowGallery()
   for i = 1, #(tiles) do
     local tile = tiles[i]
     tile.selected = tile.skin.id == current
-    Skin.PaintRow(tile, tile.selected, false)
+    Skin.Highlight(tile.acbBox, tile.selected and "drop" or nil)
   end
 end
 
@@ -176,22 +174,18 @@ function RT.CreateArrowGallery()
   local rows = math.ceil(count / COLUMNS)
 
   gallery = Skin.Window(WINDOW_NAME, {
-    width = EDGE * 2 + COLUMNS * TILE_W + (COLUMNS - 1) * TILE_GAP,
-    height = HEADER + rows * TILE_H + (rows - 1) * TILE_GAP + FOOTER,
+    width = COLUMNS * TILE_W + (COLUMNS - 1) * TILE_GAP,
+    height = rows * TILE_H + (rows - 1) * TILE_GAP + FOOTER,
     titleKey = "ARROW_GALLERY_TITLE",
-    titleFont = "GameFontNormalSmall",
-    titleAt = "TOPLEFT",
-    titleX = 12,
-    titleY = -12,
-    close = true,
     movable = true,
+    point = { "CENTER", UIParent, "CENTER", 0, 0 },
   })
 
   RT.arrowGallery = gallery
 
-  gallery.hint = gallery:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-  gallery.hint:SetPoint("BOTTOMLEFT", gallery, "BOTTOMLEFT", EDGE, 10)
-  gallery.hint:SetPoint("BOTTOMRIGHT", gallery, "BOTTOMRIGHT", -EDGE, 10)
+  gallery.hint = gallery.content:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  gallery.hint:SetPoint("BOTTOMLEFT", gallery.content, "BOTTOMLEFT", 0, 0)
+  gallery.hint:SetPoint("BOTTOMRIGHT", gallery.content, "BOTTOMRIGHT", 0, 0)
   gallery.hint:SetJustifyH("LEFT")
   RT.Localized(gallery.hint, "ARROW_GALLERY_HINT")
   Skin.MutedText(gallery.hint)
@@ -211,7 +205,6 @@ function RT.CreateArrowGallery()
     RT.UpdateArrowGalleryAngles()
     end)
 
-  gallery:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
   gallery:Hide()
 
   return gallery

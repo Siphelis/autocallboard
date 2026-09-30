@@ -32,14 +32,6 @@ function RT.ResetRoutePlayback()
   runStart = 1
 end
 
-function RT.ClearRouteProgress()
-  RT.ResetRoutePlayback()
-
-  if RT.StoreRouteCursor then
-    RT.StoreRouteCursor(0)
-  end
-end
-
 function RT.RouteLiveSignature(source, title)
   title = title or RT.RouteWindowTitle(source)
 
@@ -127,8 +119,6 @@ local function ApplyStepDifficulty(step)
   ApplyTier(step and step.difficulty)
 end
 
-RT.ApplyRouteTier = ApplyTier
-
 local function CheckPendingDifficulty()
   if not pendingDifficulty then
     return
@@ -156,9 +146,45 @@ local ACTION_CALLS = {
   turnin = { QuestFrameRewardPanel = "GetQuestReward" },
 }
 
-local function ReadyCall(action)
+local function OffersItsQuest(action)
+  local title = RT.NormalizeQuestTitle(action.title)
+
+  return title == "" or RT.NormalizeQuestTitle(RT.GetQuestOfferTitle()) == title
+end
+
+local function BindAcceptTitle(action, title)
+  if action and action.kind == "accept" and RT.NormalizeQuestTitle(action.title) == ""
+      and type(title) == "string" and title ~= "" then
+    action.title = title
+  end
+end
+
+local function PickedQuestTitle(action)
+  local available = RT.ReadLiveGossipQuests()
+  local picked = available[tonumber(action.index) or 0]
+
+  return picked and picked.title
+end
+
+local function LeftToPlayer(action)
   if action.kind == "confirm" then
-    return StaticPopup_Visible and StaticPopup_Visible("QUEST_ACCEPT") and "ConfirmAcceptQuest" or nil
+    return StaticPopup_Visible and (StaticPopup_Visible("QUEST_ACCEPT") or StaticPopup_Visible("QUEST_ACCEPT_LOG_FULL")) and true or false
+  end
+
+  if action.kind ~= "accept" or not RT.FrameIsVisibleOrShown(QuestFrameDetailPanel) then
+    return false
+  end
+
+  if RT.IsQuestOfferFromPlayer() or not OffersItsQuest(action) then
+    return true
+  end
+
+  return not action.anyGiver and not RT.IsQuestOfferFromNpc()
+end
+
+local function ReadyCall(action)
+  if action.kind == "confirm" or LeftToPlayer(action) then
+    return nil
   end
 
   for frameName, call in pairs(ACTION_CALLS[action.kind] or {}) do
@@ -190,8 +216,9 @@ end
 
 function RT.QueueRouteBlock(route, index)
   local step = route.steps[index]
+  local signature = Core.routeSignature(step)
 
-  if not step or Core.routeSignature(step) == "" then
+  if not step or signature == "" then
     return false
   end
 
@@ -201,11 +228,17 @@ function RT.QueueRouteBlock(route, index)
 
   ApplyStepDifficulty(step)
 
+  local anyGiver = signature == Core.ROUTE_WINDOW_SIGNATURE or (type(step.item) == "string" and step.item ~= "")
+  local offered = RT.FrameIsVisibleOrShown(QuestFrameDetailPanel) and RT.GetQuestOfferTitle() or nil
+
   for i = 1, #(step.actions) do
     local queued = Core.copyRouteAction(step.actions[i])
 
     if queued then
       queued.step = index
+
+      queued.anyGiver = anyGiver
+      BindAcceptTitle(queued, offered)
       table.insert(queue, queued)
     end
   end
@@ -353,6 +386,26 @@ function RT.OnRouteDialogueOpened(source, title)
   RT.QueueRouteBlock(route, index)
 end
 
+local function WaitsForPlayer(route)
+  for index = 1, #(route.steps) do
+    if route.steps[index].kind ~= "travel" then
+      return true
+    end
+  end
+
+  return false
+end
+
+local function FinishRoute()
+  local route = RT.GetActiveRoute()
+
+  if route and RT.IsRouteLooping() and WaitsForPlayer(route) and RT.StartRoutePlayback("loop", route.id, 1) then
+    return
+  end
+
+  RT.StopRoutePlayback("end")
+end
+
 function RT.ProcessRoutePlayback()
   if not RT.IsPlayingRoute() then
     return 1
@@ -361,6 +414,10 @@ function RT.ProcessRoutePlayback()
   CheckPendingDifficulty()
 
   if #(queue) == 0 then
+    if not pendingDifficulty and not RT.RouteCurrentBlock() then
+      FinishRoute()
+    end
+
     return 0.5
   end
 
@@ -382,6 +439,10 @@ function RT.ProcessRoutePlayback()
   local call = action.kind == "travel" or ReadyCall(action)
 
   if not call and not AlreadyDone(action) then
+    if LeftToPlayer(action) then
+      blockDeadline = now + BLOCK_TIMEOUT
+    end
+
     return ACTION_INTERVAL
   end
 
@@ -392,6 +453,10 @@ function RT.ProcessRoutePlayback()
     ApplyTier(action.difficulty)
     RT.UseRouteCheckpoint(action.checkpoint)
   elseif call then
+    if action.kind == "available" then
+      BindAcceptTitle(queue[1], PickedQuestTitle(action))
+    end
+
     RunAction(action, call)
   end
 
@@ -451,9 +516,7 @@ function RT.SetRouteCursor(index, start)
 end
 
 local function RememberCursor()
-  if RT.StoreRouteCursor then
-    RT.StoreRouteCursor(cursor, runStart)
-  end
+  RT.StoreRouteCursor(cursor, runStart)
 end
 
 RT.RememberRouteCursor = RememberCursor

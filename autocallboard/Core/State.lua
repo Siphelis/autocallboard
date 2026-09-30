@@ -57,7 +57,7 @@ local function SyncGoldTracker()
   end
 
   RT.trackedGoldAt = currentMoney
-  if delta > 0 and RT.RefreshGoldDisplay then RT.RefreshGoldDisplay() end
+  if delta > 0 then RT.RefreshGoldDisplay() end
   return math.max(delta, 0)
 end
 
@@ -72,7 +72,7 @@ local function FinalizeTrackedQuestSpend()
   tracker.trackedQuestCount = math.max(0, math.floor((tracker.trackedQuestCount or 0) + 1))
   tracker.lastQuestSpent = spent
   RT.trackedQuestSpend = 0
-  if RT.RefreshGoldDisplay then RT.RefreshGoldDisplay() end
+  RT.RefreshGoldDisplay()
 
   return spent
 end

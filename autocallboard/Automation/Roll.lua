@@ -45,15 +45,11 @@ local StartRolling
 local Log = RT.Log
 
 local function UpdateQuestWindow()
-  if RT.UpdateQuestWindow then
-    RT.UpdateQuestWindow()
-  end
+  RT.UpdateQuestWindow()
 end
 
 local function UpdateRollToggleButtons()
-  if RT.UpdateRollToggleButtons then
-    RT.UpdateRollToggleButtons()
-  end
+  RT.UpdateRollToggleButtons()
 end
 
 local signatureParts = {}
@@ -177,6 +173,14 @@ local function RequireActiveCallboard(action)
 end
 
 SetRollPause = function(reason, message)
+  if not rolling then
+    if message then
+      SetQuestStatus(message)
+    end
+
+    return
+  end
+
   if rollPausedReason == reason and rollPauseMessage == message then
     return
   end
@@ -219,12 +223,12 @@ RT.SetManualBoardOpenRequired = function(source)
 end
 
 local function StartSelectedQuestPause(quest, index)
-  if RT.LogRollNote then
-    RT.LogRollNote("questSelected", quest and quest.questId, Core.questTitle(quest))
-  end
-
   if not rolling or not quest then
     return
+  end
+
+  if RT.LogRollNote then
+    RT.LogRollNote("questSelected", quest.questId, Core.questTitle(quest))
   end
 
   local zoneOrSort, questType = Core.objectiveMetadata(quest)
@@ -491,7 +495,7 @@ local function SelectedQuestWasAbandoned()
     return false
   end
 
-  if selectedQuest.key and excludedQuests[selectedQuest.key] then
+  if selectedQuest.abandoned or (selectedQuest.key and excludedQuests[selectedQuest.key]) then
     return true
   end
 
@@ -512,7 +516,7 @@ local function ResumeAfterSelectedQuest(source)
   local abandoned = SelectedQuestWasAbandoned()
   local instanceSignature = selectedQuest and selectedQuest.instanceSignature
 
-  if not abandoned and not instanceSignature and selectedQuest and selectedQuest.key then
+  if not abandoned and selectedQuest and selectedQuest.key then
     local target = RT.RefreshCurrentInstanceQuestTarget("resume")
 
     if target and Core.questMatchesInstanceTarget(selectedQuest, target) then
@@ -645,7 +649,7 @@ local function SelectObjectiveIndex(index)
     if activeID ~= wantedID then
       Log("quest", "select skipped, objective already active id=", activeID)
       StartSelectedQuestPause(active)
-      return false
+      return false, "active", active
     end
   end
 
@@ -679,6 +683,7 @@ StopRolling = function(message)
   RT.rolling = false
   rollPausedReason = nil
   rollPauseMessage = nil
+  RT.ClearPendingAcceptUntil()
 
   if RT.listsWindow and RT.listsWindow:IsShown() then
     RT.RefreshListsWindow()
@@ -734,11 +739,16 @@ local function HandleMatch(match)
     end
   else
     if match.source == "currentInstance" and state and state.autoAccept then
-      RT.ArmQuestAccept()
       Log("instance", "matched current instance slot=", match.index, " alias=", match.matchedAlias or "none", " title=", title)
     end
 
-    if SelectObjectiveIndex(match.index) then
+    local selected, blocker, active = SelectObjectiveIndex(match.index)
+
+    if selected then
+      if match.source == "currentInstance" and state and state.autoAccept then
+        RT.ArmQuestAccept()
+      end
+
       if match.source == "currentInstance" and selectedQuest then
         selectedQuest.instanceSignature = RT.instanceTargetSignature
       end
@@ -749,6 +759,13 @@ local function HandleMatch(match)
 
       if RT.LogRoll then
         RT.LogRoll("select", match.index, GetCurrentObjectives())
+      end
+    elseif blocker == "active" then
+      RT.blockedMatchKey = matchKey
+      Log("quest", matchLabel, " not selected, another objective is active title=", title)
+
+      if not rolling then
+        SetQuestStatus(string.format(L.QUEST_FOUND_OTHER_OBJECTIVE_ACTIVE, matchLabel, title, RT.QuestLabel(active)))
       end
     else
       local shouldLogBlockedMatch = RT.blockedMatchKey ~= matchKey
@@ -1190,6 +1207,15 @@ function RT.ClearExcludedQuests()
   lastAbandonAt = nil
 end
 
+function RT.ClearVisitExclusions()
+  if selectedQuest and selectedQuest.key and excludedQuests[selectedQuest.key] then
+    selectedQuest.abandoned = true
+  end
+
+  excludedQuests = {}
+  satisfiedInstances = {}
+end
+
 function RT.ClearAbandonedQuestExclusions()
   excludedQuests = {}
   lastAbandonAt = nil
@@ -1245,7 +1271,4 @@ RT.ProcessRolling = ProcessRolling
 RT.RefreshQuestWindowIfNeeded = RefreshQuestWindowIfNeeded
 RT.WatchCurrentObjectives = WatchCurrentObjectives
 RT.CheckSelectedQuestProgress = CheckSelectedQuestProgress
-RT.SelectObjectiveIndex = SelectObjectiveIndex
 RT.ResumeAfterSelectedQuest = ResumeAfterSelectedQuest
-RT.RequireActiveCallboard = RequireActiveCallboard
-RT.BypassRerollConfirm = BypassRerollConfirm
