@@ -77,7 +77,7 @@ die Quests an, die Sie wollen, und es übernimmt das Würfeln.
 |---|---|
 | **Spiel** | World of Warcraft 3.3.5a auf dem Server **Ebonhold** |
 | **Integration** | ProjectEbonhold, im Ebonhold-Client enthalten |
-| **Erforderliches Addon** | [**EbonAPI**](https://github.com/Siphelis/EbonAPI), gemeinsam für die Ebonhold-Addons; AutoCallboard wird ohne es nicht geladen |
+| **Erforderliches Addon** | [**EbonAPI**](https://github.com/Siphelis/EbonAPI) **2.1 oder neuer**, gemeinsam für die Ebonhold-Addons; AutoCallboard wird ohne es nicht geladen |
 
 ## 📦 Installation
 

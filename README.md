@@ -69,7 +69,7 @@ and it does the rerolling for you.
 |---|---|
 | **Game** | World of Warcraft 3.3.5a on the **Ebonhold** server |
 | **Integration** | ProjectEbonhold, included with the Ebonhold client |
-| **Required addon** | [**EbonAPI**](https://github.com/Siphelis/EbonAPI), shared by the Ebonhold addons; AutoCallboard does not load without it |
+| **Required addon** | [**EbonAPI**](https://github.com/Siphelis/EbonAPI) **2.1 or newer**, shared by the Ebonhold addons; AutoCallboard does not load without it |
 
 ## 📦 Installation
 

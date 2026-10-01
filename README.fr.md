@@ -76,7 +76,7 @@ cochez les quêtes voulues et il se charge des relances.
 |---|---|
 | **Jeu** | World of Warcraft 3.3.5a sur le serveur **Ebonhold** |
 | **Intégration** | ProjectEbonhold, fourni avec le client Ebonhold |
-| **Addon requis** | [**EbonAPI**](https://github.com/Siphelis/EbonAPI), commun aux addons Ebonhold ; AutoCallboard ne se charge pas sans lui |
+| **Addon requis** | [**EbonAPI**](https://github.com/Siphelis/EbonAPI) **2.1 ou plus récent**, commun aux addons Ebonhold ; AutoCallboard ne se charge pas sans lui |
 
 ## 📦 Installation
 

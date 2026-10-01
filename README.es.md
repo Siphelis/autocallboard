@@ -74,7 +74,7 @@ misiones que desea y él se encarga de las tiradas.
 |---|---|
 | **Juego** | World of Warcraft 3.3.5a en el servidor **Ebonhold** |
 | **Integración** | ProjectEbonhold, incluido con el cliente de Ebonhold |
-| **Accesorio necesario** | [**EbonAPI**](https://github.com/Siphelis/EbonAPI), común a los accesorios de Ebonhold; AutoCallboard no se carga sin él |
+| **Accesorio necesario** | [**EbonAPI**](https://github.com/Siphelis/EbonAPI) **2.1 o posterior**, común a los accesorios de Ebonhold; AutoCallboard no se carga sin él |
 
 ## 📦 Instalación
 
