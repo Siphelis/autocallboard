@@ -5,7 +5,7 @@ local L = AutoCallboardLocale
 local RT = AutoCallboardRuntime
 local Print = RT.Print
 
-RT.api = EbonAPI:NewAddon("AutoCallboard", 0, 5, { icon = "Achievement_Quests_Completed_08" })
+RT.api = EbonAPI:NewAddon("AutoCallboard", 2, 1,{ icon = "Achievement_Quests_Completed_08" })
 
 local frame = CreateFrame("Frame")
 RT.eventFrame = frame

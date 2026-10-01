@@ -100,6 +100,14 @@ local function FormatMoney(copper)
   return table.concat(parts, " ")
 end
 
+local function SecondsRemaining(untilTime)
+  if not untilTime then
+    return 0
+  end
+
+  return math.max(0, untilTime - GetTime())
+end
+
 local function FormatSeconds(value)
   return tostring(math.floor(math.max(0, value or 0))) .. "s"
 end
@@ -492,7 +500,7 @@ RT.OpenLink = OpenLink
 RT.LinkTip = LinkTip
 RT.NormalizeCopper = NormalizeCopper
 RT.FormatMoney = FormatMoney
-RT.SecondsRemaining = EbonAPI.Format.secondsRemaining
+RT.SecondsRemaining = SecondsRemaining
 RT.FormatSeconds = FormatSeconds
 RT.RegisterSpecialFrame = RegisterSpecialFrame
 RT.ResolveFramePath = ResolveFramePath
