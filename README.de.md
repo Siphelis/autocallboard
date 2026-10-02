@@ -303,8 +303,8 @@ Tastenkürzel haben, im Tastenbelegungsmenü von World of Warcraft unter AutoCal
 - **Geschwindigkeit des Charakters anzeigen** *(aus)* — zeigt Ihre tatsächliche Geschwindigkeit
   unter den Knöpfen, als Prozentsatz der normalen Laufgeschwindigkeit. Reittier und alle aktiven
   Effekte sind eingerechnet, und im Stand steht dort 0 %.
-- **Update-Hinweis** — wird ein Spieler mit einer neueren Version entdeckt, erscheint eine
-  Nachricht in Ihrem Chat, und der Knopf **Update verfügbar** taucht auf dem Panel auf.
+- **Update-Hinweis** — wird ein Spieler mit einer neueren Version entdeckt, taucht der
+  Knopf **Update verfügbar** auf dem Panel auf. In Ihren Chat wird nichts geschrieben.
 
 ## 🔧 Einstellungen
 

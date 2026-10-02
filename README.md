@@ -269,8 +269,8 @@ menu, under AutoCallboard.
 - **Show character speed** *(off)* — shows your actual speed under the buttons, as a
   percentage of normal running speed. It counts your mount and every active effect, and reads
   0% when you stand still.
-- **Update notice** — when a player with a newer version is spotted, one message appears in
-  your chat and the **Update available** button shows up on the panel.
+- **Update notice** — when a player with a newer version is spotted, the
+  **Update available** button shows up on the panel. Nothing is written in your chat.
 
 ## 🔧 Settings
 

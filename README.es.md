@@ -290,7 +290,7 @@ teclas de World of Warcraft, bajo AutoCallboard.
   botones, como porcentaje de la velocidad normal de carrera. Cuenta su montura y todos los
   efectos activos, y marca 0 % cuando está parado.
 - **Aviso de actualización** — cuando se detecta a un jugador con una versión más reciente,
-  aparece un mensaje en su chat y el botón **Actualización disponible** se muestra en el panel.
+  el botón **Actualización disponible** se muestra en el panel. No se escribe nada en su chat.
 
 ## 🔧 Ajustes
 

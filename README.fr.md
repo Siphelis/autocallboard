@@ -298,8 +298,8 @@ sous AutoCallboard.
   boutons, en pourcentage de la vitesse de course normale. Elle tient compte de votre monture
   et de tous les effets actifs, et indique 0 % lorsque vous êtes immobile.
 - **Avis de mise à jour** — lorsqu'un joueur disposant d'une version plus récente est repéré,
-  un message apparaît dans votre discussion et le bouton **Mise à jour disponible** s'affiche
-  sur le panneau.
+  le bouton **Mise à jour disponible** s'affiche sur le panneau. Rien n'est écrit dans votre
+  discussion.
 
 ## 🔧 Réglages
 
